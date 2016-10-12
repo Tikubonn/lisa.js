@@ -1,0 +1,2984 @@
+
+// argumentstoarray
+
+function slice (sequence, beginning, end){
+    return Array.prototype.slice.call(sequence, beginning, end);
+}
+
+// unique class
+//     <- native, function class
+
+function Unique (){}
+
+// name gemerator class
+//     <- native, function class
+
+function NameGenerator (source){
+    this.source = source;
+    this.index = 0;
+}
+
+NameGenerator.prototype.generate = function (){
+    var name = "";
+    var index = this.index ++;
+    var source = this.source;
+    do {
+        name += source[index % source.length];
+        index = index / source.length | 0;
+    } while (index);
+    return name;
+};
+
+// name generator ignroe class
+//     <- native, function class
+
+function NameGeneratorIgnore (source, ignores){
+    this.source = source;
+    this.index = 0;
+    this.ignores = ignores;
+};
+
+NameGeneratorIgnore.prototype.generate = function (){
+    var name;
+    while (this.ignores.indexOf(
+        (name = NameGenerator.prototype.generate.call(this))) >= 0);
+    return name;
+};
+
+// // strace class
+// //     <- native, function class ** for debug
+
+// function Strace (){
+//     this.strace = [];
+// };
+
+// Strace.prototype.push = function (message){
+//     return this.strace.push(message);
+// };
+
+// Strace.prototype.pop = function (){
+//     return this.strace.pop();
+// };
+
+// Strace.prototype.willstrace = function (func){
+//     var that = this;
+//     return function willstrace_closure (){
+//         that.push("moco");
+//         var temp = func.apply(func, arguments);
+//         that.pop();
+//         return temp;
+//     };
+// };
+
+// Strace.prototype.print = function (){ // ** for debug
+//     var index;
+//     for (index = 0; index < this.strace.length; index++)
+//         console.log(this.strace[index]);
+// }
+
+// var strace = new Strace();
+
+// // memotize pair class
+// //     <- native, function class
+
+// function MemotizePairClass (argument, result){
+//     this.argument = argument;
+//     this.result = result;
+// }
+
+// MemotizePairClass.prototype.issame = function (sequence){
+//     if (this.argument.length != sequence.length) return false;
+//     for (var index = 0; index < sequence.length; index++)
+//         if (sequence[index] != this.argument[index])
+//             return false;
+//     return true;
+// };
+
+// // memotize class
+// //     <- native, function class
+
+// function MemotizeClass (func){
+//     this.memolist = [];
+//     this.func = func;
+// }
+
+// MemotizeClass.prototype.find = function (sequence){
+//     var index;
+//     for (index = 0; index < this.memolist.length; index++)
+//         if (this.memolist[index].issame(sequence))
+//             return this.memolist[index];
+//     return null;
+// };
+
+// MemotizeClass.prototype.add = function (pair){
+//     return this.memolist.push(pair);
+// };
+
+// MemotizeClass.prototype.funcall = function (){
+//     var found = this.find(arguments);
+//     if (found) return found.result;
+//     var result = this.func.apply(this.func, arguments);
+//     var pair = new MemotizePairClass(arguments, result);
+//     this.add(pair);
+//     return result;
+// };
+
+// MemotizeClass.prototype.apply = function (sequence){
+//     return this.call.apply(this, sequence);
+// };
+
+// constantable class
+//     <- native, function class
+
+function Constantable (){};
+
+Constantable.prototype.constantable = false;
+
+Constantable.prototype.const = function (){
+    this.constantable = true;
+    return this;
+};
+
+Constantable.prototype.notconst = function (){
+    this.constantable = false;
+    return this;
+};
+
+Constantable.prototype.inherit = function (constantable){
+    this.constantable = constantable.isconst();
+    return this;
+};
+
+Constantable.prototype.isconst = function (){
+    return this.constantable;
+};
+
+Constantable.prototype.isnotconst = function (){
+    return this.isconst() == false;
+};
+
+// evaluatable class
+//     <- constantable class
+
+function Evaluatable (){}
+
+Evaluatable.prototype = Object.create(Constantable.prototype);
+Evaluatable.prototype.onevaluate = null;
+Evaluatable.prototype.onevaluatearg = null;
+Evaluatable.prototype.onevaluatedata = null;
+
+function evaluate (some){
+    if (some instanceof Evaluatable == false)
+        throw new Error("" + some + " is not evaluatable");
+    return some.evaluate.apply(some, arguments);
+};
+
+function evaluatearg (some){
+    if (some instanceof Evaluatable == false)
+        throw new Error("" + some + " is not evaluatable");
+    return some.evaluatearg.apply(some, arguments);
+};
+
+function evaluatedata (some){
+    if (some instanceof Evaluatable == false)
+        throw new Error("" + some + " is not evaluatable");
+    return some.evaluatedata.apply(some, arguments);
+};
+
+function beforeevaluate (func){
+    return function beforeevaluate_closure (){
+        return func.apply(this, slice(arguments).map(evaluate));
+    };
+}
+
+function beforeevaluatearg (func){
+    return function beforeevaluatearg_closure (){
+        return func.apply(this, slice(arguments).map(evaluatearg));
+    };
+}
+
+function beforeevaluatedata (func){
+    return function beforeevaluatedata_closure (){
+        return func.apply(this, slice(arguments).map(evaluatedata));
+    };
+}
+
+function afterevaluate (func){
+    return function afterevaluate_closure (){
+        return func.apply(this, arguments).evaluate();
+    };
+}
+
+function afterevaluatearg (func){
+    return function afterevaluatearg_closure (){
+        return func.apply(this, arguments).evaluatearg();
+    };
+}
+
+function afterevaluatedata (func){
+    return function afterevaluatedata_closure (){
+        return func.apply(this, slice(arguments).map(evaluatedata));
+    };
+}
+
+Evaluatable.prototype.evaluate = function (){
+    if (this.onevaluate == null)
+        throw new Error("" + this + " onevaluate was not defined.");
+    return this.onevaluate.apply(this, arguments);
+};
+
+Evaluatable.prototype.evaluatearg  = function (){
+    if (this.onevaluatearg == null)
+        throw new Error("" + this + " onevaluatearg was not defined.");
+    return this.onevaluatearg();
+};
+
+Evaluatable.prototype.evaluatedata = function (){
+    if (this.onevaluatedata == null)
+        return this.evaluatearg();
+    return this.onevaluatedata();
+};
+
+Evaluatable.prototype.willevaluate = function (){
+    var that = this;
+    return function willevaluate_closure (){
+        return that.evaluate.apply(that, arguments);
+    };
+};
+
+Evaluatable.prototype.willevaluatearg = function (){
+    var that = this;
+    return function willevaluatearg_closure (){
+        return that.evaluatearg.apply(that, arguments);
+    };
+};
+
+Evaluatable.prototype.willevaluatedata = function (){
+    var that = this;
+    return function willevaluatedata_closure (){
+        return that.evaluatedata.apply(that, arguments);
+    };
+};
+
+// expandable class
+//     <- constantable class
+
+function Expandable (){}
+
+Expandable.prototype = Object.create(Evaluatable.prototype);
+Expandable.prototype.onexpand = null;
+Expandable.prototype.onexpandarg = null;
+Expandable.prototype.onexpanddata= null;
+
+function expand (some){
+    if (some instanceof Expandable == false)
+        throw new Error("" + some + " is not expandable");
+    return some.expand.apply(some, arguments);
+};
+
+function expandarg (some){
+    if (some instanceof Expandable == false)
+        throw new Error("" + some + " is not expandable");
+    return some.expandarg.apply(some, arguments);
+};
+
+function expanddata (some){
+    if (some instanceof Expandable == false)
+        throw new Error("" + some + " is not expandable");
+    return some.expanddata.apply(some, arguments);
+};
+
+function beforeexpand (func){
+    return function beforeexpand_closure (){
+        return func.apply(this, slice(arguments).map(expand));
+    };
+}
+
+function beforeexpandarg (func){
+    return function beforeexpandarg_closure (){
+        return func.apply(this, slice(arguments).map(expandarg));
+    };
+}
+
+function beforeexpanddata (func){
+    return function beforeexpanddata_closure (){
+        return func.apply(this, slice(arguments).map(expanddata));
+    };
+}
+
+function afterexpand (func){
+    return function afterexpand_closure (){
+        return func.apply(this, arguments).expand();
+    };
+}
+
+function afterexpandarg (func){
+    return function afterexpandarg_closure (){
+        return func.apply(this, arguments).expandarg();
+    };
+}
+
+function afterexpanddata (func){
+    return function afterexpanddata_closure (){
+        return func.apply(this, arguments).expanddata();
+    };
+}
+
+Expandable.prototype.expand = function (){
+    if (this.onexpand == null)
+        throw new Error("" + this + " onexpand was not defined.");
+    return this.onexpand.apply(this, arguments);
+};
+
+Expandable.prototype.expandarg = function (){
+    if (this.onexpandarg == null)
+        throw new Error("" + this + "onexpandarg was not defined.");
+    return this.onexpandarg();
+};
+
+Expandable.prototype.expanddata = function (){
+    if (this.onexpanddata == null)
+        return this.expandarg();
+    return this.onexpanddata();
+};
+
+Expandable.prototype.willexpand = function (){
+    var that = this;
+    return function willexpand_closure (){
+        return that.expand.apply(that, arguments);
+    };
+};
+
+Expandable.prototype.willexpandarg = function (){
+    var that = this;
+    return function willexpandarg_closure (){
+        return that.expandarg.apply(that, arguments);
+    };
+};
+
+Expandable.prototype.willexpanddata = function (){
+    var that = this;
+    return function willexpanddata_closure (){
+        return that.expanddata.apply(that, arguments);
+    };
+};
+
+// Expandable.prototype.expand = 
+//     strace.willstrace(Expandable.prototype.expand); // ** for debug
+
+// Expandable.prototype.expandarg = 
+//     strace.willstrace(Expandable.prototype.expandarg); // ** for debug
+
+// Expandable.prototype.expanddata = 
+//     strace.willstrace(Expandable.prototype.expanddata); // ** for debug
+
+// expanded class
+//     <- expandable class
+
+function Expanded (value){
+    this.value = value;
+}
+
+Expanded.prototype = 
+    Object.create(Expandable.prototype);
+
+Expanded.prototype.toString = function (){
+    return this.value;
+};
+
+Expanded.prototype.onevaluatearg = function (){
+    return this;
+};
+
+Expanded.prototype.onexpandarg = function () {
+    return this;
+};
+
+Expanded.prototype.unpack = function (){
+    return this.value;
+};
+
+function unpack (some){
+    if (some instanceof Expanded == false)
+        throw new Error("some is not expanded.");
+    return some.unpack();
+};
+
+// atom class
+//     <- expandable class
+
+function AtomClass (value){
+    this.value = value;
+}
+
+AtomClass.prototype = 
+    Object.create(Expandable.prototype);
+
+AtomClass.prototype.toString = function (){
+    return this.value.toString();
+};
+
+AtomClass.prototype.valueOf = function (){
+    return this.toString();
+};
+
+AtomClass.prototype.onevaluatearg = function (){
+    return this;
+};
+
+AtomClass.prototype.onevaluatedata = function (){
+    return this;
+};
+
+AtomClass.prototype.onexpandarg = function (){
+    return new Expanded(this.toString());
+};
+
+AtomClass.prototype.status = function (){
+    return true;
+};
+
+AtomClass.prototype.clone = function (){
+    return this;
+};
+
+function value (some){
+    if (some instanceof AtomClass == false) 
+        throw new Error("" + some + " is not atom class."); 
+    return some.value;
+}
+
+function tostring (some){
+    if (some instanceof AtomClass == false)
+        throw new Error("" + some + " is not atom class."); 
+    return some.toString();
+}
+
+function clone (some){
+    if (some instanceof AtomClass == false)
+        throw new Error("" + some + " is not atom class.");
+    return some.clone();
+}
+
+function beforeclone (func){
+    return function beforeclone_closure (){
+        return func.apply(func, slice(arguments).map(clone));
+    };
+}
+
+function afterclone (func){
+    return function afterclone_closure (){
+        return func.apply(func, arguments).clone();
+    };
+}
+
+// // result class
+// //     <- atom class
+
+// function ResultClass (value){
+//     this.value = value;
+// }
+
+// ResultClass.prototype = 
+//     Object.create(AtomClass.prototype);
+
+// ResultClass.prototype.toString = function (){
+//     return this.value.toString();
+// };
+
+// ResultClass.prototype.onevaluate = function (){
+//     return this.value.evaluate.apply(this.value, arguments);
+// };
+
+// ResultClass.prototype.onevaluatearg = function (){
+//     return this.value.evaluatedata();
+// };
+
+// ResultClass.prototype.onevaluatedata = function (){
+//     return this.value.evaluatedata();
+// };
+
+// ResultClass.prototype.onexpand = function (){
+//     return this.value.expand.apply(this.value, arguments);
+// };
+
+// ResultClass.prototype.onexpandarg = function (){
+//     return this.value.expandarg();
+// };
+
+// ResultClass.prototype.onexpanddata = function (){
+//     return this.value.expanddata();
+// };
+
+// boolean class
+//     <- atom class
+
+function BooleanClass (value){
+    this.value = value;
+}
+
+BooleanClass.prototype = 
+    Object.create(AtomClass.prototype);
+
+BooleanClass.prototype.status = function (){
+    return this.value;
+};
+
+var t = new BooleanClass(true);
+var f = new BooleanClass(false);
+
+// iteratable class
+//     <- atom class
+
+function IteratorClass (){}
+
+IteratorClass.prototype = 
+    Object.create(AtomClass.prototype);
+
+IteratorClass.prototype.isdie = function (){throw new Error("isdie was not defined.");};
+IteratorClass.prototype.isalive = function (){throw new Error("isalive was not defined.");};
+IteratorClass.prototype.next = function (){throw new Error("next was not defined.");};
+IteratorClass.prototype.count = function (){throw new Error("count was not defined.");};
+
+// iteration class
+//     <- iterator class
+
+function IterationClass (){}
+
+IterationClass.prototype.every = function (){};
+IterationClass.prototype.map = function (){};
+IterationClass.prototype.filter = function (){};
+IterationClass.prototype.reduce = function (){};
+IterationClass.prototype.findif = function (){};
+IterationClass.prototype.positionif = function (){};
+
+// array iteration class
+//     <- iteration class
+
+function ArrayIterationClass (array){
+    this.array = array;
+    this.index = 0;
+}
+
+// cons iterator class
+//     <- iterator class
+
+function ConsIteratorClass (cons){
+    this.index = 0;
+    this.value = cons;
+}
+
+ConsIteratorClass.prototype = 
+    Object.create(IteratorClass.prototype);
+
+ConsIteratorClass.prototype.isdie = function (){
+    return this.isalive() == false;
+};
+
+ConsIteratorClass.prototype.isalive = function (){
+    return this.value.status();
+};
+
+ConsIteratorClass.prototype.next = function (){
+    if (this.isdie()) return null;
+    var temp = this.value.car;
+    this.value = this.value.cdr;
+    this.index++;
+    return temp;
+};
+
+ConsIteratorClass.prototype.count = function (){
+    return this.index;
+};
+
+// array iterator class
+//     <- iterator class
+
+function ArrayIteratorClass (array){
+    this.index = 0;
+    this.value = array;
+}
+
+ArrayIteratorClass.prototype = 
+    Object.create(IteratorClass.prototype);
+
+ArrayIteratorClass.prototype.isdie = function (){
+    return this.isalive() == false;
+};
+
+ArrayIteratorClass.prototype.isalive = function (){
+    return this.index < this.value.length();
+};
+
+ArrayIteratorClass.prototype.next = function (){
+    if (this.isdie()) return null;
+    var temp = this.value.nth(this.index);
+    this.index++;
+    return temp;
+};
+
+ArrayIteratorClass.prototype.count = function (){
+    return this.index;
+};
+
+// reference class
+//     <- atom class
+
+function ReferenceClass (){}
+
+ReferenceClass.prototype = 
+    Object.create(AtomClass.prototype);
+
+ReferenceClass.prototype.toString = function (){
+    return this.get().toString();
+};
+
+ReferenceClass.prototype.get = function (){
+    throw new Error("get was not defined.");
+};
+
+ReferenceClass.prototype.set = function (){
+    throw new Error("set was not defined.");
+};
+
+ReferenceClass.prototype.onevaluatearg = function (){
+    return this.get();
+};
+
+ReferenceClass.prototype.onevaluate = null;
+ReferenceClass.prototype.onexpand = null;
+ReferenceClass.prototype.onexpandarg = null;
+
+// ReferenceClass.prototype.onexpandarg = function (){
+//     return this.get().expanddata();
+// };
+
+// array reference class 
+//     <- atom class
+
+function ArrayReferenceClass (value, index){
+    this.value = value || null;
+    this.index = index;
+}
+
+ArrayReferenceClass.prototype = 
+    Object.create(ReferenceClass.prototype);
+
+ArrayReferenceClass.prototype.get = function (){
+    return this.value.evaluatedata().get(this.index);
+};
+
+ArrayReferenceClass.prototype.set = function (value){
+    return this.value.evaluatedata().set(this.index, value);
+};
+
+ArrayReferenceClass.prototype.onexpanddata = function (){
+    return new Expanded(this.value.expanddata().unpack() + "[" + this.index + "]");
+};
+
+// ArrayReferenceClass.prototype.get = function (){
+//     return this.value.value[this.index];
+// };
+
+// ArrayReferenceClass.prototype.set = function (value){
+//     this.value.value[this.index] = value;
+//     return value;
+// };
+
+// cons reference class
+//     <- reference class
+
+function ConsReferenceClass (value){
+    this.value = value || null;
+}
+
+ConsReferenceClass.prototype = 
+    Object.create(ConsReferenceClass.prototype);
+
+ConsReferenceClass.prototype.get = function (){
+    return this.value.car;
+};
+
+ConsReferenceClass.prototype.set = function(value){
+    this.value.car = value;
+    return value;
+};
+
+// nil reference class
+//     <- reference class
+
+function NilReferenceClass (value){}
+
+NilReferenceClass.prototype = 
+    Object.create(ReferenceClass.prototype);
+
+NilReferenceClass.prototype.get = function (){
+        return nil;
+};
+
+NilReferenceClass.prototype.set = function (){
+        throw new Error("nil reference could not assign.");
+};
+
+var nilf = new NilReferenceClass();
+
+// symbol reference class
+//      <- reference class
+
+function SymbolReferenceClass (){};
+
+SymbolReferenceClass.prototype = 
+    Object.create(ReferenceClass.prototype);
+
+// symbol value reference class
+
+function SymbolValueReferenceClass (value){
+    this.value = value || null;
+}
+
+SymbolValueReferenceClass.prototype = 
+    Object.create(SymbolReferenceClass.prototype);
+
+SymbolValueReferenceClass.prototype.get = function (){
+    return this.value.getvaluee();
+};
+
+SymbolValueReferenceClass.prototype.set = function (value){
+    return this.value.setvalue(value);
+};
+
+SymbolValueReferenceClass.prototype.onexpandarg = function (){
+    return new Expanded(this.value.getvaluename());
+};
+
+// symbol function reference class
+
+function SymbolFunctionReferenceClass (value){
+    this.value = value || null;
+}
+
+SymbolFunctionReferenceClass.prototype = 
+    Object.create(SymbolReferenceClass.prototype);
+
+SymbolFunctionReferenceClass.prototype.get = function (){
+    return this.value.getfunce();
+};
+
+SymbolFunctionReferenceClass.prototype.set = function (func){
+    return this.value.setfunc(func);
+};
+
+SymbolFunctionReferenceClass.prototype.onexpandarg = function (){
+    return new Expanded(this.value.getfuncname());
+};
+
+// number class
+
+function NumberClass (number){
+    this.value = number;
+}
+
+NumberClass.prototype =
+    Object.create(AtomClass.prototype);
+
+NumberClass.prototype.clone = function (){
+    return new NumberClass(this.value);
+};
+
+// int class
+
+function IntClass (number){
+    this.value = number;
+}
+
+IntClass.prototype = 
+    Object.create(NumberClass.prototype);
+
+IntClass.prototype.toString = function (){
+    return "(" + this.value.toString() + "|0)";
+};
+
+IntClass.prototype.clone = function (){
+    return new IntClass(this.value);
+};
+
+// char class
+
+function CharClass (code){
+    this.value = code;
+}
+
+CharClass.prototype = 
+    Object.create(IntClass.prototype);
+
+CharClass.prototype.toString = function (){
+    return String.fromCharCode(this.value);
+};
+
+CharClass.prototype.clone = function (){
+    return new CharClass(this.value);
+};
+
+function atoi (char){
+    return char.charCodeAt();
+};
+
+function atoc (char){
+    return new CharClass(atoi(char));
+};
+
+// sequencial class
+//     <- atom class
+
+function SequencialClass (){}
+
+SequencialClass.prototype =
+    Object.create(AtomClass.prototype);
+
+SequencialClass.prototype.get = function (){throw new Error("get was not defined.");};
+SequencialClass.prototype.set = function (){throw new Error("set was not defined.");};
+SequencialClass.prototype.toArray = function (){throw new Error("toArray was not defined.");};
+SequencialClass.prototype.toPlain = function (){throw new Error("toPlain was not defined.");};
+SequencialClass.prototype.every = function (){throw new Error("every was not defined.");};
+SequencialClass.prototype.map = function (){throw new Error("map was not defined.");};
+SequencialClass.prototype.filter = function (){throw new Error("filter was not defined.");};
+SequencialClass.prototype.reduce = function (){throw new Error("reduce was not defined.");};
+SequencialClass.prototype.findif = function (){throw new Error("findif was not defined.");};
+SequencialClass.prototype.positionif = function (){throw new Error("positionif was not defined.");};
+SequencialClass.prototype.reverse = function (){throw new Error("reverse was not defined.");};
+SequencialClass.prototype.concat = function (){throw new Error("concat was not defined.");};
+SequencialClass.prototype.slice = function (){throw new Error("slice was not defined.");};
+SequencialClass.prototype.copy = function (){throw new Error("clone was not defined.");};
+SequencialClass.prototype.nth = function (){throw new Error("nth was not defined.");};
+SequencialClass.prototype.last = function (){throw new Error("last was not defined.");};
+SequencialClass.prototype.length = function (){throw new Error("length was not defined.");};
+SequencialClass.prototype.iter = function (){throw new Error("iter was not defined.");};
+SequencialClass.prototype.push = function (){throw new Error("push was not defined.");};
+SequencialClass.prototype.pop = function (){throw new Error("pop was not defined.");};
+
+// array class
+//     <- sequencial class
+
+function ArrayClass (array){
+    this.value = array;
+}
+
+ArrayClass.prototype = 
+    Object.create(SequencialClass.prototype);
+
+ArrayClass.prototype.get = function (index){ // ** get value directly
+    return this.value[index];
+};
+
+ArrayClass.prototype.set = function (index, value){ // ** set value directly
+    this.value[index] = value;
+    return value;
+};
+
+ArrayClass.prototype.toArray = function (){ // ** should update here
+    return this.value;
+};
+
+ArrayClass.prototype.toPlain = function (){
+    return this.value.join(",");
+};
+
+ArrayClass.prototype.iter = function (){
+    return new ArrayIteratorClass(this);
+};
+
+ArrayClass.prototype.every = function (func){
+    this.value.every(func.willevaluate); return nil;
+};
+
+ArrayClass.prototype.map = function (func){
+    return new ArrayClass(this.value.map(func.willevaluate));
+};
+
+ArrayClass.prototype.filter = function (func){
+    return new ArrayClass(this.value.filter(func.willevaluate));
+};
+
+ArrayClass.prototype.reduce = function (func){
+    return new ArrayClass(this.value.reduce(func.willevaluate));
+};
+
+ArrayClass.prototype.findif = function (func){
+    var index, found;
+    for (found = null, index = 0; index < this.length(); index++)
+        if ((found = this.nth(index)).status())
+            return found;
+    return nil;
+};
+
+ArrayClass.prototype.positionif = function (func){
+    var index, count;
+    for (count = 0, index = 0; index < this.length(); index++, count++)
+        if (this.nth(index).status())
+            return count;
+    return nil;
+};
+
+ArrayClass.prototype.nth = function (index){
+    return new ArrayReferenceClass(this, index);
+}
+
+ArrayClass.prototype.last = function (){
+    return this.length() == 0 ? nil : this.nth(this.length() -1);
+};
+
+ArrayClass.prototype.length = function (){
+    return this.value.length;
+};
+
+ArrayClass.prototype.reverse = function (){
+    this.value.reverse();
+    return this;
+};
+
+ArrayClass.prototype.copy = function (){
+    return new ArrayClass(this.value.slice());
+};
+
+ArrayClass.prototype.push = function (element){
+    return this.value.push(element);
+};
+
+ArrayClass.prototype.pop = function (){
+    return this.value.pop();
+};
+
+// class array class 
+//     <- array class
+
+function ClassArrayClass (array, classe){
+    this.value = array;
+    this.class = classe;
+}
+
+ClassArrayClass.prototype =
+    Object.create(ArrayClass.prototype);
+
+// stringn class
+//     <- class array class
+
+function StringClass (value){
+    this.value = value || [];
+}
+
+StringClass.prototype = 
+    Object.create(ClassArrayClass.prototype);
+
+StringClass.prototype.onevaluate = null;
+StringClass.prototype.onexpand = null;
+
+StringClass.prototype.onevaluatearg = function (){
+    return this;
+};
+
+StringClass.prototype.toString = function (){
+    return '"' + this.value.join("") + '"';
+}
+
+StringClass.prototype.toPlain = function (){
+    return this.value.join("");
+};
+
+StringClass.prototype.copy = function (){
+    return new StringClass(this.value.slice());
+};
+
+function string (source){ // ** util method
+    return new StringClass(slice(source).map(atoc));
+};
+
+// cons class
+
+function ConsClass (car, cdr){
+    this.car = car || nil;
+    this.cdr = cdr || nil;
+}
+
+ConsClass.prototype = 
+    Object.create(SequencialClass.prototype);
+
+ConsClass.prototype.onexpand = function (){
+    var func = this.expandarg();
+    return func.expand.apply(func, arguments);
+};
+
+ConsClass.prototype.onevaluate = function (){
+    var func = this.evaluatearg();
+    return func.evaluate.apply(func, arguments);
+};
+
+ConsClass.prototype.onexpandarg = function (){
+    var func = this.car;
+    var args = this.cdr.toArray();
+    return func.expand.apply(func, args);
+};
+
+ConsClass.prototype.onevaluatearg = function (){
+    var func = this.car;
+    var args = this.cdr.toArray();
+    return func.evaluate.apply(func, args);
+};
+
+ConsClass.prototype.onexpanddata = function (){
+    return new Expanded(this.toString());
+};
+
+ConsClass.prototype.toPlain = function (){
+    return this.toArray().join(",");
+};
+
+ConsClass.prototype.toString = function (){
+    return "[" + this.toArray().join(",") + "]";
+};
+
+ConsClass.toCons = function (sequence){
+    var cons, index;
+    for (cons = nil, index = 0; index < sequence.length; index++)
+        cons = new ConsClass(sequence[index], cons);
+    return cons.reverse();
+};
+
+ConsClass.prototype.toCons = function (){
+    return this;
+};
+
+ConsClass.prototype.clone = function (){ // ** should update here
+    var ncons, cons;
+    for (ncons = nil, cons = this; cons != nil; cons = cons.cdr)
+        if (cons.car instanceof UnQuoteAtClass){
+            var consa, consb;
+            for (consa = cons.car.evaluatearg(),
+                 consb = consa;
+                 consb != nil && consb.cdr != nil;
+                 consb = consb.cdr);
+            consb.cdr = ncons;
+            ncons = consa;
+        }
+    else if (cons.car instanceof UnQuoteClass)
+            ncons = new ConsClass(cons.car.evaluatearg(), ncons);
+        else ncons = new ConsClass(cons.car, ncons);
+    return ncons.reverse();
+};
+
+ConsClass.prototype.toArray = function (){
+    this.shouldlinear();
+    var sequence, cons;
+    for (sequence = [], cons = this; cons != nil; cons = cons.cdr)
+        sequence.push(cons.car);
+    return sequence;
+};
+
+ConsClass.prototype.iter = function (){
+    return new ConsIteratorClass(this);
+};
+
+ConsClass.prototype.every = function (func){
+    var cons;
+    for (cons = this; cons != nil; cons = cons.cdr)
+        func.evaluate(cons.car);
+    return nil;
+};
+
+ConsClass.prototype.map = function (func){
+    var ncons, cons;
+    for (ncons = nil, cons = this; cons != nil; cons = cons.cdr)
+        ncons = new ConsClass(func.evaluate(cons.car), ncons);
+    return ncons.reverse();
+};
+
+ConsClass.prototype.filter = function (func){
+    var ncons, cons;
+    for (ncons = nil, cons = this; cons != nil; cons = cons.cdr)
+        if (func.evaluate(cons.car))
+            ncons = new ConsClass(cons.car, ncons);
+    return ncons.reverse();
+};
+
+ConsClass.prototype.reduce = function (func){
+    if (this.length() == 0) return nil;
+    if (this.length() == 1) return this.car;
+    var sum, cons;
+    for (sum = cons.car, cons = this; cons != nil; cons = cons.cdr)
+        sum = func.evaluate(sum, cons.car);
+    return sum;
+};
+
+ConsClass.prototype.findif = function (func){
+    var  cons;
+    for (cons = this; cons != nil; cons = cons.cdr)
+        if (func.evaluate(cons.car))
+            return cons.car;
+    return nil;
+};
+
+ConsClass.prototype.positionif = function (func){
+    var count, cons;
+    for (count = 0, cons = this; cons != nil; cons = cons.cdr, count++)
+        if (func.evaluate(cons.car))
+            return count;
+    return null;
+};
+
+ConsClass.prototype.nth = function (index){
+    var cons;
+    for (cons = this; cons != nil && index; cons = cons.cdr);
+    return new ConsReferenceClass(cons);
+};
+
+ConsClass.prototype.last = function (){
+    var cons;
+    for (cons = this; cons != nil && cons.cdr != nil; cons = cons.cdr);
+    return cons.car;
+};
+
+ConsClass.prototype.length = function (){
+    var count, cons;
+    for (cons = this; cons != nil; cons = cons.cdr) count++;
+    return count;
+};
+
+ConsClass.prototype.reversesafe = function (){
+    var ncons, cons;
+    for (ncons = nil, cons = this; cons != nil; cons = cons.cdr)
+        ncons = new ConsClass(cons.car, ncons);
+    return ncons;
+};
+
+ConsClass.prototype.reverse = function (){
+    var cons, consa, consb;
+    for (cons = this, consb = nil; cons != nil;){
+        consa = cons.cdr;
+        cons.cdr = consb;
+        consb = cons;
+        cons = consa;
+    };
+    return consb;
+};
+
+ConsClass.prototype.copy = function (){
+    var ncons, cons;
+    for (ncons = nil, cons = this; cons; cons = cons.cdr)
+        ncons = new ConsClass(cons.car, ncons);
+    return ncons.reverse();
+};
+
+ConsClass.prototype.islinear = function (){
+    var cons;
+    for (cons = this; cons != nil; cons = cons.cdr)
+        if (cons.cdr != nil && cons.cdr instanceof ConsClass == false)
+            return false;
+    return true;
+};
+
+ConsClass.prototype.shouldlinear = function (){
+    if (this.islinear() == false) throw("list should be linear.");
+};
+
+// nil class
+//     <- sequential class
+
+function NilClass (){}
+
+NilClass.prototype =  
+    Object.create(ConsClass.prototype);
+
+NilClass.prototype.car = nil;
+NilClass.prototype.cdr = nil;
+
+NilClass.prototype.onevaluatearg = function (){
+    return this;
+};
+
+NilClass.prototype.onexpandarg = function (){
+    return new Expanded(this.toString());
+};
+
+NilClass.prototype.onevaluate = 
+    NilClass.prototype.onevaluatearg;
+
+NilClass.prototype.onexpand = 
+    NilClass.prototype.onexpandarg;
+
+NilClass.prototype.status = function (){
+    return false;
+};
+
+NilClass.prototype.toString = function (){
+    return "null";
+};
+
+NilClass.prototype.toArray = function (){
+    return [];
+};
+
+NilClass.prototype.every = function (func){
+    return nil;
+};
+
+NilClass.prototype.map = function (func){
+    return nil;
+};
+
+NilClass.prototype.filter = function (func){
+    return nil;
+};
+
+NilClass.prototype.reduce = function (func){
+    return nil;
+};
+
+NilClass.prototype.findif = function (func){
+    return nil;
+};
+
+NilClass.prototype.positionif = function (func){
+    return nil;
+};
+
+NilClass.prototype.nth = function (index){
+    return nil;
+};
+
+NilClass.prototype.length = function (){
+    return 0;
+};
+
+NilClass.prototype.reverse = function (){
+    return this;
+};
+
+var nil = new NilClass();
+
+// cons stack class
+//     <- cons class
+
+function ConsStackClass (car, cdr){
+    this.car = car || nil;
+    this.cdr = cdr || nil;
+}
+
+ConsStackClass.prototype = 
+    Object.create(ConsClass.prototype);
+
+ConsStackClass.prototype.push = function (element){
+    var ncons = new ConsClass(element);
+    if (this.car == nil){
+        this.car = ncons;
+        this.cdr = ncons;
+    }
+    else this.cdr.cdr = ncons;
+    return element;
+};
+
+ConsStackClass.prototype.pop = function (){
+    if (this.car == nil) return nil;
+    var element = this.car.car;
+    this.car = this.car.cdr;
+    return element;
+};
+
+ConsStackClass.prototype.iter = function (){
+    return this.car.iter();
+};
+
+// quote family class 
+//     <- atom class
+
+function QuoteFamilyClass (value){
+    this.value = value;
+}
+
+QuoteFamilyClass.prototype = 
+    Object.create(AtomClass.prototype);
+
+// quote class
+//     <- quote family class
+
+function QuoteClass (value){
+    this.value = value;
+};
+
+QuoteClass.prototype = 
+    Object.create(QuoteFamilyClass.prototype);
+
+QuoteClass.prototype.toString = function (){
+    return "/*--quote--*/" + this.value.toString();
+};
+
+QuoteClass.prototype.onevaluate = function (){
+    return this.value.evaluate(this.value, arguments);
+};
+
+QuoteClass.prototype.onexpand = function (){
+    return this.value.expand(this.value, arguments);
+};
+
+QuoteClass.prototype.onevaluatearg = function (){
+    return this.value.clone();
+};
+
+QuoteClass.prototype.onexpandarg = function (){
+    return this.value.expanddata();
+};
+
+// unquote class
+//     <- quote family class
+
+function UnQuoteClass (value){
+    this.value = value;
+};
+
+UnQuoteClass.prototype = 
+    Object.create(QuoteFamilyClass.prototype);
+
+UnQuoteClass.prototype.onevaluate = null;
+UnQuoteClass.prototype.onexpand = null;
+
+UnQuoteClass.prototype.toString  = function (){
+    return "/*--unquote--*/" + this.value.toString();
+};
+
+UnQuoteClass.prototype.onevaluatearg = function (){
+    return this.value.evaluatearg();
+};
+
+UnQuoteClass.prototype.onexpandarg = function (){
+    return this.value.expandarg();
+};
+
+// unquoteat class
+//     <- quote family class
+
+function UnQuoteAtClass (value){
+    this.value = value;
+};
+
+UnQuoteAtClass.prototype = 
+    Object.create(UnQuoteClass.prototype);
+
+UnQuoteAtClass.prototype.toString = function (){
+    return "/*--unquoteat--*/" + this.value.toString();
+};
+
+// callable class
+//     <- atom class
+
+function CallableClass (){}
+
+CallableClass.prototype =
+    Object.create(AtomClass.prototype);
+
+CallableClass.prototype.label = "<#callable class>";
+
+CallableClass.prototype.toString = function (){
+    return this.label;
+};
+
+// CallableClass.prototype.evaluate = function (){
+//     var result = AtomClass.prototype.evaluate.apply(this, arguments);
+//     return new ResultClass(result);
+// };
+
+// function class
+//     <- callable class
+
+function FunctionClass (){}
+
+FunctionClass.prototype = 
+    Object.create(CallableClass.prototype);
+
+FunctionClass.prototype.label =  "<#function class>";
+
+// special function class
+//     <- function class
+
+function SpecialFunctionClass (){}
+
+SpecialFunctionClass.prototype =
+    Object.create(FunctionClass.prototype);
+
+SpecialFunctionClass.label =  "<#special function class>";
+
+// optimize function class
+//     <- function class
+
+function OptimizeFunctionClass (){}
+
+OptimizeFunctionClass.prototype = 
+    Object.create(FunctionClass.prototype);
+
+OptimizeFunctionClass.prototype.label = "<#optimize function class>";
+
+function isoptimizable (some){
+    return some instanceof Expanded == false ||
+        some instanceof SymbolFamilyClass == false || // ** should check again
+        some.isconst() == false;
+}
+
+function isoptimizableall (sequence){
+    var index;
+    for (index = 0; index < sequence.length; index++)
+        if (isoptimizable(sequence[index]) == false)
+            return false;
+    return true;
+}
+
+// primitive function class
+//     <- function class
+
+function PrimitiveFunctionClass (){}
+
+PrimitiveFunctionClass.prototype =
+    Object.create(FunctionClass.prototype);
+
+PrimitiveFunctionClass.prototype.evaluate = 
+    beforeevaluatearg(FunctionClass.prototype.evaluate);
+
+PrimitiveFunctionClass.prototype.expand = 
+    beforeexpandarg(FunctionClass.prototype.expand);
+
+PrimitiveFunctionClass.prototype.label = "<#primitive function class>";
+
+// user function class
+//     <- function class
+
+function UserFunctionClass (name, args, rest){
+    this.name = name || null;
+    this.args = args || null;
+    this.rest = rest || null;
+}
+
+UserFunctionClass.prototype = 
+    Object.create(FunctionClass.prototype);
+
+UserFunctionClass.prototype.evaluate = 
+    beforeevaluatearg(FunctionClass.prototype.evaluate);
+
+UserFunctionClass.prototype.expand = 
+    beforeevaluatearg(FunctionClass.prototype.evaluate);
+
+UserFunctionClass.prototype.toString = function (){
+    return "<#user function class>";
+};
+
+UserFunctionClass.prototype.onevaluate = function (){ // ** should update here
+    var ncons, bindsi, index;
+    for (ncons = new ConsClass(synprogn), bindsi = this.args.iter(), index = 0; 
+         bindsi.isalive() && index < arguments.length; index++)
+        ncons = new ConsClass(
+            new ConsClass(syndeflvar,
+                          new ConsClass(bindsi.next(),
+                                        new ConsClass(arguments[index]))), ncons);
+    ncons = ncons.reverse();
+    return new ConsClass(synblock_func,
+                         new ConsClass(ncons,
+                                       new ConsClass(this.rest))).evaluatearg();
+};
+
+UserFunctionClass.prototype.onexpandarg = function (){
+    // return new Expanded("function(" + this.args.toArray().map(getvaluename).join(",") + "){" + this.rest.expandarg() + "}");
+    return new Expanded("function(" + this.args.toArray().map(getvaluename).join(",") + ")" +
+                        "{" + new ConsClass(synblock_func, 
+                                            new ConsClass(this.rest.expandarg())).expandarg() + "}"); // ** should check again
+};
+
+// macro class
+//     <- atom class
+
+function MacroClass (){}
+
+function PrimitiveMacroClass (){}
+
+function UserMacroClass (name, args, rest){
+    this.name = name || null;
+    this.args = args || null;
+    this.rest = rest || null;
+}
+
+MacroClass.prototype = 
+    Object.create(CallableClass.prototype);
+
+MacroClass.prototype.evaluate = 
+    afterevaluatearg(CallableClass.prototype.evaluate);
+
+MacroClass.prototype.expand = 
+    afterexpandarg(CallableClass.prototype.evaluate);
+
+PrimitiveMacroClass.prototype = 
+    Object.create(MacroClass.prototype);
+
+UserMacroClass.prototype = 
+    Object.create(MacroClass.prototype);
+
+UserMacroClass.prototype.onevaluate = 
+    UserFunctionClass.prototype.onevaluate;
+
+// symbol family class
+//     <- atom class
+
+function SymbolFamilyClass (){}
+
+SymbolFamilyClass.prototype = 
+    Object.create(AtomClass.prototype);
+
+SymbolFamilyClass.prototype.getvalue = function (){throw new Error("getvalue was not defined.");};
+SymbolFamilyClass.prototype.getfunc = function (){throw new Error("getfunc was not defined.");};
+SymbolFamilyClass.prototype.setvalue = function (){throw new Error("setvalue was not defined.");};
+SymbolFamilyClass.prototype.setfunc = function (){throw new Error("setfunc was not defined.");};
+
+// symbol class
+//     <- symbol family class
+
+function SymbolClass (name, value, func){
+    this.name = name ? name.copy() : null;
+    this.value = value || null;
+    this.func = func || null;   
+}
+
+SymbolClass.prototype = 
+    Object.create(SymbolFamilyClass.prototype);
+
+SymbolClass.prototype.toString = function (){
+    return this.name.toPlain();
+};
+
+SymbolClass.prototype.getvalue = function (){
+    return this.value;
+};
+
+SymbolClass.prototype.getfunc = function (){
+    return this.func;
+};
+
+SymbolClass.prototype.getvaluee = function (){
+    if (this.getvalue() == null)
+        throw new Error("symbol " + this + " has no value.");
+    return this.getvalue();
+};
+
+SymbolClass.prototype.getfunce = function (){
+    if (this.getfunc() == null)
+        throw new Error("symbol " + this + " has no func.");
+    return this.getfunc();
+};
+
+SymbolClass.prototype.setvalue = function (value){
+    this.value = value;
+    return value;
+};
+
+SymbolClass.prototype.setfunc = function (func){
+    this.func = func;
+    return func;
+};
+
+SymbolClass.prototype.onevaluate = function (){
+    var func = this.getfunce();
+    return func.evaluate.apply(func, arguments);
+};
+
+SymbolClass.prototype.onevaluatearg = function (){
+    return this.getvaluee();
+};
+
+SymbolClass.prototype.onexpand = function (){
+    var func = this.getfunce();
+    return func.expand.apply(func, arguments);
+};
+
+SymbolClass.prototype.onexpandarg = function (){
+    return new Expanded(this.toString());
+};
+
+// intern symbol class
+//     <- symbol family class
+
+function InternSymbolClass (name){
+    this.name = name ? name.copy() : null;
+    // inp.scope.intern(name); // ** should check again
+}
+
+InternSymbolClass.prototype = 
+    Object.create(SymbolFamilyClass.prototype);
+
+InternSymbolClass.prototype.toString = function (){
+    return this.name.toPlain();
+};
+
+InternSymbolClass.prototype.getvalue = function (){
+    return inp.scope.finde(this.name).getvaluee();
+};
+
+InternSymbolClass.prototype.getfunc = function (){
+    return inp.scope.finde(this.name).getfunce();
+};
+
+InternSymbolClass.prototype.setvalue = function (value){
+    return inp.scope.finde(this.name).setvalue(value);
+};
+
+InternSymbolClass.prototype.setfunc = function (func){
+    return inp.scope.finde(this.name).setfunc(func);
+};
+
+InternSymbolClass.prototype.onevaluate = function (){
+    var func = inp.scope.finde(this.name);
+    return func.evaluate.apply(func, arguments);
+};
+
+InternSymbolClass.prototype.onexpand = function (){
+    var func = inp.scope.finde(this.name);
+    return func.expand.apply(func, arguments);
+};
+
+InternSymbolClass.prototype.onevaluatearg = function (){
+    var func = inp.scope.finde(this.name);
+    return func.evaluatearg.apply(func, arguments);
+};
+
+InternSymbolClass.prototype.onexpandarg = function (){
+    var func = inp.scope.finde(this.name);
+    return func.expandarg.apply(func, arguments);
+};
+
+InternSymbolClass.prototype.getvaluename = function (){
+    return inp.scope.finde(this.name).getvaluename();
+};
+
+InternSymbolClass.prototype.getfuncname = function (){
+    return inp.scope.finde(this.name).getfuncname();
+};
+
+// variable symbol class
+//     <- symbol class
+
+function VariableSymbolClass (name, value, func){
+    this.name = name ? name.copy() : null;
+    this.value = value || null;
+    this.func = func || null;
+    this.valuename = null;
+    this.funcname = null;
+};
+
+VariableSymbolClass.prototype = 
+    Object.create(SymbolClass.prototype);
+
+VariableSymbolClass.prototype.toString = function (){
+    return this.getvaluename();
+};
+
+VariableSymbolClass.prototype.toString = function (){
+    return this.getvaluename() + "/*--" + this.name + "--*/";
+};
+
+VariableSymbolClass.prototype.getvaluename = function (){
+    if (this.valuename == null)
+        this.valuename = inp.namegen.generate();
+    return this.valuename;
+};
+
+VariableSymbolClass.prototype.getfuncname = function (){
+    if (this.funcname == null)
+        this.funcname = inp.namegen.generate();
+    return this.funcname;
+};
+
+VariableSymbolClass.prototype.onexpandarg = function (){
+    return new Expanded(this.getvaluename());
+};
+
+VariableSymbolClass.prototype.onexpand = function (){
+    // var func = this.getfunce();
+    // if (func instanceof UserFunctionClass)
+    //     return new Expanded(this.getfuncname() + "(" + slice(arguments).map(expandarg).join(",") + ")"); // ** should check again
+    // return func.expand.apply(func, arguments);
+    var func = this.getfunc();
+    if (func == null || func instanceof UserFunctionClass)
+        return new Expanded(
+            this.getfuncname() + "(" +
+                slice(arguments).map(expandarg).join(",") + ")");
+    return func.expand.apply(func, arguments);
+};
+
+function getvaluename (some){
+    if (some instanceof SymbolFamilyClass == false)
+        throw new Error("some is not symbol family class.");
+    return some.getvaluename();
+}
+
+function  getfuncname (some){
+    if (some instanceof SymbolFamilyClass == false)
+        throw new Error("some is not symbol family class.");
+    return some.getfuncname();
+}
+
+// stream class
+//     <- atom class
+
+function StreamClass (direction){
+    this.direction = direction;
+}
+
+StreamClass.prototype = 
+    Object.create(AtomClass.prototype);
+
+StreamClass.direction = {};
+StreamClass.direction.in = 0b00000001;
+StreamClass.direction.out = 0b00000010;
+
+StreamClass.onevaluate = null;
+StreamClass.onexpand = null;
+StreamClass.onexpandarg = null;
+StreamClass.onexpanddata = null;
+
+StreamClass.prototype.iseof = function (){throw new Error("iseof was not defined.");};
+StreamClass.prototype.isalive = function (){throw new Error("isalive was not defined.");};
+StreamClass.prototype.look = function (){throw new Error("look was not defined.");};
+StreamClass.prototype.get = function (){throw new Error("get was not defined.");};
+StreamClass.prototype.put = function (){throw new Error("put was not defined.");};
+
+StreamClass.prototype.isin = function (){
+    return new Boolean(this.direction & StreamClass.direction.in);
+};
+
+StreamClass.prototype.isout = function (){
+    return new Boolean(this.direction & StreamClass.direction.out);
+};
+
+StreamClass.prototype.shouldin = function (){
+    if (this.isin() == false) throw new Error("stream should input direction!");
+};
+
+StreamClass.prototype.shouldout = function (){
+    if (this.isout() == false) throw new Error("stream should output direction!");
+};
+
+// string stream class 
+//     <- stream class
+
+function StringStreamClass (direction, source){
+    this.direction = direction;
+    this.source = source;
+    this.sourceout = new StringClass();
+    this.index = 0;
+}
+
+StringStreamClass.prototype = 
+    Object.create(StreamClass.prototype);
+
+StringStreamClass.prototype.iseof = function (){
+    this.shouldin();
+    return this.source.length() <= this.index;
+};
+
+StringStreamClass.prototype.isalive = function (){
+    this.shouldin();
+    return this.iseof() == false;
+};
+
+StringStreamClass.prototype.look = function (){
+    this.shouldin();
+    return this.iseof() ? nilf : this.source.nth(this.index);
+};
+
+StringStreamClass.prototype.get = function (){
+    this.shouldin();
+    return this.iseof() ? nilf : this.source.nth(this.index++);
+};
+
+StringStreamClass.prototype.put = function (char){
+    this.shouldout();
+    return this.source.push(char);
+};
+
+// obarray class 
+//     <- native, function class
+
+function Obarray (){
+    this.obarray = {};
+}
+
+Obarray.prototype.find = function (name){
+    return this.obarray[name.toPlain()] || null;
+};
+
+Obarray.prototype.set = function (name, sym){
+    this.obarray[name.toPlain()] = sym;
+    return sym;
+};
+
+Obarray.prototype.intern = function (name){
+    var found;
+    if ((found = this.find(name)))
+        return found;
+    // var sym = new SymbolClass(name);
+    var sym = new VariableSymbolClass(name);
+    return this.set(name, sym);
+};
+
+// Obarray.prototype.names = function (){ // ** for debug
+//     return Object.keys(this.obarray);
+// };
+
+Obarray.prototype.list = function (){
+    var sequence, names, index;
+    for (sequence = [], names = Object.keys(this.obarray), 
+         index = 0; index < names.length; index++)
+        sequence.push(this.obarray[names[index]]);
+    return sequence;
+};
+
+// obarrays class
+//     <- native, function class
+
+function Obarrays (parent){
+    this.obarray = new Obarray();
+    this.parent = parent || null;
+};
+
+// Obarrays.prototype.length = function (){ // ** for debug
+//     var count, current;
+//     for (count = 0, current = this; current; current = current.parent, count++);
+//     return count;
+// };
+
+Obarrays.prototype.list = function (){
+    // var current, found, founds;
+    // for (founds = [], current = this; current; current = current.parent)
+    //     if ((found = current.obarray.find(name)))
+    //         founds.push(found);
+    // return founds;
+    var sequence, current;
+    for (sequence = [], current = this; current; current = current.parent)
+        sequence = sequence.concat(current.obarray.list());
+    return sequence;
+};
+
+// Obarrays.prototype.count = function (name){ // ** for debug
+//     var count, current;
+//     for (count = 0, current = this; current; current = current.parent)
+//         if (current.obarray.find(name))
+//             count ++;
+//     return count;
+// };
+
+Obarrays.prototype.find = function (name){
+    var current, found;
+    for (current = this; current; current = current.parent)
+        if ((found = current.obarray.find(name)))
+            return found;
+    return null;
+};
+
+Obarrays.prototype.finde = function (name){
+
+    // var found;
+    // if ((found = this.find(name)) == null)
+    //     throw new Error("" + name + " was not found.");
+    // return found;
+
+    // var found = this.find(name);
+    // if (found == null)
+    //     throw new Error("obarays <- " + name + " was not found.");
+    // return found;
+
+    var found = this.find(name);
+    if (found) return found;
+    throw new  Error("obarrays " + name + " was not found.");
+};
+
+Obarrays.prototype.intern = function (name){
+    var found;
+    if ((found = this.find(name))) 
+        return found;
+    return this.obarray.intern(name);
+};
+
+Obarrays.prototype.internf = function (name){
+    return this.obarray.intern(name);
+};
+
+Obarrays.prototype.nest = function (){
+    return new Obarrays(this);
+};
+
+Obarrays.prototype.exit = function (){
+    return this.parent;
+};
+
+// Obarrays.prototype.names = function (){ // ** for debug
+//     var current, names, namesc, indexc;
+//     for (current = this, names = []; current; current = current.parent)
+//         for (namesc = current.obarray.names(), 
+//              indexc = 0; indexc < namesc.length; indexc++)
+//             if (names.indexOf(namesc[indexc]) < 0)
+//                 names.push(namesc[indexc]);
+//     return names;
+// };
+
+// obscope class
+//   <- native, function class
+
+function Obscope (parent){
+    this.obarray = new Obarrays(null);
+    this.parent = parent || null;
+};
+
+Obscope.prototype.list = function (){
+    var sequence, current;
+    for (sequence = [], current = this; current; current = current.parent)
+        sequence = sequence.concat(current.listin());
+    return sequence;
+};
+
+Obscope.prototype.listin = function (){
+    return this.obarray.list();
+};
+
+Obscope.prototype.find = function (name){
+    var found, current;
+    for (current = this; current; current = current.parent)
+        if ((found = current.obarray.find(name)))
+            return found;
+    return null;
+};
+
+Obscope.prototype.finde = function (name){
+    var found = this.find(name);
+    if (found) return found;
+    throw new Error("obscope " + name + " was not found.");
+};
+
+Obscope.prototype.intern = function (name){
+    var found = this.find(name);
+    if (found) return found;
+    return this.obarray.intern(name);
+};
+
+Obscope.prototype.internf = function (name){
+    return this.obarray.internf(name);
+};
+
+Obscope.prototype.nestin = function (){
+    this.obarray = this.obarray.nest();
+};
+
+Obscope.prototype.exitin = function (){
+    this.obarray = this.obarray.exit();
+};
+
+Obscope.prototype.nest = function (){
+    return new Obscope(this);
+};
+
+Obscope.prototype.exit = function (){
+    return this.parent;
+};
+        
+// readerscope class
+//     <- native, function class
+
+function ReaderScope (method){
+    this.scope = {};
+    this.method = method || null;
+}
+
+ReaderScope.prototype.get = function (char){
+    return this.scope[char.toString()] || null;
+};
+
+ReaderScope.prototype.getcurrent = function (){
+    return this.method || null;
+};
+
+ReaderScope.prototype.dig = function (char){
+    if(this.scope[char.toString()] == null)
+        this.scope[char.toString()] = new ReaderScope();
+    return this.scope[char.toString()];
+};
+
+ReaderScope.prototype.set = function (char, method){
+    return this.dig(char).setcurrent(method);
+};
+
+ReaderScope.prototype.setcurrent = function (method){
+    return this.method = method;
+};
+
+// interpreter class
+//     <- native, function class
+
+function Interpreter (){
+    this.scope = new Obscope();
+    this.scoperoot = this.scope;
+    this.readerscope = new ReaderScope();
+    this.namegen = new NameGenerator("abcdefghijklmnopqrstuvwxyz");
+};
+
+Interpreter.prototype.nestin = function (){
+    inp.scope.nestin();
+    return null;
+};
+
+Interpreter.prototype.exitin = function (){
+    inp.scope.exitin();
+    return null;
+};
+
+Interpreter.prototype.nest = function (){
+    this.scope = this.scope.nest();
+    return null;
+};
+
+Interpreter.prototype.exit  =function (){
+    this.scope = this.scope.exit();
+    return null;
+};
+
+var inp = new Interpreter();
+
+// define reader methods
+
+var rdignoreindent = new PrimitiveFunctionClass();
+var rdread = new PrimitiveFunctionClass();
+var rdreadintern = new PrimitiveFunctionClass();
+var rdreadminus = new PrimitiveFunctionClass();
+var rdreadnumber = new PrimitiveFunctionClass();
+var rdreadstring = new PrimitiveFunctionClass();
+var rdreadopenbrace = new PrimitiveFunctionClass();
+var rdreadclosebrace = new PrimitiveFunctionClass();
+var rdreadclosebrace_unique = new Unique();
+var rdreadquote = new PrimitiveFunctionClass();
+var rdreadunquote = new PrimitiveFunctionClass();
+var rdreadunquoteat = new PrimitiveFunctionClass();
+var rdreadchar = new PrimitiveFunctionClass();
+
+rdignoreindent.onevaluate = function (stream){
+    while (stream.isalive() && 
+           stream.look().get().value == " ".charCodeAt() ||
+           stream.look().get().value == "\t".charCodeAt())
+        stream.get();
+    return nil;
+};
+
+rdread.onevaluate = function (stream){
+    rdignoreindent.evaluate(stream);
+    var rdscope, rdscopec;
+    var char, charc;
+    for (rdscope = inp.readerscope, char = nil; stream.isalive();){
+        charc = stream.look();
+        rdscopec = rdscope.get(charc);
+        if (rdscopec == null) break;
+        char = stream.get();
+        rdscope = rdscopec;
+    }
+    if (rdscope.getcurrent() == null)
+        throw new Error("method was not found.");
+    return rdscope.getcurrent().evaluate(stream, char);
+};
+
+rdreadintern.onevaluate = function (stream){
+    rdignoreindent.evaluate(stream);
+    var name;
+    for (name = new StringClass(); stream.isalive();)
+        if (inp.readerscope.get(stream.look()) || 
+            stream.look().get().value == (" ".charCodeAt()) || 
+            stream.look().get().value == ("\t".charCodeAt())) break;
+        else name.push(stream.get());
+    if (name.length() == 0)
+        return nil;
+    inp.scoperoot.intern(name);
+    return new InternSymbolClass(name);
+};
+
+rdreadminus.onevaluate = function (stream){
+    var num = rdread.evaluate(stream);
+    num.value *= -1;
+    return num;
+};
+
+rdreadnumber.onevaluate = function (stream, nc){
+    var char, num;
+    for (num = nc.toString(); stream.isalive();)
+        if ("123456890.".indexOf(stream.look().toString()) >= 0)
+            num += stream.get().toString();
+        else break;
+    return num.indexOf(".") >= 0 ?
+        new NumberClass(parseFloat(num)).const():
+        new IntClass(parseInt(num)).const();
+};
+
+rdreadstring.onevaluate = function (stream, quote){
+    var char, content;
+    for (content = new StringClass(); stream.isalive() && (char = stream.get()).status();)
+        if (char.get().value == quote.value) break;
+        else  content.push(char);
+    return content.const();
+};
+
+rdreadopenbrace.onevaluate = function (stream){
+    var ncons, element;
+    for (ncons = nil; stream.isalive() && 
+         (element = rdread.evaluate(stream)) != rdreadclosebrace_unique;)
+        ncons = new ConsClass(element, ncons);
+    return ncons.reverse().const();
+};
+
+rdreadclosebrace.onevaluate = function (stream){
+    return rdreadclosebrace_unique;
+};
+
+rdreadquote.onevaluate = function (stream){
+    return new QuoteClass(rdread.evaluate(stream));
+};
+
+rdreadunquote.onevaluate = function (stream){
+    return new UnQuoteClass(rdread.evaluate(stream));
+};
+
+rdreadunquoteat.onevaluate = function (stream){
+    return new UnQuoteAtClass(rdread.evaluate(stream));
+};
+
+rdreadchar.onevaluate = function (stream){
+    return new CharClass(stream.get());
+};
+
+inp.readerscope.setcurrent(rdreadintern);
+inp.readerscope.dig("'").setcurrent(rdreadquote);
+inp.readerscope.dig(",").setcurrent(rdreadunquote);
+inp.readerscope.dig(",").dig("@").setcurrent(rdreadunquoteat);
+inp.readerscope.dig("-").setcurrent(rdreadminus);
+inp.readerscope.dig('"').setcurrent(rdreadstring);
+inp.readerscope.dig("(").setcurrent(rdreadopenbrace);
+inp.readerscope.dig(")").setcurrent(rdreadclosebrace);
+inp.readerscope.dig("0").setcurrent(rdreadnumber);
+inp.readerscope.dig("1").setcurrent(rdreadnumber);
+inp.readerscope.dig("2").setcurrent(rdreadnumber);
+inp.readerscope.dig("3").setcurrent(rdreadnumber);
+inp.readerscope.dig("4").setcurrent(rdreadnumber);
+inp.readerscope.dig("5").setcurrent(rdreadnumber);
+inp.readerscope.dig("6").setcurrent(rdreadnumber);
+inp.readerscope.dig("7").setcurrent(rdreadnumber);
+inp.readerscope.dig("8").setcurrent(rdreadnumber);
+inp.readerscope.dig("9").setcurrent(rdreadnumber);
+inp.readerscope.dig("?").setcurrent(rdreadchar);
+
+// define syntax functions
+
+var synif = new SpecialFunctionClass();
+var synblock = new SpecialFunctionClass();
+var synblock_func = new SpecialFunctionClass();
+var synprogn = new SpecialFunctionClass();
+var synprogn_func = new SpecialFunctionClass();
+var synprogn_source = new SpecialFunctionClass();
+var synand = new SpecialFunctionClass();
+var synor = new SpecialFunctionClass();
+var synnot = new SpecialFunctionClass();
+var synsetf = new SpecialFunctionClass();
+var syndefvar = new SpecialFunctionClass();
+var syndeflvar = new SpecialFunctionClass();
+
+inp.scope.intern(new StringClass(slice("if").map(atoc))).setfunc(synif);
+inp.scope.intern(new StringClass(slice("block").map(atoc))).setfunc(synblock);
+inp.scope.intern(new StringClass(slice("progn").map(atoc))).setfunc(synprogn);
+inp.scope.intern(new StringClass(slice("and").map(atoc))).setfunc(synand);
+inp.scope.intern(new StringClass(slice("or").map(atoc))).setfunc(synor);
+inp.scope.intern(new StringClass(slice("not").map(atoc))).setfunc(synnot);
+inp.scope.intern(new StringClass(slice("setf").map(atoc))).setfunc(synsetf);
+inp.scope.intern(new StringClass(slice("defvar").map(atoc))).setfunc(syndefvar);
+inp.scope.intern(new StringClass(slice("deflvar").map(atoc))).setfunc(syndeflvar);
+
+synif.label = "<#syntax if>";
+synblock.label = "<#syntax block>";
+synblock_func.label = "<#syntax block func>";
+synprogn.label = "<#syntax progn>";
+synprogn_func.label = "<#syntax progn func>";
+synprogn_source.label = "<#syntax progn source>";
+synand.label = "<#syntax and>";
+synor.label = "<#syntax or>";
+synnot.label = "<#syntax not>";
+synsetf.label = "<#syntax setf>";
+syndefvar.label = "<#syntax defvar>";
+syndeflvar.label = "<#syntax deflvar>";
+
+synif.onevaluate = function (cond, truecase, falsecase){
+    if (cond.evaluatearg().status())
+        return truecase.evaluatearg();
+    return falsecase.evaluatearg();
+};
+
+synif.onexpand = function (cond, truecase, falsecase){
+    return new Expanded(
+        "(" + cond.expandarg().unpack() + "?" +
+            truecase.expandarg().unpack() + ":" + 
+            falsecase.expandarg().unpack() + ")");
+};
+        
+synblock.onevaluate = function (){
+    inp.nestin();
+    var temp = synprogn.evaluate.apply(synprogn, arguments);
+    inp.exitin();
+    return temp;
+};
+
+synblock.onexpand = function (){
+    inp.nestin();
+    var temp = synprogn.expand.apply(synprogn, arguments);
+    inp.exitin();
+    return temp;
+};
+
+synblock_func.onevaluate = function (){
+    inp.nest();
+    var temp = synprogn.evaluate.apply(synprogn, arguments);
+    inp.exit();
+    return temp;
+};
+
+synblock_func.onexpand = function (){
+    inp.nest();
+    var temp = synprogn.evaluate.apply(synprogn, arguments);
+    inp.exit();
+    return temp;
+};
+
+synprogn.onevaluate = function (){
+    var res, index;
+    for (res = nil, index = 0; index < arguments.length; index++)
+        res = arguments[index].evaluatearg();
+    return res;
+};
+
+synprogn.onexpand = function (){
+    var sum, index;
+    for (sum = "", index = 0; index < arguments.length; index++)
+        sum += (index ? "," : "") + arguments[index].expandarg().unpack();
+    return new Expanded("(" + sum + ")");
+};
+
+synprogn_func.onevaluate = 
+    synprogn.onevaluate;
+
+synprogn_func.onexpand = function (){
+    var sum, index;
+    for (sum = "", index = 0; index < (arguments.length -1); index++)
+        sum += arguments[index].expandarg().unpack() + ";";
+    sum += "return " + arguments[index].expandarg().unpack() + ";";
+    return new Expanded(sum);
+};
+
+synprogn_source.onevaluate = 
+    synprogn.onevaluate;
+
+synprogn_source.onexpand = function (){
+    var sum, index;
+    for (sum = "", index = 0; index < arguments.length; index++)
+        sum += arguments[index].expandarg().unpack() + ";";
+    return new Expanded(sum);
+};
+
+synand.onevaluate = function (){
+    var res, index;
+    for (res = nil, index = 0; index < arguments.length; index++)
+        if ((res = arguments[index].evaluatearg()).status() == false)
+            return nil;
+    return res;
+};
+
+synand.onexpand = function (){
+    return new Expanded("(" + slice(arguments).map(expandarg).map(unpack).join("&&") + ")");
+};
+
+synor.onevaluate = function (){
+    var res, index;
+    for (res = nil, index = 0; index < arguments.length; index++)
+        if ((res = arguments[index].evaluatearg()))
+            return res;
+    return nil;
+};
+
+synor.onexpand = function (){
+    return new Expanded("(" + slice(arguments).map(expandarg).map(unpack).join("||") + ")");
+};
+
+synnot.onevaluate = function (some){
+    return some.evaluatearg().status() ? nil : t;
+};
+
+synnot.onexpand = function (some){
+    return new Expanded("(!" + some.expandarg().unpack() + ")");
+};
+
+synsetf.onevaluate = function (formula, value){
+    return formula.evaluatearg().set(value.evaluatearg());
+};
+
+synsetf.onexpand = function (formula, value){
+    synsetf.evaluate(formula, value);
+    return new Expanded(
+        formula.evaluatearg().expandarg() + "=" + 
+            value.evaluatearg().expandarg());
+};
+
+syndefvar.onevaluate = function (sym, value){
+    var valued = value.evaluatearg();
+    return inp.scoperoot.intern(sym.name).setvalue(valued);
+};
+
+syndefvar.onexpand = function (sym, value){
+    syndefvar.evaluate(sym, value);
+    return new Expanded("(" + inp.scoperoor.intern(sym.name).expandarg() + "=" + value + ")");
+};
+
+syndeflvar.onevaluate = function (sym, value){
+    var valued = value.evaluatearg();
+    return inp.scope.internf(sym.name).setvalue(valued);
+};
+
+syndeflvar.onexpand = function (sym, value){
+    syndeflvar.evaluate(sym, value);
+    return new Expanded("(" + inp.scope.internf(sym.name).expandarg() + "=" + value + ")");
+};
+
+// define basic macro functions
+
+var macwhen = new PrimitiveMacroClass();
+var macunless = new PrimitiveMacroClass();
+var maclambda = new PrimitiveMacroClass();
+var macdefun = new PrimitiveMacroClass();
+var macmacro = new PrimitiveMacroClass();
+var macdefmacro = new PrimitiveMacroClass();
+var macsetq = new PrimitiveMacroClass();
+var macdefvar = new PrimitiveMacroClass();
+var macdeflvar = new PrimitiveMacroClass();
+var macincf = new PrimitiveMacroClass();
+var macdecf = new PrimitiveMacroClass();
+var maclet = new PrimitiveMacroClass();
+var macflet = new PrimitiveMacroClass();
+var macmlet = new PrimitiveMacroClass();
+
+inp.scope.intern(new StringClass(slice("when").map(atoc))).setfunc(macwhen);
+inp.scope.intern(new StringClass(slice("unless").map(atoc))).setfunc(macunless);
+inp.scope.intern(new StringClass(slice("lambda").map(atoc))).setfunc(maclambda);
+inp.scope.intern(new StringClass(slice("defun").map(atoc))).setfunc(macdefun);
+inp.scope.intern(new StringClass(slice("macro").map(atoc))).setfunc(macmacro);
+inp.scope.intern(new StringClass(slice("defmacro").map(atoc))).setfunc(macdefmacro);
+inp.scope.intern(new StringClass(slice("setq").map(atoc))).setfunc(macsetq);
+// inp.scope.intern(new StringClass(slice("defvar").map(atoc))).setfunc(macdefvar);
+// inp.scope.intern(new StringClass(slice("deflvar").map(atoc))).setfunc(macdeflvar);
+inp.scope.intern(new StringClass(slice("incf").map(atoc))).setfunc(macincf);
+inp.scope.intern(new StringClass(slice("decf").map(atoc))).setfunc(macdecf);
+inp.scope.intern(new StringClass(slice("let").map(atoc))).setfunc(maclet);
+inp.scope.intern(new StringClass(slice("flet").map(atoc))).setfunc(macflet);
+inp.scope.intern(new StringClass(slice("mlet").map(atoc))).setfunc(macmlet);
+
+macincf.onevaluate = function (formula){
+    return new ConsClass(synsetf,
+                         new ConsClass(formula,
+                                       new ConsClass(
+                                           new ConsClass(basadd, 
+                                                         new ConsClass(formula,
+                                                                       new ConsClass(
+                                                                           new IntClass(1)))))));
+};
+
+macdecf.onevaluate = function (formula){
+    return new ConsClass(synsetf,
+                         new ConsClass(formula,
+                                       new ConsClass(
+                                           new ConsClass(bassub,
+                                                         new ConsClass(formula,
+                                                                       new ConsClass(
+                                                                           new IntClass(1)))))));
+};
+
+macdefvar.onevaluate = function (sym, value){ // ** should redefine to syntax
+    return new ConsClass(synsetf,
+                         new ConsClass(
+                             new QuoteClass(
+                                 new SymbolValueReferenceClass(
+                                     inp.scoperoot.intern(sym.name))),
+                             new ConsClass(value)));
+};
+
+macdeflvar.onevaluate = function (sym, value){ // ** should redefine to syntax
+    return new ConsClass(synsetf,
+                         new ConsClass(
+                             new QuoteClass(
+                                 new SymbolValueReferenceClass(
+                                     inp.scope.internf(sym.name))),
+                             new ConsClass(value)));
+};
+
+macwhen.onevaluate = function (cond){
+    return new ConsClass(synif,
+                         new ConsClass(cond,
+                                       new ConsClass(
+                                           new ConsClass(synprogn, 
+                                                         ConsClass.toCons(slice(arguments, 1))),
+                                           new ConsClass(nil))));
+};
+
+macunless.onevaluate = function (cond){
+    return new ConsClass(synif,
+                         new ConsClass(cond,
+                                       new ConsClass(nil,
+                                                     new ConsClass(
+                                                         new ConsClass(synprogn,
+                                                                       ConsClass.toCons(slice(arguments, 1)))))));
+};
+
+maclambda.onevaluate = function (args){
+    return new UserFunctionClass(null, args,
+                                 new ConsClass(synprogn_func,
+                                               ConsClass.toCons(slice(arguments, 1))));
+};
+
+macdefun.onevaluate = function (name){
+    return new ConsClass(synsetf,
+                         new ConsClass(
+                             new QuoteClass(
+                                 new SymbolFunctionReferenceClass(name)),
+                             new ConsClass(
+                                 new ConsClass(maclambda,
+                                               ConsClass.toCons(slice(arguments, 1))))));
+};
+
+macmacro.onevaluate = function (args){
+    return new UserMacroClass(null, args, 
+                              new ConsClass(synprogn,
+                                            ConsClass.toCons(slice(arguments, 1))));
+};
+
+macdefmacro.onevaluate = function (name){
+    return new ConsClass(synsetf,
+                     new ConsClass(
+                         new QuoteClass(
+                             new SymbolFunctionReferenceClass(name)),
+                         new ConsClass(
+                             new ConsClass(macmacro,
+                                           ConsClass.toCons(slice(arguments, 1))))));
+};
+
+macsetq.onevaluate = function (sym, value){
+    return new ConsClass(synsetf,
+                         new ConsClass(
+                             new QuoteClass(
+                                 new SymbolValueReferenceClass(sym)),
+                             new ConsClass(value)));
+};
+
+maclet.onevaluate = function (binds){ // ** must update here.
+    var ncons, bindsi;
+    for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();)
+        ncons = new ConsClass(
+            new ConsClass(syndeflvar, bindsi.next()), ncons);
+    ncons = ncons.reverse();
+    return new ConsClass(synblock,
+                         new ConsClass(ncons,
+                                       new ConsClass(
+                                           new ConsClass(synprogn,
+                                                         ConsClass.toCons(slice(arguments, 1))))));
+};
+
+macflet.onevaluate = function (binds){ // ** must update here
+    var ncons, bindsi, bind;
+    for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();){
+        bind = bindsi.next();
+        ncons = new ConsClass(
+            new ConsClass(synsetf,
+                          new ConsClass(
+                              new ConsClass(bassymbolfunction,
+                                            new ConsClass(
+                                                new QuoteClass(bind.car))),
+                              new ConsClass(
+                                  new ConsClass(maclambda, bind.cdr)))), ncons);}
+    ncons = ncons.reverse();
+    return new ConsClass(synblock,
+                         new ConsClass(ncons,
+                                       new ConsClass(
+                                           new ConsClass(synprogn, 
+                                                         ConsClass.toCons(slice(arguments, 1))))));
+};
+
+macmlet.onevaluate = function (binds){ // ** must update here.
+    var ncons, bindsi, bind;
+    for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();){
+        bind = bindsi.next();
+        ncons = new ConsClass(
+            new ConsClass(synsetf,
+                          new ConsClass(
+                              new ConsClass(bassymbolfunction,
+                                            new ConsClass(
+                                                new QuoteClass(bind.car))),
+                              new ConsClass(
+                                  new ConsClass(macmacro, bind.cdr)))), ncons);}
+    ncons = ncons.reverse();
+    return new ConsClass(synblock,
+                         new ConsClass(ncons,
+                                       new ConsClass(
+                                           new ConsClass(synprogn, 
+                                                         ConsClass.toCons(slice(arguments, 1))))));
+};
+
+// define basic functions
+
+var basadd = new PrimitiveFunctionClass();
+var bassub = new PrimitiveFunctionClass();
+var basmul = new PrimitiveFunctionClass();
+var basdiv = new PrimitiveFunctionClass();
+var basmod = new PrimitiveFunctionClass();
+var basconcat = new PrimitiveFunctionClass();
+var baslist = new PrimitiveFunctionClass();
+var bascar = new PrimitiveFunctionClass();
+var bascdr = new PrimitiveFunctionClass();
+var bascons = new PrimitiveFunctionClass();
+var basevery = new PrimitiveFunctionClass();
+var basmap = new PrimitiveFunctionClass();
+var basfilter = new PrimitiveFunctionClass();
+var basreduce = new PrimitiveFunctionClass();
+var basfindif = new PrimitiveFunctionClass();
+var baspositionif = new PrimitiveFunctionClass();
+var bascopy = new PrimitiveFunctionClass();
+var basreverse = new PrimitiveFunctionClass();
+var basnreverse = new PrimitiveFunctionClass();
+var basslice = new PrimitiveFunctionClass();
+var basnth = new PrimitiveFunctionClass();
+var baslength = new PrimitiveFunctionClass();
+var basnull = new PrimitiveFunctionClass();
+var basreadchar = new PrimitiveFunctionClass();
+var basreadline = new PrimitiveFunctionClass();
+var bassymbolname = new PrimitiveFunctionClass();
+var bassymbolvalue = new PrimitiveFunctionClass();
+var bassymbolfunction = new PrimitiveFunctionClass();
+var basintern = new PrimitiveFunctionClass();
+var basmakesymbol = new PrimitiveFunctionClass();
+var basfuncall = new PrimitiveFunctionClass();
+var basapply = new PrimitiveFunctionClass();
+
+inp.scope.intern(new StringClass(slice("concat").map(atoc))).setfunc(basconcat);
+inp.scope.intern(new StringClass(slice("+").map(atoc))).setfunc(basadd);
+inp.scope.intern(new StringClass(slice("-").map(atoc))).setfunc(bassub);
+inp.scope.intern(new StringClass(slice("*").map(atoc))).setfunc(basmul);
+inp.scope.intern(new StringClass(slice("/").map(atoc))).setfunc(basdiv);
+inp.scope.intern(new StringClass(slice("%").map(atoc))).setfunc(basmod);
+inp.scope.intern(new StringClass(slice("car").map(atoc))).setfunc(bascar);
+inp.scope.intern(new StringClass(slice("cdr").map(atoc))).setfunc(bascdr);
+inp.scope.intern(new StringClass(slice("list").map(atoc))).setfunc(baslist);
+inp.scope.intern(new StringClass(slice("cons").map(atoc))).setfunc(bascons);
+inp.scope.intern(new StringClass(slice("every").map(atoc))).setfunc(basevery);
+inp.scope.intern(new StringClass(slice("map").map(atoc))).setfunc(basmap);
+inp.scope.intern(new StringClass(slice("filter").map(atoc))).setfunc(basfilter);
+inp.scope.intern(new StringClass(slice("reduce").map(atoc))).setfunc(basreduce);
+inp.scope.intern(new StringClass(slice("find-if").map(atoc))).setfunc(basfindif);
+inp.scope.intern(new StringClass(slice("position-if").map(atoc))).setfunc(baspositionif);
+inp.scope.intern(new StringClass(slice("copy").map(atoc))).setfunc(bascopy);
+inp.scope.intern(new StringClass(slice("reverse").map(atoc))).setfunc(basreverse);
+inp.scope.intern(new StringClass(slice("nreverse").map(atoc))).setfunc(basnreverse);
+inp.scope.intern(new StringClass(slice("slice").map(atoc))).setfunc(basslice);
+inp.scope.intern(new StringClass(slice("nth").map(atoc))).setfunc(basnth);
+inp.scope.intern(new StringClass(slice("length").map(atoc))).setfunc(baslength);
+inp.scope.intern(new StringClass(slice("null").map(atoc))).setfunc(basnull);
+inp.scope.intern(new StringClass(slice("read-char").map(atoc))).setfunc(basreadchar);
+inp.scope.intern(new StringClass(slice("read").map(atoc))).setfunc(rdread);
+inp.scope.intern(new StringClass(slice("symbol-name").map(atoc))).setfunc(bassymbolname);
+inp.scope.intern(new StringClass(slice("symbol-value").map(atoc))).setfunc(bassymbolvalue);
+inp.scope.intern(new StringClass(slice("symbol-function").map(atoc))).setfunc(bassymbolfunction);
+inp.scope.intern(new StringClass(slice("intern").map(atoc))).setfunc(basintern);
+inp.scope.intern(new StringClass(slice("make-symbol").map(atoc))).setfunc(basmakesymbol);
+inp.scope.intern(new StringClass(slice("funcall").map(atoc))).setfunc(basfuncall);
+inp.scope.intern(new StringClass(slice("apply").map(atoc))).setfunc(basapply);
+
+basadd.label = "<#primitive +>";
+bassub.label = "<#primitive ->";
+basmul.label = "<#primitive *>";
+basdiv.label = "<#primitive />";
+basmod.label = "<#primitive %>";
+basconcat.label = "<#primitive concat>";
+baslist.label = "<#primitive list>";
+bascar.label = "<#primitive car>";
+bascdr.label = "<#primitive cdr>";
+bascons.label = "<#primitive cons>";
+basevery.label = "<#primitive every>";
+basmap.label = "<#primitive map>";
+basfilter.label = "<#primitive filter>";
+basreduce.label = "<#primitive reduce>";
+basfindif.label = "<#primitive findif>";
+baspositionif.label = "<#primitive positionif>";
+bascopy.label = "<#primitive copy>";
+basreverse.label = "<#primitive reverse>";
+basnreverse.label = "<#primitive nreverse>";
+basslice.label = "<#primitive slice>";
+basnth.label = "<#primitive nth>";
+baslength.label = "<#primitive length>";
+basnull.label = "<#primitive null>";
+basreadchar.label = "<#primitive readchar>";
+basreadline.label = "<#primitive readline>";
+bassymbolname.label = "<#primitive symbolname>";
+bassymbolvalue.label = "<#primitive symbolvalue>";
+bassymbolfunction.label = "<#primitive symbolfunction>";
+basintern.label = "<#primitive intern>";
+basmakesymbol.label = "<#primitive makesymbol>";
+basfuncall.label = "<#primitive funcall>";
+basapply.label = "<#primitive apply>";
+
+basadd.onevaluate = function (){
+    return slice(arguments).reduce(function (a, b){
+        if (a instanceof NumberClass == false ||
+           b instanceof NumberClass == false)
+            throw new Error("argument is not number class."); // ** should update here.
+        return new NumberClass(a.value + b.value);});
+};
+
+bassub.onevaluate = function (){
+    return slice(arguments).reduce(function (a, b){ 
+        if (a instanceof NumberClass == false ||
+           b instanceof NumberClass == false)
+            throw new Error("argument is not number class."); // ** should update here.
+        return new NumberClass(a.value - b.value);});
+};
+
+basmul.onevaluate = function (){
+    return slice(arguments).reduce(function (a, b){
+        if (a instanceof NumberClass == false ||
+           b instanceof NumberClass == false)
+            throw new Error("argument is not number class."); // ** should update here.
+        return new NumberClass(a.value * b.value);});
+};
+
+basdiv.onevaluate = function (){
+    return slice(arguments).reduce(function (a, b){
+        if (a instanceof NumberClass == false ||
+           b instanceof NumberClass == false)
+            throw new Error("argument is not number class."); // ** should update here.
+        return new NumberClass(a.value / b.value);});
+};
+
+basmod.onevaluate = function (){
+    return slice(arguments).reduce(function (a, b){
+        if (a instanceof NumberClass == false ||
+           b instanceof NumberClass == false)
+            throw new Error("argument is not number class."); // ** should update here.
+        return new NumberClass(a.value % b.value);});
+};
+
+basconcat.onevaluate = function (){
+    // var sum, index;
+    // for (sum = [], index = 0; index < arguments.length; index++)
+    //     sum = sum.concat(arguments[index].value);
+    // return new StringClass(sum);
+    return new StringClass(Array.prototype.concat.apply([], slice(arguments).map(value)));
+};
+
+basconcat.onexpand = function (){
+    // var sum, index;
+    // for (sum = "", index = 0; index < arguments.length; index++)
+    //     sum += (index ? "+" : "") + arguments[index].unpack();
+    // return new Expanded("(" + sum + ")");
+    return new Expanded("(" + slice(arguments).map(expandarg).map(unpack).join("+") + ")");
+};
+
+bascar.onevaluate = function (cons){
+    return cons.car;
+};
+
+bascar.onexpand = function (cons){ // ** must update here!
+    return new Expanded(cons + "[0]");
+};
+
+bascdr.onevaluate = function (cons){
+    return cons.cdr;
+};
+
+bascdr.onexpand = function (cons){ // ** must update here!
+    return new Expanded(cons + ".slice(1)");
+};
+
+bascons.onevaluate = function (car, cdr){
+    return new ConsClass(car, cdr);
+};
+
+bascons.onexpand = function (car, cdr){ // ** must update here!
+    return new Expanded("[" + car + "].concat(" + cdr + ")");
+};
+
+baslist.onevaluate = function (){
+    return new ConsClass.toCons(slice(arguments));
+};
+
+baslist.onexpand = function (){
+    return new ConsClass.toCons(slice(arguments)).expanddata(); // ** should check again
+};
+
+basevery.onevaluate = function (func, sequence){
+    return sequence.every(func);
+};
+
+basmap.onevaluate = function (func, sequence){
+    return sequence.map(func);
+};
+
+basmap.onexpand = function (func, sequence){
+    return new Expanded(sequence + ".map(" + func + ")");
+};
+
+basfilter.onevaluate = function (func, sequence){
+    return sequence.filter(func);
+};
+
+basfilter.onexpand = function (func, sequence){
+    return new Expanded(sequence + ".filter(" + func + ")");
+};
+
+basreduce.onevaluate = function (func, sequence){
+    return sequence.reduce(func);
+};
+
+basreduce.onexpand = function (func, sequence){
+    return new Expanded(sequence + ".reduce(" + func + ")");
+};
+
+basfindif.onevaluate = function (func, sequence){
+    return sequence.findif(func);
+};
+
+basfindif.onexpand = function (func, sequence){
+    throw "find-if is not defined yet.";
+};
+
+baspositionif.onevaluate = function (func, sequence){
+    return sequence.positionif(func);
+};
+
+baspositionif.onexpand = function (func, sequence){
+    throw "position-if is not defined yet.";
+};
+
+basslice.onevaluate = function (beginning, end,  sequence){
+    return sequence.slice(beginning, end);
+};
+
+basslice.onexpand = function (beginning, end, sequence){
+    return new Expanded(sequence + ".slice(" + beginning + "," + end + ")");
+};
+
+basnth.onevaluate = function (index, sequence){
+    return sequence.nth(index.value);
+};
+
+basnth.onexpand = function (index, sequence){
+    throw "nth is not defined yet.";
+};
+
+bascopy.onevaluate = function (sequence){
+    return sequence.copy();
+};
+
+bascopy.onexpand = function (sequence){
+    return new Expanded(sequence + ".slice()");
+};
+
+basreverse.onevaluate = function (sequence){
+    return sequence.copy().reverse();
+};
+
+basreverse.onexpand = function (sequence){
+    return new Expanded(sequence + ".slice().reverse()");
+};
+
+basnreverse.onevaluate = function (sequence){
+    return sequence.reverse();
+};
+
+basnreverse.onexpand = function(sequence){
+    return new Expanded(sequence + ".reverse()");
+};
+
+baslength.onevaluate = function (sequence){
+    return new IntClass(sequence.length());
+};
+
+baslength.onexpand = function (sequence){
+    return new Expanded(sequence + ".length");
+};
+
+basnull.onevaluate = function (sequence){
+    return new BooleanClass(sequence == nil);
+};
+
+basnull.onexpand = function (sequence){
+    return new Expanded("(" + sequence + ".length==0)");
+};
+
+basreadchar.onevaluate = function (stream){
+    return stream.get();
+};
+
+bassymbolname.onevaluate = function (sym){
+    return sym.name.copy();
+};
+
+bassymbolvalue.onevaluate = function (sym){
+    return new SymbolValueReferenceClass(sym);
+};
+
+bassymbolfunction.onevaluate = function (sym){
+    return new SymbolFunctionReferenceClass(sym);
+};
+
+basintern.onevaluate = function (name){
+    inp.scope.intern(name);
+    return new InternSymbolClass(name);
+};
+
+basmakesymbol.onevaluate = function (name){
+    // return new SymbolClass(name);
+    return new VariableSymbolClass(name);
+};
+
+basfuncall.onevaluate = function (func){
+    return func.evaluate.apply(func, slice(arguments, 1));
+};
+
+basfuncall.onexpand = function (func){
+    return new Expanded(func + "(" + slice(arguments, 1).join(",") + ")");
+};
+
+basapply.onevaluate = function (func, sequence){
+    return func.evaluate.apply(func, sequence.toArray());
+};
+
+basapply.onexpand = function (func, sequence){
+    return new Expanded(func + "(" + sequence.toArray().join(",") + ")");
+};
+
+// define optimize function 
+
+var optconcat = new OptimizeFunctionClass();
+var optadd = new OptimizeFunctionClass();
+var optsub = new OptimizeFunctionClass();
+var optmul = new OptimizeFunctionClass();
+var optdiv = new OptimizeFunctionClass();
+var optmod = new OptimizeFunctionClass();
+
+inp.scope.intern(new StringClass(slice("concat").map(atoc))).setfunc(optconcat);
+inp.scope.intern(new StringClass(slice("+").map(atoc))).setfunc(optadd);
+inp.scope.intern(new StringClass(slice("-").map(atoc))).setfunc(optsub);
+inp.scope.intern(new StringClass(slice("*").map(atoc))).setfunc(optmul);
+inp.scope.intern(new StringClass(slice("/").map(atoc))).setfunc(optdiv);
+inp.scope.intern(new StringClass(slice("%").map(atoc))).setfunc(optmod);
+
+optconcat.onevaluate = 
+    beforeevaluatearg(basconcat.onevaluate);
+
+optconcat.onexpand = function (){
+    if (isoptimizableall(arguments))
+        return basconcat.expand.apply(basconcat, arguments);
+    return basconcat.evaluate.apply(basconcat, arguments).const();
+};
+
+optadd.onevaluate = 
+    beforeevaluatearg(basadd.onevaluate);
+
+optadd.onexpand = function (){
+    if (isoptimizableall(arguments))
+        return basconcat.expand.apply(basadd, arguments);
+    return basconcat.evaluate.apply(basadd, arguments).const();
+};
+
+optsub.onevaluate = 
+    beforeevaluatearg(bassub.onevaluate);
+
+optsub.onexpand = function (){
+    if (isoptimizableall(arguments))
+        return basconcat.expand.apply(bassub, arguments);
+    return basconcat.evaluate.apply(bassub, arguments).const();
+};
+
+optmul.onevaluate = 
+    beforeevaluatearg(basmul.onevaluate);
+
+optmul.onexpand = function (){
+    if (isoptimizableall(arguments))
+        return basconcat.expand.apply(basmul, arguments);
+    return basconcat.evaluate.apply(basmul, arguments).const();
+};
+
+optdiv.onevaluate = 
+    beforeevaluatearg(basdiv.onevaluate);
+
+optdiv.onexpand = function (){
+    if (isoptimizableall(arguments))
+        return basconcat.expand.apply(basdiv, arguments);
+    return basconcat.evaluate.apply(basdiv, arguments).const();
+};
+
+optmod.onevaluate = 
+    beforeevaluatearg(basmod.onevaluate);
+
+optmod.onexpand = function (){
+    if (isoptimizableall(arguments))
+        return basconcat.expand.apply(basmod, arguments);
+    return basconcat.evaluate.apply(basmod, arguments).const();
+};
+
+// define debug function
+
+var debprint = new PrimitiveFunctionClass();
+var debtime = new SpecialFunctionClass();
+
+inp.scope.intern(new StringClass(slice("print").map(atoc))).setfunc(debprint);
+inp.scope.intern(new StringClass(slice("time").map(atoc))).setfunc(debtime);
+
+debprint.onevaluate = function (some){
+    return some;
+};
+
+debprint.onexpand = function (some){
+    return new Expanded("(console.log(" + some + "), null)");
+};
+
+debtime.onevaluate = function (){
+    var beginning;
+    var end;
+    var temp;
+    beginning = Date.now();
+    temp = synprogn.evaluate.apply(synprogn, arguments);
+    end = Date.now();
+    console.log("spend time of " + (end - beginning) + "ms.");
+    return temp;
+};
+
+// ** test code
+
+var source = new StringStreamClass(
+    StreamClass.direction.in,
+    // string('(let ((name "tikubonn") (age 18)) (let ((name "moco") (age 16)) (print name) (print age)) (print name) (print age))')
+    // string('(flet ((hello (name) (concat "hello ," name))) (let ((name "tikubonn")) (print (hello name))))')
+    // string('(progn (defun printall (sequence) (unless (null sequence) (print (car sequence)) (printall (cdr sequence)))) (printall (list 1 2 3)))')
+    // string('(progn (defun findif (func sequence) (if (null sequence) nil (if (func (car sequence)) (car sequence) (findif func (cdr sequence))))) (print (findif (lambda (some) (= some 3)) \'(1 2 3 4 5))))')
+    // string('(progn (print (lambda (name) (concat "hello ," name))))')
+    // string('(progn (defun myprint (some) (print some)) (myprint (lambda (name) (concat "hello ," name))))')
+    // string('(progn (defun call (func arg) (print (funcall func arg))) (call (lambda (name) (concat "hello ," name)) "moco"))')
+    // string('(progn (defun mymap (func sequence) (if (null sequence) nil (cons (funcall func (car sequence)) (mymap func (cdr sequence)))))(print (mymap (lambda (a) (+ a 1)) (list 1 2 3))))')
+    // string('(+ 1 2 (+ 1 2 (+ 1 2))')
+    // string('(list 1 2 3)')
+    // string('(print (list 1 2 3))')
+    // string('(print (print (list 1 2 3)))')
+    // string('(flet ((printall (sequence) (unless (null sequence) (print sequence) (printall (cdr sequence))))) (printall (list 1 2 3)))')
+    string('(flet ((printall (sequence) (let ((seq sequence)) (unless (null sequence) (print sequence) (printall (cdr sequence)))))) (printall (list 1 2 3)))')
+);
+
+var sourcec = rdread.evaluate(source);
+
+// console.log(source.source.toString());
+// console.log(sourcec.toString());
+// console.log(sourcec.evaluatearg().toString());
+console.log(sourcec.expandarg().toString());
+console.log(eval(sourcec.expandarg().toString()));
