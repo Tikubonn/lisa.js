@@ -45,88 +45,6 @@ NameGeneratorIgnore.prototype.generate = function (){
     return name;
 };
 
-// // strace class
-// //     <- native, function class ** for debug
-
-// function Strace (){
-//     this.strace = [];
-// };
-
-// Strace.prototype.push = function (message){
-//     return this.strace.push(message);
-// };
-
-// Strace.prototype.pop = function (){
-//     return this.strace.pop();
-// };
-
-// Strace.prototype.willstrace = function (func){
-//     var that = this;
-//     return function willstrace_closure (){
-//         that.push("moco");
-//         var temp = func.apply(func, arguments);
-//         that.pop();
-//         return temp;
-//     };
-// };
-
-// Strace.prototype.print = function (){ // ** for debug
-//     var index;
-//     for (index = 0; index < this.strace.length; index++)
-//         console.log(this.strace[index]);
-// }
-
-// var strace = new Strace();
-
-// // memotize pair class
-// //     <- native, function class
-
-// function MemotizePairClass (argument, result){
-//     this.argument = argument;
-//     this.result = result;
-// }
-
-// MemotizePairClass.prototype.issame = function (sequence){
-//     if (this.argument.length != sequence.length) return false;
-//     for (var index = 0; index < sequence.length; index++)
-//         if (sequence[index] != this.argument[index])
-//             return false;
-//     return true;
-// };
-
-// // memotize class
-// //     <- native, function class
-
-// function MemotizeClass (func){
-//     this.memolist = [];
-//     this.func = func;
-// }
-
-// MemotizeClass.prototype.find = function (sequence){
-//     var index;
-//     for (index = 0; index < this.memolist.length; index++)
-//         if (this.memolist[index].issame(sequence))
-//             return this.memolist[index];
-//     return null;
-// };
-
-// MemotizeClass.prototype.add = function (pair){
-//     return this.memolist.push(pair);
-// };
-
-// MemotizeClass.prototype.funcall = function (){
-//     var found = this.find(arguments);
-//     if (found) return found.result;
-//     var result = this.func.apply(this.func, arguments);
-//     var pair = new MemotizePairClass(arguments, result);
-//     this.add(pair);
-//     return result;
-// };
-
-// MemotizeClass.prototype.apply = function (sequence){
-//     return this.call.apply(this, sequence);
-// };
-
 // constantable class
 //     <- native, function class
 
@@ -134,27 +52,27 @@ function Constantable (){};
 
 Constantable.prototype.constantable = false;
 
-Constantable.prototype.const = function (){
+Constantable.prototype.constant = function (){
     this.constantable = true;
     return this;
 };
 
-Constantable.prototype.notconst = function (){
+Constantable.prototype.notconstant = function (){
     this.constantable = false;
     return this;
 };
 
 Constantable.prototype.inherit = function (constantable){
-    this.constantable = constantable.isconst();
+    this.constantable = constantable.isconstant();
     return this;
 };
 
-Constantable.prototype.isconst = function (){
+Constantable.prototype.isconstant = function (){
     return this.constantable;
 };
 
-Constantable.prototype.isnotconst = function (){
-    return this.isconst() == false;
+Constantable.prototype.isnotconstant = function (){
+    return this.isconstant() == false;
 };
 
 // evaluatable class
@@ -253,12 +171,14 @@ Evaluatable.prototype.willevaluatearg = function (){
     };
 };
 
-Evaluatable.prototype.willevaluatedata = function (){
-    var that = this;
-    return function willevaluatedata_closure (){
-        return that.evaluatedata.apply(that, arguments);
-    };
-};
+// Evaluatable.prototype.evaluate = 
+//     strace.willstrace(Evaluatable.prototype.evaluate); // ** for debug
+
+// Evaluatable.prototype.evaluatearg = 
+//     strace.willstrace(Evaluatable.prototype.evaluatearg); // ** for debug
+
+// Evaluatable.prototype.evaluatedata = 
+//     strace.willstrace(Evaluatable.prototype.evaluatedata); // ** for debug
 
 // expandable class
 //     <- constantable class
@@ -376,7 +296,7 @@ Expandable.prototype.willexpanddata = function (){
 //     <- expandable class
 
 function Expanded (value){
-    this.value = value;
+    this.value = value || "";
 }
 
 Expanded.prototype = 
@@ -384,6 +304,10 @@ Expanded.prototype =
 
 Expanded.prototype.toString = function (){
     return this.value;
+};
+
+Expanded.prototype.expand = function (){
+    return new Expanded(this.value + "(" + slice(arguments).map(expandarg).join(",") + ")");
 };
 
 Expanded.prototype.onevaluatearg = function (){
@@ -471,44 +395,6 @@ function afterclone (func){
         return func.apply(func, arguments).clone();
     };
 }
-
-// // result class
-// //     <- atom class
-
-// function ResultClass (value){
-//     this.value = value;
-// }
-
-// ResultClass.prototype = 
-//     Object.create(AtomClass.prototype);
-
-// ResultClass.prototype.toString = function (){
-//     return this.value.toString();
-// };
-
-// ResultClass.prototype.onevaluate = function (){
-//     return this.value.evaluate.apply(this.value, arguments);
-// };
-
-// ResultClass.prototype.onevaluatearg = function (){
-//     return this.value.evaluatedata();
-// };
-
-// ResultClass.prototype.onevaluatedata = function (){
-//     return this.value.evaluatedata();
-// };
-
-// ResultClass.prototype.onexpand = function (){
-//     return this.value.expand.apply(this.value, arguments);
-// };
-
-// ResultClass.prototype.onexpandarg = function (){
-//     return this.value.expandarg();
-// };
-
-// ResultClass.prototype.onexpanddata = function (){
-//     return this.value.expanddata();
-// };
 
 // boolean class
 //     <- atom class
@@ -819,12 +705,12 @@ CharClass.prototype.clone = function (){
     return new CharClass(this.value);
 };
 
-function atoi (char){
-    return char.charCodeAt();
+function atoi (chars){
+    return chars.charCodeAt();
 };
 
-function atoc (char){
-    return new CharClass(atoi(char));
+function atoc (chars){
+    return new CharClass(atoi(chars));
 };
 
 // sequencial class
@@ -953,7 +839,7 @@ ArrayClass.prototype.pop = function (){
 
 function ClassArrayClass (array, classe){
     this.value = array;
-    this.class = classe;
+    this.classe = classe;
 }
 
 ClassArrayClass.prototype =
@@ -1379,11 +1265,6 @@ CallableClass.prototype.toString = function (){
     return this.label;
 };
 
-// CallableClass.prototype.evaluate = function (){
-//     var result = AtomClass.prototype.evaluate.apply(this, arguments);
-//     return new ResultClass(result);
-// };
-
 // function class
 //     <- callable class
 
@@ -1417,7 +1298,7 @@ OptimizeFunctionClass.prototype.label = "<#optimize function class>";
 function isoptimizable (some){
     return some instanceof Expanded == false ||
         some instanceof SymbolFamilyClass == false || // ** should check again
-        some.isconst() == false;
+        some.isconstant() == false;
 }
 
 function isoptimizableall (sequence){
@@ -1427,6 +1308,57 @@ function isoptimizableall (sequence){
             return false;
     return true;
 }
+
+// reduce optimize function class
+//     <- optimize function class
+
+function ReduceOptimizeFunctionClass (func, evaluatedefault, expanddefault){
+    this.func = func || null;
+    this.evaluatedefault = evaluatedefault || null;
+    this.expanddefault = expanddefault || null;
+}
+
+ReduceOptimizeFunctionClass.prototype = 
+    Object.create(OptimizeFunctionClass.prototype);
+
+ReduceOptimizeFunctionClass.prototype.evaluate = 
+    beforeevaluatearg(OptimizeFunctionClass.prototype.evaluate);
+
+ReduceOptimizeFunctionClass.prototype.expand = 
+    beforeevaluatearg(OptimizeFunctionClass.prototype.expand);
+
+ReduceOptimizeFunctionClass.prototype.onevaluate = function (){
+    if (arguments.length == 0) return this.evaluatedefault;
+    if (arguments.length == 1) return arguments[0];
+    var sum, index;
+    for (sum = arguments[0], index = 1; index < arguments.length; index++)
+        sum = this.func.evaluate(sum, arguments[index]);
+    return sum;
+};
+
+ReduceOptimizeFunctionClass.prototype.onexpand = function (){
+    if (arguments.length == 0) return this.expanddefault;
+    if (arguments.length == 1) return arguments[0];
+    var sequence, index;
+    for (sequence = [arguments[0]], index = 1; index < arguments.length; index++)
+        if (isoptimizable(sequence[sequence.length -1]) == false ||
+            isoptimizable(arguments[index]) == false)
+            sequence.push(arguments[index]);
+        else sequence[sequence.length -1] = 
+            sequence[sequence.length -1] = 
+            this.func.evaluate(
+                sequence[sequence.length -1],
+                arguments[index]);
+    // return this.func.expand.apply(this.func, sequence);
+    var sum, indexc;
+    for (sum = "", indexc = 0; indexc < sequence.length; indexc++)
+        sum += (indexc ? "+" : "") +  sequence[indexc];
+    return new Expanded(sum);
+};
+
+ReduceOptimizeFunctionClass.prototype.expandarg = function (){
+    return new Expanded("function(){Array.prototype.slice.call(arguments).reduce(" + this.func.expandarg() + ");}");
+};
 
 // primitive function class
 //     <- function class
@@ -1456,22 +1388,22 @@ function UserFunctionClass (name, args, rest){
 UserFunctionClass.prototype = 
     Object.create(FunctionClass.prototype);
 
-UserFunctionClass.prototype.evaluate = 
-    beforeevaluatearg(FunctionClass.prototype.evaluate);
+// UserFunctionClass.prototype.evaluate = 
+//     beforeevaluatearg(FunctionClass.prototype.evaluate);
 
-UserFunctionClass.prototype.expand = 
-    beforeevaluatearg(FunctionClass.prototype.evaluate);
+// UserFunctionClass.prototype.expand = 
+//     beforeevaluatearg(FunctionClass.prototype.evaluate);
 
 UserFunctionClass.prototype.toString = function (){
     return "<#user function class>";
 };
 
-UserFunctionClass.prototype.onevaluate = function (){ // ** should update here
+UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
     var ncons, bindsi, index;
-    for (ncons = new ConsClass(synprogn), bindsi = this.args.iter(), index = 0; 
+    for (ncons = new ConsClass(synprogn), bindsi = this.args.iter(), index = 0;
          bindsi.isalive() && index < arguments.length; index++)
         ncons = new ConsClass(
-            new ConsClass(syndeflvar,
+            new ConsClass(macdeflvar,
                           new ConsClass(bindsi.next(),
                                         new ConsClass(arguments[index]))), ncons);
     ncons = ncons.reverse();
@@ -1480,12 +1412,33 @@ UserFunctionClass.prototype.onevaluate = function (){ // ** should update here
                                        new ConsClass(this.rest))).evaluatearg();
 };
 
-UserFunctionClass.prototype.onexpandarg = function (){
-    // return new Expanded("function(" + this.args.toArray().map(getvaluename).join(",") + "){" + this.rest.expandarg() + "}");
-    return new Expanded("function(" + this.args.toArray().map(getvaluename).join(",") + ")" +
-                        "{" + new ConsClass(synblock_func, 
-                                            new ConsClass(this.rest.expandarg())).expandarg() + "}"); // ** should check again
+UserFunctionClass.prototype.onexpandarg = function (){ // ** should check again
+    return new Expanded(
+        "function(" + this.args.toArray().map(getvaluename).join(",") + "){" +
+            new ConsClass(synblock_func,
+                          new ConsClass(this.rest.expandarg())).expandarg() + "}");
 };
+
+// UserFunctionClass.prototype.onevaluate = function (){ // ** should update here
+//     var ncons, bindsi, index;
+//     for (ncons = new ConsClass(synprogn), bindsi = this.args.iter(), index = 0; 
+//          bindsi.isalive() && index < arguments.length; index++)
+//         ncons = new ConsClass(
+//             new ConsClass(syndeflvar,
+//                           new ConsClass(bindsi.next(),
+//                                         new ConsClass(arguments[index]))), ncons);
+//     ncons = ncons.reverse();
+//     return new ConsClass(synblock_func,
+//                          new ConsClass(ncons,
+//                                        new ConsClass(this.rest))).evaluatearg();
+// };
+
+// UserFunctionClass.prototype.onexpandarg = function (){
+//     // return new Expanded("function(" + this.args.toArray().map(getvaluename).join(",") + "){" + this.rest.expandarg() + "}");
+//     return new Expanded("function(" + this.args.toArray().map(getvaluename).join(",") + ")" +
+//                         "{" + new ConsClass(synblock_func, 
+//                                             new ConsClass(this.rest.expandarg())).expandarg() + "}"); // ** should check again
+// };
 
 // macro class
 //     <- atom class
@@ -1600,7 +1553,6 @@ SymbolClass.prototype.onexpandarg = function (){
 
 function InternSymbolClass (name){
     this.name = name ? name.copy() : null;
-    // inp.scope.intern(name); // ** should check again
 }
 
 InternSymbolClass.prototype = 
@@ -1693,10 +1645,6 @@ VariableSymbolClass.prototype.onexpandarg = function (){
 };
 
 VariableSymbolClass.prototype.onexpand = function (){
-    // var func = this.getfunce();
-    // if (func instanceof UserFunctionClass)
-    //     return new Expanded(this.getfuncname() + "(" + slice(arguments).map(expandarg).join(",") + ")"); // ** should check again
-    // return func.expand.apply(func, arguments);
     var func = this.getfunc();
     if (func == null || func instanceof UserFunctionClass)
         return new Expanded(
@@ -1728,8 +1676,8 @@ StreamClass.prototype =
     Object.create(AtomClass.prototype);
 
 StreamClass.direction = {};
-StreamClass.direction.in = 0b00000001;
-StreamClass.direction.out = 0b00000010;
+StreamClass.direction.input = (1|0);
+StreamClass.direction.output = (2|0);
 
 StreamClass.onevaluate = null;
 StreamClass.onexpand = null;
@@ -1743,11 +1691,11 @@ StreamClass.prototype.get = function (){throw new Error("get was not defined.");
 StreamClass.prototype.put = function (){throw new Error("put was not defined.");};
 
 StreamClass.prototype.isin = function (){
-    return new Boolean(this.direction & StreamClass.direction.in);
+    return new Boolean(this.direction & StreamClass.direction.input);
 };
 
 StreamClass.prototype.isout = function (){
-    return new Boolean(this.direction & StreamClass.direction.out);
+    return new Boolean(this.direction & StreamClass.direction.output);
 };
 
 StreamClass.prototype.shouldin = function (){
@@ -1791,9 +1739,9 @@ StringStreamClass.prototype.get = function (){
     return this.iseof() ? nilf : this.source.nth(this.index++);
 };
 
-StringStreamClass.prototype.put = function (char){
+StringStreamClass.prototype.put = function (charInstance){
     this.shouldout();
-    return this.source.push(char);
+    return this.source.push(charInstance);
 };
 
 // obarray class 
@@ -1816,14 +1764,9 @@ Obarray.prototype.intern = function (name){
     var found;
     if ((found = this.find(name)))
         return found;
-    // var sym = new SymbolClass(name);
     var sym = new VariableSymbolClass(name);
     return this.set(name, sym);
 };
-
-// Obarray.prototype.names = function (){ // ** for debug
-//     return Object.keys(this.obarray);
-// };
 
 Obarray.prototype.list = function (){
     var sequence, names, index;
@@ -1831,6 +1774,16 @@ Obarray.prototype.list = function (){
          index = 0; index < names.length; index++)
         sequence.push(this.obarray[names[index]]);
     return sequence;
+};
+
+Obarray.prototype.internsym = function (sym){
+    if (sym instanceof InternSymbolClass == false) return sym;
+    return this.intern(sym.name);
+};
+
+Obarray.prototype.internsymf = function (sym){
+    if (sym instanceof InternSymbolClass == false) return sym;
+    return this.internf(sym.name);
 };
 
 // obarrays class
@@ -1841,31 +1794,12 @@ function Obarrays (parent){
     this.parent = parent || null;
 };
 
-// Obarrays.prototype.length = function (){ // ** for debug
-//     var count, current;
-//     for (count = 0, current = this; current; current = current.parent, count++);
-//     return count;
-// };
-
 Obarrays.prototype.list = function (){
-    // var current, found, founds;
-    // for (founds = [], current = this; current; current = current.parent)
-    //     if ((found = current.obarray.find(name)))
-    //         founds.push(found);
-    // return founds;
     var sequence, current;
     for (sequence = [], current = this; current; current = current.parent)
         sequence = sequence.concat(current.obarray.list());
     return sequence;
 };
-
-// Obarrays.prototype.count = function (name){ // ** for debug
-//     var count, current;
-//     for (count = 0, current = this; current; current = current.parent)
-//         if (current.obarray.find(name))
-//             count ++;
-//     return count;
-// };
 
 Obarrays.prototype.find = function (name){
     var current, found;
@@ -1876,20 +1810,10 @@ Obarrays.prototype.find = function (name){
 };
 
 Obarrays.prototype.finde = function (name){
-
-    // var found;
-    // if ((found = this.find(name)) == null)
-    //     throw new Error("" + name + " was not found.");
-    // return found;
-
-    // var found = this.find(name);
-    // if (found == null)
-    //     throw new Error("obarays <- " + name + " was not found.");
-    // return found;
-
-    var found = this.find(name);
-    if (found) return found;
-    throw new  Error("obarrays " + name + " was not found.");
+    var found;
+    if ((found = this.find(name)) == null)
+        throw new Error("obarrays " + name + " was not found.");
+    return found;
 };
 
 Obarrays.prototype.intern = function (name){
@@ -1903,6 +1827,12 @@ Obarrays.prototype.internf = function (name){
     return this.obarray.intern(name);
 };
 
+Obarrays.prototype.internsym = 
+    Obarray.prototype.internsym;
+
+Obarrays.prototype.internsymf = 
+    Obarray.prototype.internsymf;
+
 Obarrays.prototype.nest = function (){
     return new Obarrays(this);
 };
@@ -1910,16 +1840,6 @@ Obarrays.prototype.nest = function (){
 Obarrays.prototype.exit = function (){
     return this.parent;
 };
-
-// Obarrays.prototype.names = function (){ // ** for debug
-//     var current, names, namesc, indexc;
-//     for (current = this, names = []; current; current = current.parent)
-//         for (namesc = current.obarray.names(), 
-//              indexc = 0; indexc < namesc.length; indexc++)
-//             if (names.indexOf(namesc[indexc]) < 0)
-//                 names.push(namesc[indexc]);
-//     return names;
-// };
 
 // obscope class
 //   <- native, function class
@@ -1964,6 +1884,12 @@ Obscope.prototype.internf = function (name){
     return this.obarray.internf(name);
 };
 
+Obscope.prototype.internsym = 
+    Obarrays.prototype.internsym;
+
+Obscope.prototype.internsymf = 
+    Obarrays.prototype.internsymf;
+
 Obscope.prototype.nestin = function (){
     this.obarray = this.obarray.nest();
 };
@@ -1988,22 +1914,22 @@ function ReaderScope (method){
     this.method = method || null;
 }
 
-ReaderScope.prototype.get = function (char){
-    return this.scope[char.toString()] || null;
+ReaderScope.prototype.get = function (charInstance){
+    return this.scope[charInstance.toString()] || null;
 };
 
 ReaderScope.prototype.getcurrent = function (){
     return this.method || null;
 };
 
-ReaderScope.prototype.dig = function (char){
-    if(this.scope[char.toString()] == null)
-        this.scope[char.toString()] = new ReaderScope();
-    return this.scope[char.toString()];
+ReaderScope.prototype.dig = function (charInstance){
+    if(this.scope[charInstance.toString()] == null)
+        this.scope[charInstance.toString()] = new ReaderScope();
+    return this.scope[charInstance.toString()];
 };
 
-ReaderScope.prototype.set = function (char, method){
-    return this.dig(char).setcurrent(method);
+ReaderScope.prototype.set = function (charInstance, method){
+    return this.dig(charInstance).setcurrent(method);
 };
 
 ReaderScope.prototype.setcurrent = function (method){
@@ -2042,6 +1968,11 @@ Interpreter.prototype.exit  =function (){
 
 var inp = new Interpreter();
 
+// define primitive values
+
+inp.scope.intern(string("nil")).setvalue(nil);
+inp.scope.intern(string("t")).setvalue(t);
+
 // define reader methods
 
 var rdignoreindent = new PrimitiveFunctionClass();
@@ -2057,6 +1988,7 @@ var rdreadquote = new PrimitiveFunctionClass();
 var rdreadunquote = new PrimitiveFunctionClass();
 var rdreadunquoteat = new PrimitiveFunctionClass();
 var rdreadchar = new PrimitiveFunctionClass();
+var rdreadpre  = new PrimitiveFunctionClass();
 
 rdignoreindent.onevaluate = function (stream){
     while (stream.isalive() && 
@@ -2069,17 +2001,17 @@ rdignoreindent.onevaluate = function (stream){
 rdread.onevaluate = function (stream){
     rdignoreindent.evaluate(stream);
     var rdscope, rdscopec;
-    var char, charc;
-    for (rdscope = inp.readerscope, char = nil; stream.isalive();){
-        charc = stream.look();
-        rdscopec = rdscope.get(charc);
+    var charInstance, charInstancec;
+    for (rdscope = inp.readerscope, charInstance = nil; stream.isalive();){
+        charInstancec = stream.look();
+        rdscopec = rdscope.get(charInstancec);
         if (rdscopec == null) break;
-        char = stream.get();
+        charInstance = stream.get();
         rdscope = rdscopec;
     }
     if (rdscope.getcurrent() == null)
         throw new Error("method was not found.");
-    return rdscope.getcurrent().evaluate(stream, char);
+    return rdscope.getcurrent().evaluate(stream, charInstance);
 };
 
 rdreadintern.onevaluate = function (stream){
@@ -2103,22 +2035,23 @@ rdreadminus.onevaluate = function (stream){
 };
 
 rdreadnumber.onevaluate = function (stream, nc){
-    var char, num;
+    var charInstance, num;
     for (num = nc.toString(); stream.isalive();)
         if ("123456890.".indexOf(stream.look().toString()) >= 0)
             num += stream.get().toString();
         else break;
     return num.indexOf(".") >= 0 ?
-        new NumberClass(parseFloat(num)).const():
-        new IntClass(parseInt(num)).const();
+        new NumberClass(parseFloat(num)).constant():
+        new IntClass(parseInt(num)).constant();
 };
 
 rdreadstring.onevaluate = function (stream, quote){
-    var char, content;
-    for (content = new StringClass(); stream.isalive() && (char = stream.get()).status();)
-        if (char.get().value == quote.value) break;
-        else  content.push(char);
-    return content.const();
+    var charInstance, content;
+    for (content = new StringClass(); 
+         stream.isalive() && (charInstance = stream.get()).status();)
+        if (charInstance.get().value == quote.value) break;
+        else  content.push(charInstance);
+    return content.constant();
 };
 
 rdreadopenbrace.onevaluate = function (stream){
@@ -2126,7 +2059,7 @@ rdreadopenbrace.onevaluate = function (stream){
     for (ncons = nil; stream.isalive() && 
          (element = rdread.evaluate(stream)) != rdreadclosebrace_unique;)
         ncons = new ConsClass(element, ncons);
-    return ncons.reverse().const();
+    return ncons.reverse().constant();
 };
 
 rdreadclosebrace.onevaluate = function (stream){
@@ -2149,6 +2082,11 @@ rdreadchar.onevaluate = function (stream){
     return new CharClass(stream.get());
 };
 
+rdreadpre.onevaluate = function (stream){
+    var formula = rdread.evaluate(stream);
+    return formula.evaluatearg();
+};
+
 inp.readerscope.setcurrent(rdreadintern);
 inp.readerscope.dig("'").setcurrent(rdreadquote);
 inp.readerscope.dig(",").setcurrent(rdreadunquote);
@@ -2168,6 +2106,7 @@ inp.readerscope.dig("7").setcurrent(rdreadnumber);
 inp.readerscope.dig("8").setcurrent(rdreadnumber);
 inp.readerscope.dig("9").setcurrent(rdreadnumber);
 inp.readerscope.dig("?").setcurrent(rdreadchar);
+inp.readerscope.dig("@").dig(".").setcurrent(rdreadpre);
 
 // define syntax functions
 
@@ -2181,8 +2120,6 @@ var synand = new SpecialFunctionClass();
 var synor = new SpecialFunctionClass();
 var synnot = new SpecialFunctionClass();
 var synsetf = new SpecialFunctionClass();
-var syndefvar = new SpecialFunctionClass();
-var syndeflvar = new SpecialFunctionClass();
 
 inp.scope.intern(new StringClass(slice("if").map(atoc))).setfunc(synif);
 inp.scope.intern(new StringClass(slice("block").map(atoc))).setfunc(synblock);
@@ -2191,8 +2128,6 @@ inp.scope.intern(new StringClass(slice("and").map(atoc))).setfunc(synand);
 inp.scope.intern(new StringClass(slice("or").map(atoc))).setfunc(synor);
 inp.scope.intern(new StringClass(slice("not").map(atoc))).setfunc(synnot);
 inp.scope.intern(new StringClass(slice("setf").map(atoc))).setfunc(synsetf);
-inp.scope.intern(new StringClass(slice("defvar").map(atoc))).setfunc(syndefvar);
-inp.scope.intern(new StringClass(slice("deflvar").map(atoc))).setfunc(syndeflvar);
 
 synif.label = "<#syntax if>";
 synblock.label = "<#syntax block>";
@@ -2204,8 +2139,6 @@ synand.label = "<#syntax and>";
 synor.label = "<#syntax or>";
 synnot.label = "<#syntax not>";
 synsetf.label = "<#syntax setf>";
-syndefvar.label = "<#syntax defvar>";
-syndeflvar.label = "<#syntax deflvar>";
 
 synif.onevaluate = function (cond, truecase, falsecase){
     if (cond.evaluatearg().status())
@@ -2326,26 +2259,6 @@ synsetf.onexpand = function (formula, value){
             value.evaluatearg().expandarg());
 };
 
-syndefvar.onevaluate = function (sym, value){
-    var valued = value.evaluatearg();
-    return inp.scoperoot.intern(sym.name).setvalue(valued);
-};
-
-syndefvar.onexpand = function (sym, value){
-    syndefvar.evaluate(sym, value);
-    return new Expanded("(" + inp.scoperoor.intern(sym.name).expandarg() + "=" + value + ")");
-};
-
-syndeflvar.onevaluate = function (sym, value){
-    var valued = value.evaluatearg();
-    return inp.scope.internf(sym.name).setvalue(valued);
-};
-
-syndeflvar.onexpand = function (sym, value){
-    syndeflvar.evaluate(sym, value);
-    return new Expanded("(" + inp.scope.internf(sym.name).expandarg() + "=" + value + ")");
-};
-
 // define basic macro functions
 
 var macwhen = new PrimitiveMacroClass();
@@ -2355,13 +2268,13 @@ var macdefun = new PrimitiveMacroClass();
 var macmacro = new PrimitiveMacroClass();
 var macdefmacro = new PrimitiveMacroClass();
 var macsetq = new PrimitiveMacroClass();
-var macdefvar = new PrimitiveMacroClass();
-var macdeflvar = new PrimitiveMacroClass();
 var macincf = new PrimitiveMacroClass();
 var macdecf = new PrimitiveMacroClass();
 var maclet = new PrimitiveMacroClass();
 var macflet = new PrimitiveMacroClass();
 var macmlet = new PrimitiveMacroClass();
+var macdefvar = new PrimitiveMacroClass();
+var macdeflvar = new PrimitiveMacroClass();
 
 inp.scope.intern(new StringClass(slice("when").map(atoc))).setfunc(macwhen);
 inp.scope.intern(new StringClass(slice("unless").map(atoc))).setfunc(macunless);
@@ -2370,13 +2283,13 @@ inp.scope.intern(new StringClass(slice("defun").map(atoc))).setfunc(macdefun);
 inp.scope.intern(new StringClass(slice("macro").map(atoc))).setfunc(macmacro);
 inp.scope.intern(new StringClass(slice("defmacro").map(atoc))).setfunc(macdefmacro);
 inp.scope.intern(new StringClass(slice("setq").map(atoc))).setfunc(macsetq);
-// inp.scope.intern(new StringClass(slice("defvar").map(atoc))).setfunc(macdefvar);
-// inp.scope.intern(new StringClass(slice("deflvar").map(atoc))).setfunc(macdeflvar);
 inp.scope.intern(new StringClass(slice("incf").map(atoc))).setfunc(macincf);
 inp.scope.intern(new StringClass(slice("decf").map(atoc))).setfunc(macdecf);
 inp.scope.intern(new StringClass(slice("let").map(atoc))).setfunc(maclet);
 inp.scope.intern(new StringClass(slice("flet").map(atoc))).setfunc(macflet);
 inp.scope.intern(new StringClass(slice("mlet").map(atoc))).setfunc(macmlet);
+inp.scope.intern(new StringClass(slice("defvar").map(atoc))).setfunc(macdefvar);
+inp.scope.intern(new StringClass(slice("deflvar").map(atoc))).setfunc(macdeflvar);
 
 macincf.onevaluate = function (formula){
     return new ConsClass(synsetf,
@@ -2398,21 +2311,25 @@ macdecf.onevaluate = function (formula){
                                                                            new IntClass(1)))))));
 };
 
-macdefvar.onevaluate = function (sym, value){ // ** should redefine to syntax
+macdefvar.onevaluate = function (sym, value){
     return new ConsClass(synsetf,
                          new ConsClass(
-                             new QuoteClass(
-                                 new SymbolValueReferenceClass(
-                                     inp.scoperoot.intern(sym.name))),
+                             new ConsClass(bassymbolvalue,
+                                           new ConsClass(
+                                               new ConsClass(basglobal,
+                                                             new ConsClass(
+                                                                 new QuoteClass(sym))))),
                              new ConsClass(value)));
-};
+}
 
-macdeflvar.onevaluate = function (sym, value){ // ** should redefine to syntax
+macdeflvar.onevaluate = function (sym, value){
     return new ConsClass(synsetf,
                          new ConsClass(
-                             new QuoteClass(
-                                 new SymbolValueReferenceClass(
-                                     inp.scope.internf(sym.name))),
+                             new ConsClass(bassymbolvalue,
+                                           new ConsClass(
+                                               new ConsClass(baslocal,
+                                                             new ConsClass(
+                                                                 new QuoteClass(sym))))),
                              new ConsClass(value)));
 };
 
@@ -2478,7 +2395,7 @@ maclet.onevaluate = function (binds){ // ** must update here.
     var ncons, bindsi;
     for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();)
         ncons = new ConsClass(
-            new ConsClass(syndeflvar, bindsi.next()), ncons);
+            new ConsClass(macdeflvar, bindsi.next()), ncons);
     ncons = ncons.reverse();
     return new ConsClass(synblock,
                          new ConsClass(ncons,
@@ -2561,6 +2478,8 @@ var basintern = new PrimitiveFunctionClass();
 var basmakesymbol = new PrimitiveFunctionClass();
 var basfuncall = new PrimitiveFunctionClass();
 var basapply = new PrimitiveFunctionClass();
+var basglobal = new PrimitiveFunctionClass();
+var baslocal = new PrimitiveFunctionClass();
 
 inp.scope.intern(new StringClass(slice("concat").map(atoc))).setfunc(basconcat);
 inp.scope.intern(new StringClass(slice("+").map(atoc))).setfunc(basadd);
@@ -2594,6 +2513,8 @@ inp.scope.intern(new StringClass(slice("intern").map(atoc))).setfunc(basintern);
 inp.scope.intern(new StringClass(slice("make-symbol").map(atoc))).setfunc(basmakesymbol);
 inp.scope.intern(new StringClass(slice("funcall").map(atoc))).setfunc(basfuncall);
 inp.scope.intern(new StringClass(slice("apply").map(atoc))).setfunc(basapply);
+inp.scope.intern(new StringClass(slice("global").map(atoc))).setfunc(basglobal);
+inp.scope.intern(new StringClass(slice("local").map(atoc))).setfunc(baslocal);
 
 basadd.label = "<#primitive +>";
 bassub.label = "<#primitive ->";
@@ -2627,12 +2548,26 @@ basintern.label = "<#primitive intern>";
 basmakesymbol.label = "<#primitive makesymbol>";
 basfuncall.label = "<#primitive funcall>";
 basapply.label = "<#primitive apply>";
+basglobal.label = "<#primitive global>";
+baslocal.label = "<#primitive local>";
+
+basglobal.onevaluate = function (sym){
+    if (sym instanceof InternSymbolClass)
+        return inp.scoperoot.intern(sym.name);
+    return sym;
+};
+
+baslocal.onevaluate = function (sym){
+    if (sym instanceof InternSymbolClass)
+        return inp.scope.internf(sym.name);
+    return sym;
+};
 
 basadd.onevaluate = function (){
     return slice(arguments).reduce(function (a, b){
         if (a instanceof NumberClass == false ||
            b instanceof NumberClass == false)
-            throw new Error("argument is not number class."); // ** should update here.
+            throw new Error("argument is not number class.");
         return new NumberClass(a.value + b.value);});
 };
 
@@ -2640,7 +2575,7 @@ bassub.onevaluate = function (){
     return slice(arguments).reduce(function (a, b){ 
         if (a instanceof NumberClass == false ||
            b instanceof NumberClass == false)
-            throw new Error("argument is not number class."); // ** should update here.
+            throw new Error("argument is not number class.");
         return new NumberClass(a.value - b.value);});
 };
 
@@ -2648,7 +2583,7 @@ basmul.onevaluate = function (){
     return slice(arguments).reduce(function (a, b){
         if (a instanceof NumberClass == false ||
            b instanceof NumberClass == false)
-            throw new Error("argument is not number class."); // ** should update here.
+            throw new Error("argument is not number class.");
         return new NumberClass(a.value * b.value);});
 };
 
@@ -2656,7 +2591,7 @@ basdiv.onevaluate = function (){
     return slice(arguments).reduce(function (a, b){
         if (a instanceof NumberClass == false ||
            b instanceof NumberClass == false)
-            throw new Error("argument is not number class."); // ** should update here.
+            throw new Error("argument is not number class.");
         return new NumberClass(a.value / b.value);});
 };
 
@@ -2664,8 +2599,48 @@ basmod.onevaluate = function (){
     return slice(arguments).reduce(function (a, b){
         if (a instanceof NumberClass == false ||
            b instanceof NumberClass == false)
-            throw new Error("argument is not number class."); // ** should update here.
+            throw new Error("argument is not number class.");
         return new NumberClass(a.value % b.value);});
+};
+
+basadd.onexpand = function (){
+    return new Expanded("(" + slice(arguments).join("+") + ")");
+};
+
+bassub.onexpand = function (){
+    return new Expanded("(" + slice(arguments).join("-") + ")");
+};
+
+basmul.onexpand = function (){
+    return new Expanded("(" + slice(arguments).join("*") + ")");
+};
+
+basdiv.onexpand = function (){
+    return new Expanded("(" + slice(arguments).join("/") + ")");
+};
+
+basdiv.onexpmod = function (){
+    return new Expanded("(" + slice(arguments).join("%") + ")");
+};
+
+basadd.onexpandarg = function (){
+    return new Expanded("function(){Array.prototype.slice(arguments).reduce(function(a,b){return a+b;})");
+};
+
+bassub.onexpandarg = function (){
+    return new Expanded("function(){Array.prototype.slice(arguments).reduce(function(a,b){return a-b;})");
+};
+
+basmul.onexpandarg = function (){
+    return new Expanded("function(){Array.prototype.slice(arguments).reduce(function(a,b){return a*b;})");
+};
+
+basdiv.onexpandarg = function (){
+    return new Expanded("function(){Array.prototype.slice(arguments).reduce(function(a,b){return a/b;})");
+};
+
+basmod.onexpandarg = function (){
+    return new Expanded("function(){Array.prototype.slice(arguments).reduce(function(a,b){return a%b;})");
 };
 
 basconcat.onevaluate = function (){
@@ -2838,7 +2813,6 @@ basintern.onevaluate = function (name){
 };
 
 basmakesymbol.onevaluate = function (name){
-    // return new SymbolClass(name);
     return new VariableSymbolClass(name);
 };
 
@@ -2861,7 +2835,7 @@ basapply.onexpand = function (func, sequence){
 // define optimize function 
 
 var optconcat = new OptimizeFunctionClass();
-var optadd = new OptimizeFunctionClass();
+ var optadd = new OptimizeFunctionClass();
 var optsub = new OptimizeFunctionClass();
 var optmul = new OptimizeFunctionClass();
 var optdiv = new OptimizeFunctionClass();
@@ -2880,7 +2854,7 @@ optconcat.onevaluate =
 optconcat.onexpand = function (){
     if (isoptimizableall(arguments))
         return basconcat.expand.apply(basconcat, arguments);
-    return basconcat.evaluate.apply(basconcat, arguments).const();
+    return basconcat.evaluate.apply(basconcat, arguments).constant();
 };
 
 optadd.onevaluate = 
@@ -2889,7 +2863,7 @@ optadd.onevaluate =
 optadd.onexpand = function (){
     if (isoptimizableall(arguments))
         return basconcat.expand.apply(basadd, arguments);
-    return basconcat.evaluate.apply(basadd, arguments).const();
+    return basconcat.evaluate.apply(basadd, arguments).constant();
 };
 
 optsub.onevaluate = 
@@ -2898,7 +2872,7 @@ optsub.onevaluate =
 optsub.onexpand = function (){
     if (isoptimizableall(arguments))
         return basconcat.expand.apply(bassub, arguments);
-    return basconcat.evaluate.apply(bassub, arguments).const();
+    return basconcat.evaluate.apply(bassub, arguments).constant();
 };
 
 optmul.onevaluate = 
@@ -2907,7 +2881,7 @@ optmul.onevaluate =
 optmul.onexpand = function (){
     if (isoptimizableall(arguments))
         return basconcat.expand.apply(basmul, arguments);
-    return basconcat.evaluate.apply(basmul, arguments).const();
+    return basconcat.evaluate.apply(basmul, arguments).constant();
 };
 
 optdiv.onevaluate = 
@@ -2916,7 +2890,7 @@ optdiv.onevaluate =
 optdiv.onexpand = function (){
     if (isoptimizableall(arguments))
         return basconcat.expand.apply(basdiv, arguments);
-    return basconcat.evaluate.apply(basdiv, arguments).const();
+    return basconcat.evaluate.apply(basdiv, arguments).constant();
 };
 
 optmod.onevaluate = 
@@ -2925,7 +2899,7 @@ optmod.onevaluate =
 optmod.onexpand = function (){
     if (isoptimizableall(arguments))
         return basconcat.expand.apply(basmod, arguments);
-    return basconcat.evaluate.apply(basmod, arguments).const();
+    return basconcat.evaluate.apply(basmod, arguments).constant();
 };
 
 // define debug function
@@ -2937,11 +2911,21 @@ inp.scope.intern(new StringClass(slice("print").map(atoc))).setfunc(debprint);
 inp.scope.intern(new StringClass(slice("time").map(atoc))).setfunc(debtime);
 
 debprint.onevaluate = function (some){
+    console.log(some.toString());
     return some;
 };
 
 debprint.onexpand = function (some){
-    return new Expanded("(console.log(" + some + "), null)");
+    var sym = new VariableSymbolClass();
+    return new ConsClass(maclet,
+                         new ConsClass(
+                             new ConsClass(
+                                 new ConsClass(sym,
+                                               new ConsClass(some))),
+                             new ConsClass(
+                                 new ConsClass(
+                                     new Expanded("console.log"),
+                                     new ConsClass(sym))))).expandarg();
 };
 
 debtime.onevaluate = function (){
@@ -2954,31 +2938,3 @@ debtime.onevaluate = function (){
     console.log("spend time of " + (end - beginning) + "ms.");
     return temp;
 };
-
-// ** test code
-
-var source = new StringStreamClass(
-    StreamClass.direction.in,
-    // string('(let ((name "tikubonn") (age 18)) (let ((name "moco") (age 16)) (print name) (print age)) (print name) (print age))')
-    // string('(flet ((hello (name) (concat "hello ," name))) (let ((name "tikubonn")) (print (hello name))))')
-    // string('(progn (defun printall (sequence) (unless (null sequence) (print (car sequence)) (printall (cdr sequence)))) (printall (list 1 2 3)))')
-    // string('(progn (defun findif (func sequence) (if (null sequence) nil (if (func (car sequence)) (car sequence) (findif func (cdr sequence))))) (print (findif (lambda (some) (= some 3)) \'(1 2 3 4 5))))')
-    // string('(progn (print (lambda (name) (concat "hello ," name))))')
-    // string('(progn (defun myprint (some) (print some)) (myprint (lambda (name) (concat "hello ," name))))')
-    // string('(progn (defun call (func arg) (print (funcall func arg))) (call (lambda (name) (concat "hello ," name)) "moco"))')
-    // string('(progn (defun mymap (func sequence) (if (null sequence) nil (cons (funcall func (car sequence)) (mymap func (cdr sequence)))))(print (mymap (lambda (a) (+ a 1)) (list 1 2 3))))')
-    // string('(+ 1 2 (+ 1 2 (+ 1 2))')
-    // string('(list 1 2 3)')
-    // string('(print (list 1 2 3))')
-    // string('(print (print (list 1 2 3)))')
-    // string('(flet ((printall (sequence) (unless (null sequence) (print sequence) (printall (cdr sequence))))) (printall (list 1 2 3)))')
-    string('(flet ((printall (sequence) (let ((seq sequence)) (unless (null sequence) (print sequence) (printall (cdr sequence)))))) (printall (list 1 2 3)))')
-);
-
-var sourcec = rdread.evaluate(source);
-
-// console.log(source.source.toString());
-// console.log(sourcec.toString());
-// console.log(sourcec.evaluatearg().toString());
-console.log(sourcec.expandarg().toString());
-console.log(eval(sourcec.expandarg().toString()));
