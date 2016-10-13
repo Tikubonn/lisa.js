@@ -1,7 +1,7 @@
 # lisa.js
 lisa is a translator. this language will be convert to javascript source code. 
 
-```emacslisp
+```lisp
 (progn
   (defun hello (name)
     (print (concat "hello ," name)))
