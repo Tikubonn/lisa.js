@@ -1419,27 +1419,6 @@ UserFunctionClass.prototype.onexpandarg = function (){ // ** should check again
                           new ConsClass(this.rest.expandarg())).expandarg() + "}");
 };
 
-// UserFunctionClass.prototype.onevaluate = function (){ // ** should update here
-//     var ncons, bindsi, index;
-//     for (ncons = new ConsClass(synprogn), bindsi = this.args.iter(), index = 0; 
-//          bindsi.isalive() && index < arguments.length; index++)
-//         ncons = new ConsClass(
-//             new ConsClass(syndeflvar,
-//                           new ConsClass(bindsi.next(),
-//                                         new ConsClass(arguments[index]))), ncons);
-//     ncons = ncons.reverse();
-//     return new ConsClass(synblock_func,
-//                          new ConsClass(ncons,
-//                                        new ConsClass(this.rest))).evaluatearg();
-// };
-
-// UserFunctionClass.prototype.onexpandarg = function (){
-//     // return new Expanded("function(" + this.args.toArray().map(getvaluename).join(",") + "){" + this.rest.expandarg() + "}");
-//     return new Expanded("function(" + this.args.toArray().map(getvaluename).join(",") + ")" +
-//                         "{" + new ConsClass(synblock_func, 
-//                                             new ConsClass(this.rest.expandarg())).expandarg() + "}"); // ** should check again
-// };
-
 // macro class
 //     <- atom class
 
