@@ -6,7 +6,7 @@ lisa is a translator. this language will be convert to javascript source code.
   (defun hello (name)
     (print (concat "hello ," name)))
 
-(hello "lisa") ;; hello, lisa
+(hello "lisa")) ;; hello, lisa
 ```
 
 ```js
