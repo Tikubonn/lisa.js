@@ -1480,17 +1480,27 @@ UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
             new ConsClass(macdeflvar,
                           new ConsClass(bindsi.next(),
                                         new ConsClass(arguments[index]))), ncons);
+    // ncons = ncons.reverse();
+    // return new ConsClass(synblock_func,
+    //                      new ConsClass(ncons,
+    //                                    new ConsClass(this.rest))).evaluatearg();
     ncons = ncons.reverse();
-    return new ConsClass(synblock_func,
+    return new ConsClass(synprogn,
                          new ConsClass(ncons,
-                                       new ConsClass(this.rest))).evaluatearg();
+                                       new ConsClass(
+                                           new ConsClass(synblock_func,
+                                                         ConsClass.toCons(this.rest))))).evaluatearg();
 };
 
 UserFunctionClass.prototype.onexpandarg = function (){ // ** should check again
+    // return new Expanded(
+    //     "function(" + this.args.toArray().map(getvaluename).join(",") + "){" +
+    //         new ConsClass(synblock_func,
+    //                       new ConsClass(this.rest.expandarg())).expandarg() + "}");
     return new Expanded(
-        "function(" + this.args.toArray().map(getvaluename).join(",") + "){" +
-            new ConsClass(synblock_func,
-                          new ConsClass(this.rest.expandarg())).expandarg() + "}");
+        "function(" + this.args.toArray().map(getvaluename).join(",") + ")" + 
+            "{" + new ConsClass(synblock_func,
+                                ConsClass.toCons(this.rest)).expandarg() + "}");
 };
 
 // macro class
@@ -1829,6 +1839,18 @@ Obarray.prototype.list = function (){
     return sequence;
 };
 
+function list (some){
+    if (some.list == undefined)
+        throw new Error("some has not method name of list.");
+    return some.list();
+};
+
+function listin (some){
+    if (some.listin == undefined)
+        throw new Error("some has not method name of listin.");
+    return some.listin();
+};
+
 // obarrays class
 //     <- native, function class
 
@@ -1941,6 +1963,7 @@ Obscope.prototype.nestin = function (){
 };
 
 Obscope.prototype.exitin = function (){
+    this.obarrays.push(this.obarray);
     this.obarray = this.obarray.exit();
 };
 
@@ -2231,16 +2254,20 @@ synblock.onexpand = function (){
 
 synblock_func.onevaluate = function (){
     inp.nest();
-    var temp = synprogn.evaluate.apply(synprogn, arguments);
+    var temp = synprogn_func.evaluate.apply(synprogn_func, arguments);
     inp.exit();
     return temp;
 };
 
-synblock_func.onexpand = function (){
+synblock_func.onexpand = function (){ // ** should think again
     inp.nest();
-    var temp = synprogn.evaluate.apply(synprogn, arguments);
+    var temp = synprogn_func.expand.apply(synprogn_func, arguments);
+    var variables = [].concat.apply([], inp.scope.obarrays.map(list));
     inp.exit();
-    return temp;
+    return new Expanded(
+        (variables.length == 0 ? "" :
+         ("var " + variables.map(getvaluename).join(",") + ";")) +
+            temp);
 };
 
 synprogn.onevaluate = function (){
@@ -2421,8 +2448,9 @@ macunless.onevaluate = function (cond){
 
 maclambda.onevaluate = function (args){
     return new UserFunctionClass(null, args,
-                                 new ConsClass(synprogn_func,
-                                               ConsClass.toCons(slice(arguments, 1))));
+                                 // new ConsClass(synprogn_func,
+                                 //               ConsClass.toCons(slice(arguments, 1)))
+                                 slice(arguments, 1));
 };
 
 macdefun.onevaluate = function (name){
@@ -2437,8 +2465,9 @@ macdefun.onevaluate = function (name){
 
 macmacro.onevaluate = function (args){
     return new UserMacroClass(null, args, 
-                              new ConsClass(synprogn,
-                                            ConsClass.toCons(slice(arguments, 1))));
+                              // new ConsClass(synprogn,
+                              //               ConsClass.toCons(slice(arguments, 1)))
+                             slice(arguments, 1));
 };
 
 macdefmacro.onevaluate = function (name){
@@ -3016,8 +3045,8 @@ debtime.onevaluate = function (){
 
 // var source = new StringStreamClass(
 //     StreamClass.direction.input,
-//     // string('(flet ((printall (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (printall (list 1 2 3))')
-//     // string('(+ 1 2 3 (% 1 2 0.3))')
+//     string('(flet ((example (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (example)')
+//     // string('(+ 1 2 3)')
 // );
 
 // var sourcec = rdread.evaluate(source);
