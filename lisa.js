@@ -2073,6 +2073,7 @@ var rdreadunquote = new PrimitiveFunctionClass();
 var rdreadunquoteat = new PrimitiveFunctionClass();
 var rdreadchar = new PrimitiveFunctionClass();
 var rdreadpre  = new PrimitiveFunctionClass();
+var rdreadnative = new PrimitiveFunctionClass();
 
 rdignoreindent.onevaluate = function (stream){
     while (stream.isalive() && 
@@ -2172,6 +2173,11 @@ rdreadpre.onevaluate = function (stream){
     return formula.evaluatearg();
 };
 
+rdreadnative.onevaluate = function (stream){
+    var sym = rdread.evaluate(stream);
+    return new Expanded(sym.name.toPlain());
+};
+
 inp.readerscope.setcurrent(rdreadintern);
 inp.readerscope.dig("'").setcurrent(rdreadquote);
 inp.readerscope.dig(",").setcurrent(rdreadunquote);
@@ -2192,6 +2198,7 @@ inp.readerscope.dig("8").setcurrent(rdreadnumber);
 inp.readerscope.dig("9").setcurrent(rdreadnumber);
 inp.readerscope.dig("?").setcurrent(rdreadchar);
 inp.readerscope.dig("@").dig(".").setcurrent(rdreadpre);
+inp.readerscope.dig("@").dig("@").setcurrent(rdreadnative);
 
 // define syntax functions
 
@@ -2447,10 +2454,7 @@ macunless.onevaluate = function (cond){
 };
 
 maclambda.onevaluate = function (args){
-    return new UserFunctionClass(null, args,
-                                 // new ConsClass(synprogn_func,
-                                 //               ConsClass.toCons(slice(arguments, 1)))
-                                 slice(arguments, 1));
+    return new UserFunctionClass(null, args, slice(arguments, 1));
 };
 
 macdefun.onevaluate = function (name){
@@ -2464,10 +2468,7 @@ macdefun.onevaluate = function (name){
 };
 
 macmacro.onevaluate = function (args){
-    return new UserMacroClass(null, args, 
-                              // new ConsClass(synprogn,
-                              //               ConsClass.toCons(slice(arguments, 1)))
-                             slice(arguments, 1));
+    return new UserMacroClass(null, args, slice(arguments, 1));
 };
 
 macdefmacro.onevaluate = function (name){
@@ -2661,47 +2662,22 @@ baslocal.onevaluate = function (sym){
 };
 
 basadd.onevaluate = function (){
-    // return slice(arguments).reduce(function (a, b){
-    //     if (a instanceof NumberClass == false ||
-    //         b instanceof NumberClass == false)
-    //         throw new Error("argument is not number class.");
-    //     return new NumberClass(a.value + b.value);});
     return slice(arguments).reduce(function (a,b){return a.add(b);});
 };
 
 bassub.onevaluate = function (){
-    // return slice(arguments).reduce(function (a, b){ 
-    //     if (a instanceof NumberClass == false ||
-    //         b instanceof NumberClass == false)
-    //         throw new Error("argument is not number class.");
-    //     return new NumberClass(a.value - b.value);});
     return slice(arguments).reduce(function (a,b){return a.sub(b);});
 };
 
 basmul.onevaluate = function (){
-    // return slice(arguments).reduce(function (a, b){
-    //     if (a instanceof NumberClass == false ||
-    //         b instanceof NumberClass == false)
-    //         throw new Error("argument is not number class.");
-    //     return new NumberClass(a.value * b.value);});
     return slice(arguments).reduce(function (a,b){return a.mul(b);});
 };
 
 basdiv.onevaluate = function (){
-    // return slice(arguments).reduce(function (a, b){
-    //     if (a instanceof NumberClass == false ||
-    //         b instanceof NumberClass == false)
-    //         throw new Error("argument is not number class.");
-    //     return new NumberClass(a.value / b.value);});
     return slice(arguments).reduce(function (a,b){return a.div(b);});
 };
 
 basmod.onevaluate = function (){
-    // return slice(arguments).reduce(function (a, b){
-    //     if (a instanceof NumberClass == false ||
-    //         b instanceof NumberClass == false)
-    //         throw new Error("argument is not number class.");
-    //     return new NumberClass(a.value % b.value);});
     return slice(arguments).reduce(function (a,b){return a.mod(b);});
 };
 
@@ -3045,8 +3021,9 @@ debtime.onevaluate = function (){
 
 // var source = new StringStreamClass(
 //     StreamClass.direction.input,
-//     string('(flet ((example (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (example)')
+//     // string('(flet ((example (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (example)')
 //     // string('(+ 1 2 3)')
+//     string('(print @@moco)')
 // );
 
 // var sourcec = rdread.evaluate(source);
