@@ -684,30 +684,30 @@ FloatClass.prototype.clone = function (){
 
 FloatClass.prototype.add = function (num){
     if (num instanceof NumberClass == false)
-        throw new Error("num is not number class.");
+        throw new Error("num " + num + " is not number class.");
     return new FloatClass(this.value + num.value);
 };
 
 FloatClass.prototype.sub = function (num){
     if (num instanceof NumberClass == false)
-        throw new Error("num is not number class.");
+        throw new Error("num " + num + " is not number class.");
     return new FloatClass(this.value - num.value);
 };
 
 FloatClass.prototype.mul = function (num){
     if (num instanceof NumberClass == false)
-        throw new Error("num is not number class.");
+        throw new Error("num " + num + " is not number class.");
     return new FloatClass(this.value * num.value);
 };
 
 FloatClass.prototype.div = function (num){
     if (num instanceof NumberClass == false)
-        throw new Error("num is not number class.");
+        throw new Error("num " + num + " is not number class.");
     return new FloatClass(this.value / num.value);
 };
 
 FloatClass.prototype.mod = function (num){
-    throw new Error("float class could not do mod.");
+    throw new Error("float instance " + this + " could not do mod.");
 };
 
 // int class
@@ -730,32 +730,42 @@ IntClass.prototype.clone = function (){
 
 IntClass.prototype.add = function (num){
     if (num instanceof NumberClass == false)
-        throw new Error("num is not number class");
-    return num.add(this);
+        throw new Error("num " + num + " is not number class");
+    return num instanceof IntClass ?
+        new IntClass(this.value + num.value):
+        num.add(this);
 };
 
 IntClass.prototype.sub = function (num){
     if (num instanceof NumberClass == false)
-        throw new Error("num is not number class");
-    return num.sub(this);
+        throw new Error("num " + num + " is not number class");
+    return num instanceof IntClass ?
+        new IntClass(this.value - num.value): 
+        num.sub(this);
 };
 
 IntClass.prototype.mul = function (num){
     if (num instanceof NumberClass == false)
-        throw new Error("num is not number class");
-    return num.mul(this);
+        throw new Error("num " + num + " is not number class");
+    return num instanceof IntClass ?
+        new IntClass(this.value * num.value): 
+        num.mul(this);
 };
 
 IntClass.prototype.div = function (num){
     if (num instanceof NumberClass == false)
-        throw new Error("num is not number class");
-    return num.div(this);
+        throw new Error("num " + num + " is not number class");
+    return num instanceof IntClass ?
+        new IntClass(this.value / num.value): 
+        num.div(this);
 };
 
 IntClass.prototype.mod = function (num){
-    if (num instanceof IntClass == false)
-        throw new Error("num is not int class.");
-    return new IntClass(this.value % num.value);
+    if (num instanceof NumberClass == false)
+        throw new Error("num " + num + " is not number class");
+    return num instanceof IntClass ?
+        new IntClass(this.value % num.value): 
+        num.mod(this);
 };
 
 // char class
@@ -2622,43 +2632,48 @@ baslocal.onevaluate = function (sym){
 };
 
 basadd.onevaluate = function (){
-    return slice(arguments).reduce(function (a, b){
-        if (a instanceof NumberClass == false ||
-           b instanceof NumberClass == false)
-            throw new Error("argument is not number class.");
-        return new NumberClass(a.value + b.value);});
+    // return slice(arguments).reduce(function (a, b){
+    //     if (a instanceof NumberClass == false ||
+    //         b instanceof NumberClass == false)
+    //         throw new Error("argument is not number class.");
+    //     return new NumberClass(a.value + b.value);});
+    return slice(arguments).reduce(function (a,b){return a.add(b);});
 };
 
 bassub.onevaluate = function (){
-    return slice(arguments).reduce(function (a, b){ 
-        if (a instanceof NumberClass == false ||
-           b instanceof NumberClass == false)
-            throw new Error("argument is not number class.");
-        return new NumberClass(a.value - b.value);});
+    // return slice(arguments).reduce(function (a, b){ 
+    //     if (a instanceof NumberClass == false ||
+    //         b instanceof NumberClass == false)
+    //         throw new Error("argument is not number class.");
+    //     return new NumberClass(a.value - b.value);});
+    return slice(arguments).reduce(function (a,b){return a.sub(b);});
 };
 
 basmul.onevaluate = function (){
-    return slice(arguments).reduce(function (a, b){
-        if (a instanceof NumberClass == false ||
-           b instanceof NumberClass == false)
-            throw new Error("argument is not number class.");
-        return new NumberClass(a.value * b.value);});
+    // return slice(arguments).reduce(function (a, b){
+    //     if (a instanceof NumberClass == false ||
+    //         b instanceof NumberClass == false)
+    //         throw new Error("argument is not number class.");
+    //     return new NumberClass(a.value * b.value);});
+    return slice(arguments).reduce(function (a,b){return a.mul(b);});
 };
 
 basdiv.onevaluate = function (){
-    return slice(arguments).reduce(function (a, b){
-        if (a instanceof NumberClass == false ||
-           b instanceof NumberClass == false)
-            throw new Error("argument is not number class.");
-        return new NumberClass(a.value / b.value);});
+    // return slice(arguments).reduce(function (a, b){
+    //     if (a instanceof NumberClass == false ||
+    //         b instanceof NumberClass == false)
+    //         throw new Error("argument is not number class.");
+    //     return new NumberClass(a.value / b.value);});
+    return slice(arguments).reduce(function (a,b){return a.div(b);});
 };
 
 basmod.onevaluate = function (){
-    return slice(arguments).reduce(function (a, b){
-        if (a instanceof NumberClass == false ||
-           b instanceof NumberClass == false)
-            throw new Error("argument is not number class.");
-        return new NumberClass(a.value % b.value);});
+    // return slice(arguments).reduce(function (a, b){
+    //     if (a instanceof NumberClass == false ||
+    //         b instanceof NumberClass == false)
+    //         throw new Error("argument is not number class.");
+    //     return new NumberClass(a.value % b.value);});
+    return slice(arguments).reduce(function (a,b){return a.mod(b);});
 };
 
 basadd.onexpand = function (){
@@ -2677,7 +2692,7 @@ basdiv.onexpand = function (){
     return new Expanded("(" + slice(arguments).join("/") + ")");
 };
 
-basdiv.onexpmod = function (){
+basmod.onexpmod = function (){
     return new Expanded("(" + slice(arguments).join("%") + ")");
 };
 
@@ -2997,11 +3012,13 @@ debtime.onevaluate = function (){
     return temp;
 };
 
-// var source = new StringStreamClass(
-//     StreamClass.direction.input,
-//     string('(flet ((printall (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (printall (list 1 2 3))'));
+var source = new StringStreamClass(
+    StreamClass.direction.input,
+    // string('(flet ((printall (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (printall (list 1 2 3))')
+    string('(+ 1 2 3 (% 1 2 0.3))')
+);
 
-// var sourcec = rdread.evaluate(source);
+var sourcec = rdread.evaluate(source);
 
-// console.log(sourcec.evaluatearg().toString());
-// console.log(sourcec.expandarg().toString());
+console.log(sourcec.evaluatearg().toString());
+console.log(sourcec.expandarg().toString());
