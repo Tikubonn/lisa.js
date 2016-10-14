@@ -1376,10 +1376,15 @@ UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
 };
 
 UserFunctionClass.prototype.onexpandarg = function (){ // ** should check again
-    return new Expanded(
-        "function(" + this.args.toArray().map(getvaluename).join(",") + "){" +
-            new ConsClass(synblock_func,
-                          new ConsClass(this.rest.expandarg())).expandarg() + "}");
+    // return new Expanded(
+    //     "function(" + this.args.toArray().map(getvaluename).join(",") + "){" +
+    //         new ConsClass(synblock_func,
+    //                       new ConsClass(this.rest.expandarg())).expandarg() + "}");
+    inp.nest();
+    this.args.toArray().map(getvaluename);
+    this.rest.expandarg();
+    inp.exit();
+    return new Expanded("null");
 };
 
 // macro class
@@ -1860,6 +1865,20 @@ Obscope.prototype.nest = function (){
 Obscope.prototype.exit = function (){
     return this.parent;
 };
+
+// interneds class
+//     <- native, function class ** save for memory space
+
+function Interneds (){
+    this.interneds = {};
+}
+
+Interneds.prototype.add = function (name){
+    if (this.interneds[name.toPlain()])
+        return this.interneds[name.toPlain()];
+    this.interneds[name.toPlain()] = new InternSymbolClass(name);
+    return this.interneds[name.toPlain()];
+};
         
 // readerscope class
 //     <- native, function class
@@ -1897,6 +1916,7 @@ ReaderScope.prototype.setcurrent = function (method){
 function Interpreter (){
     this.scope = new Obscope();
     this.scoperoot = this.scope;
+    this.interneds = new Interneds();
     this.readerscope = new ReaderScope();
     this.namegen = new NameGenerator("abcdefghijklmnopqrstuvwxyz");
 };
@@ -1980,7 +2000,8 @@ rdreadintern.onevaluate = function (stream){
     if (name.length() == 0)
         return nil;
     inp.scoperoot.intern(name);
-    return new InternSymbolClass(name);
+    // return new InternSymbolClass(name);
+    return inp.interneds.add(name);
 };
 
 rdreadminus.onevaluate = function (stream){
@@ -2894,3 +2915,4 @@ debtime.onevaluate = function (){
     console.log("spend time of " + (end - beginning) + "ms.");
     return temp;
 };
+
