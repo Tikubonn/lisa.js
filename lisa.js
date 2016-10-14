@@ -1723,16 +1723,6 @@ Obarray.prototype.list = function (){
     return sequence;
 };
 
-Obarray.prototype.internsym = function (sym){
-    if (sym instanceof InternSymbolClass == false) return sym;
-    return this.intern(sym.name);
-};
-
-Obarray.prototype.internsymf = function (sym){
-    if (sym instanceof InternSymbolClass == false) return sym;
-    return this.internf(sym.name);
-};
-
 // obarrays class
 //     <- native, function class
 
@@ -1779,12 +1769,6 @@ Obarrays.prototype.intern = function (name){
 Obarrays.prototype.internf = function (name){
     return this.obarray.intern(name);
 };
-
-Obarrays.prototype.internsym = 
-    Obarray.prototype.internsym;
-
-Obarrays.prototype.internsymf = 
-    Obarray.prototype.internsymf;
 
 Obarrays.prototype.nest = function (){
     return new Obarrays(this);
@@ -1843,12 +1827,6 @@ Obscope.prototype.intern = function (name){
 Obscope.prototype.internf = function (name){
     return this.obarray.internf(name);
 };
-
-Obscope.prototype.internsym = 
-    Obarrays.prototype.internsym;
-
-Obscope.prototype.internsymf = 
-    Obarrays.prototype.internsymf;
 
 Obscope.prototype.nestin = function (){
     this.obarray = this.obarray.nest();
@@ -2915,4 +2893,3 @@ debtime.onevaluate = function (){
     console.log("spend time of " + (end - beginning) + "ms.");
     return temp;
 };
-
