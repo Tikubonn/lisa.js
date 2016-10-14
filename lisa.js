@@ -5,6 +5,12 @@ function slice (sequence, beginning, end){
     return Array.prototype.slice.call(sequence, beginning, end);
 }
 
+// get object keys
+
+function keys (some){
+    return Object.keys(some);
+}
+
 // unique class
 //     <- native, function class
 
@@ -629,6 +635,7 @@ SymbolFunctionReferenceClass.prototype.onexpandarg = function (){
 };
 
 // number class
+//     <- atom class
 
 function NumberClass (number){
     this.value = number;
@@ -641,11 +648,74 @@ NumberClass.prototype.clone = function (){
     return new NumberClass(this.value);
 };
 
+NumberClass.prototype.add = function (num){
+    throw new Error("number.class.add was not defined.");
+};
+
+NumberClass.prototype.sub = function (num){
+    throw new Error("number.class.sub was not defined.");
+};
+
+NumberClass.prototype.mul = function (num){
+    throw new Error("number.class.mul was not defined.");
+};
+
+NumberClass.prototype.div = function (num){
+    throw new Error("number.class.div was not defined.");
+};
+
+NumberClass.prototype.mod = function (num){
+    throw new Error("number.class.mod was not defined.");
+};
+
+// float class
+//     <- float class
+
+function FloatClass (number){
+    this.value = number;
+};
+
+FloatClass.prototype = 
+    Object.create(NumberClass.prototype);
+
+FloatClass.prototype.clone = function (){
+    return new FloatClass(this.value);
+};
+
+FloatClass.prototype.add = function (num){
+    if (num instanceof NumberClass == false)
+        throw new Error("num is not number class.");
+    return new FloatClass(this.value + num.value);
+};
+
+FloatClass.prototype.sub = function (num){
+    if (num instanceof NumberClass == false)
+        throw new Error("num is not number class.");
+    return new FloatClass(this.value - num.value);
+};
+
+FloatClass.prototype.mul = function (num){
+    if (num instanceof NumberClass == false)
+        throw new Error("num is not number class.");
+    return new FloatClass(this.value * num.value);
+};
+
+FloatClass.prototype.div = function (num){
+    if (num instanceof NumberClass == false)
+        throw new Error("num is not number class.");
+    return new FloatClass(this.value / num.value);
+};
+
+FloatClass.prototype.mod = function (num){
+    throw new Error("float class could not do mod.");
+};
+
 // int class
+//     <- number class
 
 function IntClass (number){
     this.value = number;
-}
+};
 
 IntClass.prototype = 
     Object.create(NumberClass.prototype);
@@ -658,7 +728,38 @@ IntClass.prototype.clone = function (){
     return new IntClass(this.value);
 };
 
+IntClass.prototype.add = function (num){
+    if (num instanceof NumberClass == false)
+        throw new Error("num is not number class");
+    return num.add(this);
+};
+
+IntClass.prototype.sub = function (num){
+    if (num instanceof NumberClass == false)
+        throw new Error("num is not number class");
+    return num.sub(this);
+};
+
+IntClass.prototype.mul = function (num){
+    if (num instanceof NumberClass == false)
+        throw new Error("num is not number class");
+    return num.mul(this);
+};
+
+IntClass.prototype.div = function (num){
+    if (num instanceof NumberClass == false)
+        throw new Error("num is not number class");
+    return num.div(this);
+};
+
+IntClass.prototype.mod = function (num){
+    if (num instanceof IntClass == false)
+        throw new Error("num is not int class.");
+    return new IntClass(this.value % num.value);
+};
+
 // char class
+//      <- int class
 
 function CharClass (code){
     this.value = code;
@@ -1376,15 +1477,10 @@ UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
 };
 
 UserFunctionClass.prototype.onexpandarg = function (){ // ** should check again
-    // return new Expanded(
-    //     "function(" + this.args.toArray().map(getvaluename).join(",") + "){" +
-    //         new ConsClass(synblock_func,
-    //                       new ConsClass(this.rest.expandarg())).expandarg() + "}");
-    inp.nest();
-    this.args.toArray().map(getvaluename);
-    this.rest.expandarg();
-    inp.exit();
-    return new Expanded("null");
+    return new Expanded(
+        "function(" + this.args.toArray().map(getvaluename).join(",") + "){" +
+            new ConsClass(synblock_func,
+                          new ConsClass(this.rest.expandarg())).expandarg() + "}");
 };
 
 // macro class
@@ -1783,6 +1879,7 @@ Obarrays.prototype.exit = function (){
 
 function Obscope (parent){
     this.obarray = new Obarrays(null);
+    this.obarrays = new Array();
     this.parent = parent || null;
 };
 
@@ -1825,6 +1922,7 @@ Obscope.prototype.intern = function (name){
 };
 
 Obscope.prototype.internf = function (name){
+    this.obarray.internf(name);
     return this.obarray.internf(name);
 };
 
@@ -1995,7 +2093,7 @@ rdreadnumber.onevaluate = function (stream, nc){
             num += stream.get().toString();
         else break;
     return num.indexOf(".") >= 0 ?
-        new NumberClass(parseFloat(num)).constant():
+        new FloatClass(parseFloat(num)).constant():
         new IntClass(parseInt(num)).constant();
 };
 
@@ -2131,7 +2229,6 @@ synblock_func.onevaluate = function (){
 synblock_func.onexpand = function (){
     inp.nest();
     var temp = synprogn.evaluate.apply(synprogn, arguments);
-    console.log(inp.scope.obarray);
     inp.exit();
     return temp;
 };
@@ -2208,10 +2305,16 @@ synsetf.onevaluate = function (formula, value){
 };
 
 synsetf.onexpand = function (formula, value){
-    synsetf.evaluate(formula, value);
+    // synsetf.evaluate(formula, value);
+    // return new Expanded(
+    //     formula.evaluatearg().expandarg() + "=" + 
+    //         value.evaluatearg().expandarg());
+    var formulad = formula.evaluatearg();
+    var valued = value.evaluatearg();
+    formulad.set(valued);
     return new Expanded(
-        formula.evaluatearg().expandarg() + "=" + 
-            value.evaluatearg().expandarg());
+        formulad.expandarg() + "=" +
+            valued.expandarg());
 };
 
 // define basic macro functions
@@ -2893,3 +2996,12 @@ debtime.onevaluate = function (){
     console.log("spend time of " + (end - beginning) + "ms.");
     return temp;
 };
+
+// var source = new StringStreamClass(
+//     StreamClass.direction.input,
+//     string('(flet ((printall (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (printall (list 1 2 3))'));
+
+// var sourcec = rdread.evaluate(source);
+
+// console.log(sourcec.evaluatearg().toString());
+// console.log(sourcec.expandarg().toString());
