@@ -171,15 +171,6 @@ Evaluatable.prototype.willevaluatearg = function (){
     };
 };
 
-// Evaluatable.prototype.evaluate = 
-//     strace.willstrace(Evaluatable.prototype.evaluate); // ** for debug
-
-// Evaluatable.prototype.evaluatearg = 
-//     strace.willstrace(Evaluatable.prototype.evaluatearg); // ** for debug
-
-// Evaluatable.prototype.evaluatedata = 
-//     strace.willstrace(Evaluatable.prototype.evaluatedata); // ** for debug
-
 // expandable class
 //     <- constantable class
 
@@ -282,15 +273,6 @@ Expandable.prototype.willexpanddata = function (){
         return that.expanddata.apply(that, arguments);
     };
 };
-
-// Expandable.prototype.expand = 
-//     strace.willstrace(Expandable.prototype.expand); // ** for debug
-
-// Expandable.prototype.expandarg = 
-//     strace.willstrace(Expandable.prototype.expandarg); // ** for debug
-
-// Expandable.prototype.expanddata = 
-//     strace.willstrace(Expandable.prototype.expanddata); // ** for debug
 
 // expanded class
 //     <- expandable class
@@ -425,18 +407,6 @@ IteratorClass.prototype.isdie = function (){throw new Error("isdie was not defin
 IteratorClass.prototype.isalive = function (){throw new Error("isalive was not defined.");};
 IteratorClass.prototype.next = function (){throw new Error("next was not defined.");};
 IteratorClass.prototype.count = function (){throw new Error("count was not defined.");};
-
-// iteration class
-//     <- iterator class
-
-function IterationClass (){}
-
-IterationClass.prototype.every = function (){};
-IterationClass.prototype.map = function (){};
-IterationClass.prototype.filter = function (){};
-IterationClass.prototype.reduce = function (){};
-IterationClass.prototype.findif = function (){};
-IterationClass.prototype.positionif = function (){};
 
 // array iteration class
 //     <- iteration class
@@ -1349,7 +1319,6 @@ ReduceOptimizeFunctionClass.prototype.onexpand = function (){
             this.func.evaluate(
                 sequence[sequence.length -1],
                 arguments[index]);
-    // return this.func.expand.apply(this.func, sequence);
     var sum, indexc;
     for (sum = "", indexc = 0; indexc < sequence.length; indexc++)
         sum += (indexc ? "+" : "") +  sequence[indexc];
@@ -1387,12 +1356,6 @@ function UserFunctionClass (name, args, rest){
 
 UserFunctionClass.prototype = 
     Object.create(FunctionClass.prototype);
-
-// UserFunctionClass.prototype.evaluate = 
-//     beforeevaluatearg(FunctionClass.prototype.evaluate);
-
-// UserFunctionClass.prototype.expand = 
-//     beforeevaluatearg(FunctionClass.prototype.evaluate);
 
 UserFunctionClass.prototype.toString = function (){
     return "<#user function class>";
@@ -1773,6 +1736,12 @@ function Obarrays (parent){
     this.parent = parent || null;
 };
 
+Obarrays.prototype.length = function (){ // ** for debug
+    var count, current;
+    for (count = 0, current = this; current; current = current.parent, count++);
+    return count;
+};
+
 Obarrays.prototype.list = function (){
     var sequence, current;
     for (sequence = [], current = this; current; current = current.parent)
@@ -1826,6 +1795,13 @@ Obarrays.prototype.exit = function (){
 function Obscope (parent){
     this.obarray = new Obarrays(null);
     this.parent = parent || null;
+};
+
+Obscope.prototype.length = function (){ // ** debug
+    var count, current;
+    for (count = 0, current = this; current; current = current.parent)
+        count += current.obarray.length();
+    return count;
 };
 
 Obscope.prototype.list = function (){
@@ -2156,6 +2132,7 @@ synblock_func.onevaluate = function (){
 synblock_func.onexpand = function (){
     inp.nest();
     var temp = synprogn.evaluate.apply(synprogn, arguments);
+    console.log(inp.scope.obarray);
     inp.exit();
     return temp;
 };
