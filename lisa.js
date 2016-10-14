@@ -3012,13 +3012,15 @@ debtime.onevaluate = function (){
     return temp;
 };
 
-var source = new StringStreamClass(
-    StreamClass.direction.input,
-    // string('(flet ((printall (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (printall (list 1 2 3))')
-    string('(+ 1 2 3 (% 1 2 0.3))')
-);
+// ** test code
 
-var sourcec = rdread.evaluate(source);
+// var source = new StringStreamClass(
+//     StreamClass.direction.input,
+//     // string('(flet ((printall (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (printall (list 1 2 3))')
+//     // string('(+ 1 2 3 (% 1 2 0.3))')
+// );
 
-console.log(sourcec.evaluatearg().toString());
-console.log(sourcec.expandarg().toString());
+// var sourcec = rdread.evaluate(source);
+
+// console.log(sourcec.evaluatearg().toString());
+// console.log(sourcec.expandarg().toString());
