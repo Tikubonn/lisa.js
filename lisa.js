@@ -981,6 +981,14 @@ StringClass.prototype.toPlain = function (){
     return this.value.join("");
 };
 
+StringClass.prototype.map = function (func){ // ** should check again
+    return new StringClass(this.value.map(func.willevaluate()));
+};
+
+StringClass.prototype.filter = function (func){ // ** should check again
+    return new StringClass(this.value.filter(func.willevaluate()));
+};
+
 StringClass.prototype.copy = function (){
     return new StringClass(this.value.slice());
 };
@@ -3046,10 +3054,11 @@ debtime.onevaluate = function (){
 //     // string('(flet ((example (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (example)')
 //     // string('(+ 1 2 3)')
 //     // string('(print @@moco)')
-//     string('(print (map (lambda (a) (+ a 1)) "moco"))')
+//     string('(print (map (lambda (a) a) "moco"))')
 // );
 
 // var sourcec = rdread.evaluate(source);
 
-// console.log(sourcec.evaluatearg().toString());
+// console.log(sourcec.evaluatearg());
+// // console.log(sourcec.evaluatearg().toString());
 // // console.log(sourcec.expandarg().toString());
