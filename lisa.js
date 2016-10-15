@@ -786,6 +786,36 @@ CharClass.prototype.clone = function (){
     return new CharClass(this.value);
 };
 
+CharClass.prototype.add = function (num){
+    if (num instanceof IntClass == false)
+        throw new Error("num " + num + " is not int class.");
+    return new CharClass(this.value + num.value);
+};
+
+CharClass.prototype.sub = function (num){
+    if (num instanceof IntClass == false)
+        throw new Error("num " + num + " is not int class.");
+    return new CharClass(this.value - num.value);
+};
+
+CharClass.prototype.mul = function (num){
+    if (num instanceof IntClass == false)
+        throw new Error("num " + num + " is not int class.");
+    return new CharClass(this.value * num.value);
+};
+
+CharClass.prototype.div = function (num){
+    if (num instanceof IntClass == false)
+        throw new Error("num " + num + " is not int class.");
+    return new CharClass(this.value / num.value);
+};
+
+CharClass.prototype.mod = function (num){
+    if (num instanceof IntClass == false)
+        throw new Error("num " + num + " is not int class.");
+    return new CharClass(this.value % num.value);
+};
+
 function atoi (chars){
     return chars.charCodeAt();
 };
@@ -859,15 +889,15 @@ ArrayClass.prototype.every = function (func){
 };
 
 ArrayClass.prototype.map = function (func){
-    return new ArrayClass(this.value.map(func.willevaluate));
+    return new ArrayClass(this.value.map(func.willevaluate()));
 };
 
 ArrayClass.prototype.filter = function (func){
-    return new ArrayClass(this.value.filter(func.willevaluate));
+    return new ArrayClass(this.value.filter(func.willevaluate()));
 };
 
 ArrayClass.prototype.reduce = function (func){
-    return new ArrayClass(this.value.reduce(func.willevaluate));
+    return this.value.reduce(func.willevaluate());
 };
 
 ArrayClass.prototype.findif = function (func){
@@ -1480,10 +1510,6 @@ UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
             new ConsClass(macdeflvar,
                           new ConsClass(bindsi.next(),
                                         new ConsClass(arguments[index]))), ncons);
-    // ncons = ncons.reverse();
-    // return new ConsClass(synblock_func,
-    //                      new ConsClass(ncons,
-    //                                    new ConsClass(this.rest))).evaluatearg();
     ncons = ncons.reverse();
     return new ConsClass(synprogn,
                          new ConsClass(ncons,
@@ -1493,10 +1519,6 @@ UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
 };
 
 UserFunctionClass.prototype.onexpandarg = function (){ // ** should check again
-    // return new Expanded(
-    //     "function(" + this.args.toArray().map(getvaluename).join(",") + "){" +
-    //         new ConsClass(synblock_func,
-    //                       new ConsClass(this.rest.expandarg())).expandarg() + "}");
     return new Expanded(
         "function(" + this.args.toArray().map(getvaluename).join(",") + ")" + 
             "{" + new ConsClass(synblock_func,
@@ -3023,10 +3045,11 @@ debtime.onevaluate = function (){
 //     StreamClass.direction.input,
 //     // string('(flet ((example (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (example)')
 //     // string('(+ 1 2 3)')
-//     string('(print @@moco)')
+//     // string('(print @@moco)')
+//     string('(print (map (lambda (a) (+ a 1)) "moco"))')
 // );
 
 // var sourcec = rdread.evaluate(source);
 
 // console.log(sourcec.evaluatearg().toString());
-// console.log(sourcec.expandarg().toString());
+// // console.log(sourcec.expandarg().toString());
