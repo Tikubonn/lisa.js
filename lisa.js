@@ -993,8 +993,8 @@ StringClass.prototype.copy = function (){
     return new StringClass(this.value.slice());
 };
 
-function string (source){ // ** util method
-    return new StringClass(slice(source).map(atoc));
+function makestring (sentence){
+    return new StringClass(slice(sentence).map(atoc));
 };
 
 // cons class
@@ -1182,6 +1182,14 @@ ConsClass.prototype.islinear = function (){
 
 ConsClass.prototype.shouldlinear = function (){
     if (this.islinear() == false) throw("list should be linear.");
+};
+
+function makecons (car, cdr){
+    return new ConsClass(car, cdr);
+};
+
+function makelist (){
+    return ConsClass.toCons(arguments);
 };
 
 // nil class
@@ -2084,8 +2092,8 @@ var inp = new Interpreter();
 
 // define primitive values
 
-inp.scope.intern(string("nil")).setvalue(nil);
-inp.scope.intern(string("t")).setvalue(t);
+inp.scope.intern(makestring("nil")).setvalue(nil);
+inp.scope.intern(makestring("t")).setvalue(t);
 
 // define reader methods
 
@@ -2243,13 +2251,13 @@ var synor = new SpecialFunctionClass();
 var synnot = new SpecialFunctionClass();
 var synsetf = new SpecialFunctionClass();
 
-inp.scope.intern(new StringClass(slice("if").map(atoc))).setfunc(synif);
-inp.scope.intern(new StringClass(slice("block").map(atoc))).setfunc(synblock);
-inp.scope.intern(new StringClass(slice("progn").map(atoc))).setfunc(synprogn);
-inp.scope.intern(new StringClass(slice("and").map(atoc))).setfunc(synand);
-inp.scope.intern(new StringClass(slice("or").map(atoc))).setfunc(synor);
-inp.scope.intern(new StringClass(slice("not").map(atoc))).setfunc(synnot);
-inp.scope.intern(new StringClass(slice("setf").map(atoc))).setfunc(synsetf);
+inp.scope.intern(makestring("if")).setfunc(synif);
+inp.scope.intern(makestring("block")).setfunc(synblock);
+inp.scope.intern(makestring("progn")).setfunc(synprogn);
+inp.scope.intern(makestring("and")).setfunc(synand);
+inp.scope.intern(makestring("or")).setfunc(synor);
+inp.scope.intern(makestring("not")).setfunc(synnot);
+inp.scope.intern(makestring("setf")).setfunc(synsetf);
 
 synif.label = "<#syntax if>";
 synblock.label = "<#syntax block>";
@@ -2408,20 +2416,20 @@ var macmlet = new PrimitiveMacroClass();
 var macdefvar = new PrimitiveMacroClass();
 var macdeflvar = new PrimitiveMacroClass();
 
-inp.scope.intern(new StringClass(slice("when").map(atoc))).setfunc(macwhen);
-inp.scope.intern(new StringClass(slice("unless").map(atoc))).setfunc(macunless);
-inp.scope.intern(new StringClass(slice("lambda").map(atoc))).setfunc(maclambda);
-inp.scope.intern(new StringClass(slice("defun").map(atoc))).setfunc(macdefun);
-inp.scope.intern(new StringClass(slice("macro").map(atoc))).setfunc(macmacro);
-inp.scope.intern(new StringClass(slice("defmacro").map(atoc))).setfunc(macdefmacro);
-inp.scope.intern(new StringClass(slice("setq").map(atoc))).setfunc(macsetq);
-inp.scope.intern(new StringClass(slice("incf").map(atoc))).setfunc(macincf);
-inp.scope.intern(new StringClass(slice("decf").map(atoc))).setfunc(macdecf);
-inp.scope.intern(new StringClass(slice("let").map(atoc))).setfunc(maclet);
-inp.scope.intern(new StringClass(slice("flet").map(atoc))).setfunc(macflet);
-inp.scope.intern(new StringClass(slice("mlet").map(atoc))).setfunc(macmlet);
-inp.scope.intern(new StringClass(slice("defvar").map(atoc))).setfunc(macdefvar);
-inp.scope.intern(new StringClass(slice("deflvar").map(atoc))).setfunc(macdeflvar);
+inp.scope.intern(makestring("when")).setfunc(macwhen);
+inp.scope.intern(makestring("unless")).setfunc(macunless);
+inp.scope.intern(makestring("lambda")).setfunc(maclambda);
+inp.scope.intern(makestring("defun")).setfunc(macdefun);
+inp.scope.intern(makestring("macro")).setfunc(macmacro);
+inp.scope.intern(makestring("defmacro")).setfunc(macdefmacro);
+inp.scope.intern(makestring("setq")).setfunc(macsetq);
+inp.scope.intern(makestring("incf")).setfunc(macincf);
+inp.scope.intern(makestring("decf")).setfunc(macdecf);
+inp.scope.intern(makestring("let")).setfunc(maclet);
+inp.scope.intern(makestring("flet")).setfunc(macflet);
+inp.scope.intern(makestring("mlet")).setfunc(macmlet);
+inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
+inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
 
 macincf.onevaluate = function (formula){
     return new ConsClass(synsetf,
@@ -2609,40 +2617,40 @@ var basapply = new PrimitiveFunctionClass();
 var basglobal = new PrimitiveFunctionClass();
 var baslocal = new PrimitiveFunctionClass();
 
-inp.scope.intern(new StringClass(slice("concat").map(atoc))).setfunc(basconcat);
-inp.scope.intern(new StringClass(slice("+").map(atoc))).setfunc(basadd);
-inp.scope.intern(new StringClass(slice("-").map(atoc))).setfunc(bassub);
-inp.scope.intern(new StringClass(slice("*").map(atoc))).setfunc(basmul);
-inp.scope.intern(new StringClass(slice("/").map(atoc))).setfunc(basdiv);
-inp.scope.intern(new StringClass(slice("%").map(atoc))).setfunc(basmod);
-inp.scope.intern(new StringClass(slice("car").map(atoc))).setfunc(bascar);
-inp.scope.intern(new StringClass(slice("cdr").map(atoc))).setfunc(bascdr);
-inp.scope.intern(new StringClass(slice("list").map(atoc))).setfunc(baslist);
-inp.scope.intern(new StringClass(slice("cons").map(atoc))).setfunc(bascons);
-inp.scope.intern(new StringClass(slice("every").map(atoc))).setfunc(basevery);
-inp.scope.intern(new StringClass(slice("map").map(atoc))).setfunc(basmap);
-inp.scope.intern(new StringClass(slice("filter").map(atoc))).setfunc(basfilter);
-inp.scope.intern(new StringClass(slice("reduce").map(atoc))).setfunc(basreduce);
-inp.scope.intern(new StringClass(slice("find-if").map(atoc))).setfunc(basfindif);
-inp.scope.intern(new StringClass(slice("position-if").map(atoc))).setfunc(baspositionif);
-inp.scope.intern(new StringClass(slice("copy").map(atoc))).setfunc(bascopy);
-inp.scope.intern(new StringClass(slice("reverse").map(atoc))).setfunc(basreverse);
-inp.scope.intern(new StringClass(slice("nreverse").map(atoc))).setfunc(basnreverse);
-inp.scope.intern(new StringClass(slice("slice").map(atoc))).setfunc(basslice);
-inp.scope.intern(new StringClass(slice("nth").map(atoc))).setfunc(basnth);
-inp.scope.intern(new StringClass(slice("length").map(atoc))).setfunc(baslength);
-inp.scope.intern(new StringClass(slice("null").map(atoc))).setfunc(basnull);
-inp.scope.intern(new StringClass(slice("read-char").map(atoc))).setfunc(basreadchar);
-inp.scope.intern(new StringClass(slice("read").map(atoc))).setfunc(rdread);
-inp.scope.intern(new StringClass(slice("symbol-name").map(atoc))).setfunc(bassymbolname);
-inp.scope.intern(new StringClass(slice("symbol-value").map(atoc))).setfunc(bassymbolvalue);
-inp.scope.intern(new StringClass(slice("symbol-function").map(atoc))).setfunc(bassymbolfunction);
-inp.scope.intern(new StringClass(slice("intern").map(atoc))).setfunc(basintern);
-inp.scope.intern(new StringClass(slice("make-symbol").map(atoc))).setfunc(basmakesymbol);
-inp.scope.intern(new StringClass(slice("funcall").map(atoc))).setfunc(basfuncall);
-inp.scope.intern(new StringClass(slice("apply").map(atoc))).setfunc(basapply);
-inp.scope.intern(new StringClass(slice("global").map(atoc))).setfunc(basglobal);
-inp.scope.intern(new StringClass(slice("local").map(atoc))).setfunc(baslocal);
+inp.scope.intern(makestring("concat")).setfunc(basconcat);
+inp.scope.intern(makestring("+")).setfunc(basadd);
+inp.scope.intern(makestring("-")).setfunc(bassub);
+inp.scope.intern(makestring("*")).setfunc(basmul);
+inp.scope.intern(makestring("/")).setfunc(basdiv);
+inp.scope.intern(makestring("%")).setfunc(basmod);
+inp.scope.intern(makestring("car")).setfunc(bascar);
+inp.scope.intern(makestring("cdr")).setfunc(bascdr);
+inp.scope.intern(makestring("list")).setfunc(baslist);
+inp.scope.intern(makestring("cons")).setfunc(bascons);
+inp.scope.intern(makestring("every")).setfunc(basevery);
+inp.scope.intern(makestring("map")).setfunc(basmap);
+inp.scope.intern(makestring("filter")).setfunc(basfilter);
+inp.scope.intern(makestring("reduce")).setfunc(basreduce);
+inp.scope.intern(makestring("find-if")).setfunc(basfindif);
+inp.scope.intern(makestring("position-if")).setfunc(baspositionif);
+inp.scope.intern(makestring("copy")).setfunc(bascopy);
+inp.scope.intern(makestring("reverse")).setfunc(basreverse);
+inp.scope.intern(makestring("nreverse")).setfunc(basnreverse);
+inp.scope.intern(makestring("slice")).setfunc(basslice);
+inp.scope.intern(makestring("nth")).setfunc(basnth);
+inp.scope.intern(makestring("length")).setfunc(baslength);
+inp.scope.intern(makestring("null")).setfunc(basnull);
+inp.scope.intern(makestring("read-char")).setfunc(basreadchar);
+inp.scope.intern(makestring("read")).setfunc(rdread);
+inp.scope.intern(makestring("symbol-name")).setfunc(bassymbolname);
+inp.scope.intern(makestring("symbol-value")).setfunc(bassymbolvalue);
+inp.scope.intern(makestring("symbol-function")).setfunc(bassymbolfunction);
+inp.scope.intern(makestring("intern")).setfunc(basintern);
+inp.scope.intern(makestring("make-symbol")).setfunc(basmakesymbol);
+inp.scope.intern(makestring("funcall")).setfunc(basfuncall);
+inp.scope.intern(makestring("apply")).setfunc(basapply);
+inp.scope.intern(makestring("global")).setfunc(basglobal);
+inp.scope.intern(makestring("local")).setfunc(baslocal);
 
 basadd.label = "<#primitive +>";
 bassub.label = "<#primitive ->";
@@ -2949,12 +2957,12 @@ var optmul = new OptimizeFunctionClass();
 var optdiv = new OptimizeFunctionClass();
 var optmod = new OptimizeFunctionClass();
 
-inp.scope.intern(new StringClass(slice("concat").map(atoc))).setfunc(optconcat);
-inp.scope.intern(new StringClass(slice("+").map(atoc))).setfunc(optadd);
-inp.scope.intern(new StringClass(slice("-").map(atoc))).setfunc(optsub);
-inp.scope.intern(new StringClass(slice("*").map(atoc))).setfunc(optmul);
-inp.scope.intern(new StringClass(slice("/").map(atoc))).setfunc(optdiv);
-inp.scope.intern(new StringClass(slice("%").map(atoc))).setfunc(optmod);
+inp.scope.intern(makestring("concat")).setfunc(optconcat);
+inp.scope.intern(makestring("+")).setfunc(optadd);
+inp.scope.intern(makestring("-")).setfunc(optsub);
+inp.scope.intern(makestring("*")).setfunc(optmul);
+inp.scope.intern(makestring("/")).setfunc(optdiv);
+inp.scope.intern(makestring("%")).setfunc(optmod);
 
 optconcat.onevaluate = 
     beforeevaluatearg(basconcat.onevaluate);
@@ -3023,15 +3031,15 @@ debprint.onevaluate = function (some){
 
 debprint.onexpand = function (some){
     var sym = new VariableSymbolClass();
-    return new ConsClass(maclet,
-                         new ConsClass(
-                             new ConsClass(
-                                 new ConsClass(sym,
-                                               new ConsClass(some))),
-                             new ConsClass(
-                                 new ConsClass(
-                                     new Expanded("console.log"),
-                                     new ConsClass(sym))))).expandarg();
+    return makecons(maclet,
+                makecons(
+                    makecons(
+                        makecons(sym,
+                             makecons(some))),
+                    makecons(
+                        makecons(
+                            new Expanded("console.log"),
+                            makecons(sym))))).expandarg();
 };
 
 // ** test code
