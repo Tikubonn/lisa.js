@@ -2446,15 +2446,18 @@ inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
 inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
 
 macprog1.onevaluate = function (n){
-    var sym = makevar(null);
+    var sym = makevar("");
     return makecons(maclet,
                     makecons(
                         makecons(
                             makecons(sym,
                                      makecons(n))),
                         makecons(
-                            makecons(synprogn, 
-                                     ConsClass.toCons(slice(arguments, 1))))));
+                            makecons(synprogn,
+                                     makecons(
+                                         makecons(synprogn,
+                                                  ConsClass.toCons(slice(arguments, 1))),
+                                         makecons(sym))))));
 };
 
 macincf.onevaluate = function (formula){
@@ -3180,3 +3183,12 @@ basintnot2.onevaluate = function (a){
 
 // ** test code
 
+var source = 
+        makecons(macprog1,
+                 makecons(makeint(1),
+                          makecons(makeint(2), 
+                                   makecons(makeint(3)))));
+
+console.log(source);
+console.log(source.evaluatearg());
+console.log(source.evaluatearg().expandarg());
