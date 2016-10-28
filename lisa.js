@@ -1402,6 +1402,14 @@ FunctionClass.prototype =
 
 FunctionClass.prototype.label =  "<#function class>";
 
+// generic function class
+//     <- function class
+
+function GenericFunctionClass (){};
+
+GenericFunctionClass.prototype = 
+    Object.create(FunctionClass.prototype);
+
 // special function class
 //     <- function class
 
@@ -3040,6 +3048,129 @@ debprint.onexpand = function (some){
                         makecons(
                             new Expanded("console.log"),
                             makecons(sym))))).expandarg();
+};
+
+// define basic functions second mush
+
+var genenumadd = new GenericFunctionClass();
+var genenumsub = new GenericFunctionClass();
+var genenummul = new GenericFunctionClass();
+var genenumdiv = new GenericFunctionClass();
+var genenummod = new GenericFunctionClass();
+var genenumand = new GenericFunctionClass();
+var genenumor = new GenericFunctionClass();
+var genenumnot = new GenericFunctionClass();
+var genenumeq = new GenericFunctionClass();
+var genenumless = new GenericFunctionClass();
+var genenumlesseq = new GenericFunctionClass();
+var genenumlarge = new GenericFunctionClass();
+var genenumlargeq = new GenericFunctionClass();
+var basnumadd = new PrimitiveFunctionClass();
+var basnumsub = new PrimitiveFunctionClass();
+var basnummul = new PrimitiveFunctionClass();
+var basnumdiv = new PrimitiveFunctionClass();
+var basnummod = new PrimitiveFunctionClass();
+var basnumand = new PrimitiveFunctionClass();
+var basnumor = new PrimitiveFunctionClass();
+var basnumnot = new PrimitiveFunctionClass();
+var basnumeq = new PrimitiveFunctionClass();
+var basnumless = new PrimitiveFunctionClass();
+var basnumlesseq = new PrimitiveFunctionClass();
+var basnumlarge = new PrimitiveFunctionClass();
+var basnumlargeq = new PrimitiveFunctionClass();
+var basintadd = new PrimitiveFunctionClass();
+var basintsub = new PrimitiveFunctionClass();
+var basintmul = new PrimitiveFunctionClass();
+var basintdiv = new PrimitiveFunctionClass();
+var basintmod = new PrimitiveFunctionClass();
+var basintand = new PrimitiveFunctionClass();
+var basintor = new PrimitiveFunctionClass();
+var basintnot = new PrimitiveFunctionClass();
+var basfloatadd = new PrimitiveFunctionClass();
+var basfloatsub = new PrimitiveFunctionClass();
+var basfloatmul = new PrimitiveFunctionClass();
+var basfloatdiv = new PrimitiveFunctionClass();
+
+basnumeq.onevaluate = function (a, b){
+    return (a.value == b.value) ? t : nil;
+};
+
+basnumless.onevaluate = function (a, b){
+    return (a.value < b.value) ? t : nil;
+};
+
+basnumlesseq.onevaluate = function (a, b){
+    return (a.value <= b.value) ? t : nil;
+};
+
+basnumlarge.onevaluate = function (a, b){
+    return (a.value > b.value) ? t : nil;
+};
+
+basnumlargeq.onevaluate = function (a, b){
+    return (a.value >= b.value) ? t : nil;
+};
+
+basfloatadd.onevaluate = function (a, b){
+    return new FloatClass(a.value + b.value);
+};
+
+basfloatsub.onevaluate = function (a, b){
+    return new FloatClass(a.value - b.value);
+};
+
+basfloatmul.onevaluate = function (a, b){
+    return new FloatClass(a.value * b.value);
+};
+
+basfloatdiv.onevaluate = function (a, b){
+    return new FloatClass(a.value / b.value);
+};
+
+basintadd.onevaluate = function (a, b){
+    if (b instanceof IntClass)
+        return new IntClass(a.value + b.value);
+    return basnumadd(b, a);
+};
+
+basintsub.onevaluate = function (a, b){
+    if (b instanceof IntClass)
+        return new IntClass(a.value - b.value);
+    return basnumsub(b, a);
+};
+
+basintmul.onevaluate = function (a, b){
+    if (b instanceof IntClass)
+        return new IntClass(a.value * b.value);
+    return basnummul(b, a);
+};
+
+basintdiv.onevaluate = function (a, b){
+    if (b instanceof IntClass)
+        return new IntClass(a.value / b.value);
+    return basnumdiv(b, a);
+};
+
+basintmod.onevaluate = function (a, b){
+    if (b instanceof IntClass)
+        return new IntClass(a.value % b.value);
+    return basnummod(b, a);
+};
+
+basintand.onevaluate = function (a, b){
+    if (b instanceof IntClass)
+        return new IntClass(a.value & b.value);
+    return basnumand(b, a);
+};
+
+basintor.onevaluate = function (a, b){
+    if (b instanceof IntClass)
+        return new IntClass(a.value | b.value);
+    return basnumor(b, a);
+};
+
+basintnot.onevaluate = function (a){
+    return new IntClass(~a.value);
 };
 
 // ** test code
