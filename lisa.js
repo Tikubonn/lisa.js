@@ -321,7 +321,7 @@ function unpack (some){
 
 function AtomClass (value){
     this.value = value;
-}
+};
 
 AtomClass.prototype = 
     Object.create(Expandable.prototype);
@@ -766,6 +766,10 @@ IntClass.prototype.mod = function (num){
     return num instanceof IntClass ?
         new IntClass(this.value % num.value): 
         num.mod(this);
+};
+
+function makeint (num){
+    return new IntClass(num);
 };
 
 // char class
@@ -1402,14 +1406,6 @@ FunctionClass.prototype =
 
 FunctionClass.prototype.label =  "<#function class>";
 
-// generic function class
-//     <- function class
-
-function GenericFunctionClass (){};
-
-GenericFunctionClass.prototype = 
-    Object.create(FunctionClass.prototype);
-
 // special function class
 //     <- function class
 
@@ -1715,6 +1711,10 @@ InternSymbolClass.prototype.getfuncname = function (){
     return inp.scope.finde(this.name).getfuncname();
 };
 
+function makeintern (name){
+    return new InternSymbolClass(makestring(name));
+};
+
 // variable symbol class
 //     <- symbol class
 
@@ -1773,6 +1773,10 @@ function  getfuncname (some){
         throw new Error("some is not symbol family class.");
     return some.getfuncname();
 }
+
+function makevar (name, value, func){
+    return new VariableSymbolClass(makestring(name), value, func);
+};
 
 // stream class
 //     <- atom class
@@ -2409,6 +2413,7 @@ synsetf.onexpand = function (formula, value){
 
 // define basic macro functions
 
+var macprog1 = new PrimitiveMacroClass();
 var macwhen = new PrimitiveMacroClass();
 var macunless = new PrimitiveMacroClass();
 var maclambda = new PrimitiveMacroClass();
@@ -2424,6 +2429,7 @@ var macmlet = new PrimitiveMacroClass();
 var macdefvar = new PrimitiveMacroClass();
 var macdeflvar = new PrimitiveMacroClass();
 
+inp.scope.intern(makestring("prog1")).setfunc(macprog1);
 inp.scope.intern(makestring("when")).setfunc(macwhen);
 inp.scope.intern(makestring("unless")).setfunc(macunless);
 inp.scope.intern(makestring("lambda")).setfunc(maclambda);
@@ -2438,6 +2444,18 @@ inp.scope.intern(makestring("flet")).setfunc(macflet);
 inp.scope.intern(makestring("mlet")).setfunc(macmlet);
 inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
 inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
+
+macprog1.onevaluate = function (n){
+    var sym = makevar(null);
+    return makecons(maclet,
+                    makecons(
+                        makecons(
+                            makecons(sym,
+                                     makecons(n))),
+                        makecons(
+                            makecons(synprogn, 
+                                     ConsClass.toCons(slice(arguments, 1))))));
+};
 
 macincf.onevaluate = function (formula){
     return new ConsClass(synsetf,
@@ -3050,126 +3068,113 @@ debprint.onexpand = function (some){
                             makecons(sym))))).expandarg();
 };
 
-// define basic functions second mush
+// define basic number methods
 
-var genenumadd = new GenericFunctionClass();
-var genenumsub = new GenericFunctionClass();
-var genenummul = new GenericFunctionClass();
-var genenumdiv = new GenericFunctionClass();
-var genenummod = new GenericFunctionClass();
-var genenumand = new GenericFunctionClass();
-var genenumor = new GenericFunctionClass();
-var genenumnot = new GenericFunctionClass();
-var genenumeq = new GenericFunctionClass();
-var genenumless = new GenericFunctionClass();
-var genenumlesseq = new GenericFunctionClass();
-var genenumlarge = new GenericFunctionClass();
-var genenumlargeq = new GenericFunctionClass();
-var basnumadd = new PrimitiveFunctionClass();
-var basnumsub = new PrimitiveFunctionClass();
-var basnummul = new PrimitiveFunctionClass();
-var basnumdiv = new PrimitiveFunctionClass();
-var basnummod = new PrimitiveFunctionClass();
-var basnumand = new PrimitiveFunctionClass();
-var basnumor = new PrimitiveFunctionClass();
-var basnumnot = new PrimitiveFunctionClass();
-var basnumeq = new PrimitiveFunctionClass();
-var basnumless = new PrimitiveFunctionClass();
-var basnumlesseq = new PrimitiveFunctionClass();
-var basnumlarge = new PrimitiveFunctionClass();
-var basnumlargeq = new PrimitiveFunctionClass();
-var basintadd = new PrimitiveFunctionClass();
-var basintsub = new PrimitiveFunctionClass();
-var basintmul = new PrimitiveFunctionClass();
-var basintdiv = new PrimitiveFunctionClass();
-var basintmod = new PrimitiveFunctionClass();
-var basintand = new PrimitiveFunctionClass();
-var basintor = new PrimitiveFunctionClass();
-var basintnot = new PrimitiveFunctionClass();
-var basfloatadd = new PrimitiveFunctionClass();
-var basfloatsub = new PrimitiveFunctionClass();
-var basfloatmul = new PrimitiveFunctionClass();
-var basfloatdiv = new PrimitiveFunctionClass();
+var basnumadd2 = new PrimitiveFunctionClass();
+var basnumsub2 = new PrimitiveFunctionClass();
+var basnummul2 = new PrimitiveFunctionClass();
+var basnumdiv2 = new PrimitiveFunctionClass();
+var basnummod2 = new PrimitiveFunctionClass();
+var basnumand2 = new PrimitiveFunctionClass();
+var basnumor2 = new PrimitiveFunctionClass();
+var basnumnot2 = new PrimitiveFunctionClass();
+var basnumeq2 = new PrimitiveFunctionClass();
+var basnumless2 = new PrimitiveFunctionClass();
+var basnumlesseq2 = new PrimitiveFunctionClass();
+var basnumlarge2 = new PrimitiveFunctionClass();
+var basnumlargeq2 = new PrimitiveFunctionClass();
+var basintadd2 = new PrimitiveFunctionClass();
+var basintsub2 = new PrimitiveFunctionClass();
+var basintmul2 = new PrimitiveFunctionClass();
+var basintdiv2 = new PrimitiveFunctionClass();
+var basintmod2 = new PrimitiveFunctionClass();
+var basintand2 = new PrimitiveFunctionClass();
+var basintor2 = new PrimitiveFunctionClass();
+var basintnot2 = new PrimitiveFunctionClass();
+var basfloatadd2 = new PrimitiveFunctionClass();
+var basfloatsub2 = new PrimitiveFunctionClass();
+var basfloatmul2 = new PrimitiveFunctionClass();
+var basfloatdiv2 = new PrimitiveFunctionClass();
 
-basnumeq.onevaluate = function (a, b){
+basnumeq2.onevaluate = function (a, b){
     return (a.value == b.value) ? t : nil;
 };
 
-basnumless.onevaluate = function (a, b){
+basnumless2.onevaluate = function (a, b){
     return (a.value < b.value) ? t : nil;
 };
 
-basnumlesseq.onevaluate = function (a, b){
+basnumlesseq2.onevaluate = function (a, b){
     return (a.value <= b.value) ? t : nil;
 };
 
-basnumlarge.onevaluate = function (a, b){
+basnumlarge2.onevaluate = function (a, b){
     return (a.value > b.value) ? t : nil;
 };
 
-basnumlargeq.onevaluate = function (a, b){
+basnumlargeq2.onevaluate = function (a, b){
     return (a.value >= b.value) ? t : nil;
 };
 
-basfloatadd.onevaluate = function (a, b){
+basfloatadd2.onevaluate = function (a, b){
     return new FloatClass(a.value + b.value);
 };
 
-basfloatsub.onevaluate = function (a, b){
+basfloatsub2.onevaluate = function (a, b){
     return new FloatClass(a.value - b.value);
 };
 
-basfloatmul.onevaluate = function (a, b){
+basfloatmul2.onevaluate = function (a, b){
     return new FloatClass(a.value * b.value);
 };
 
-basfloatdiv.onevaluate = function (a, b){
+basfloatdiv2.onevaluate = function (a, b){
     return new FloatClass(a.value / b.value);
 };
 
-basintadd.onevaluate = function (a, b){
+basintadd2.onevaluate = function (a, b){
     if (b instanceof IntClass)
         return new IntClass(a.value + b.value);
-    return basnumadd(b, a);
+    return basnumadd2.evaluate(b, a);
 };
 
-basintsub.onevaluate = function (a, b){
+basintsub2.onevaluate = function (a, b){
     if (b instanceof IntClass)
         return new IntClass(a.value - b.value);
-    return basnumsub(b, a);
+    return basnumsub2.evaluate(b, a);
 };
 
-basintmul.onevaluate = function (a, b){
+basintmul2.onevaluate = function (a, b){
     if (b instanceof IntClass)
         return new IntClass(a.value * b.value);
-    return basnummul(b, a);
+    return basnummul2.evaluate(b, a);
 };
 
-basintdiv.onevaluate = function (a, b){
+basintdiv2.onevaluate = function (a, b){
     if (b instanceof IntClass)
         return new IntClass(a.value / b.value);
-    return basnumdiv(b, a);
+    return basnumdiv2.evaluate(b, a);
 };
 
-basintmod.onevaluate = function (a, b){
+basintmod2.onevaluate = function (a, b){
     if (b instanceof IntClass)
         return new IntClass(a.value % b.value);
-    return basnummod(b, a);
+    return basnummod2.evaluate(b, a);
 };
 
-basintand.onevaluate = function (a, b){
+basintand2.onevaluate = function (a, b){
     if (b instanceof IntClass)
         return new IntClass(a.value & b.value);
-    return basnumand(b, a);
+    return basnumand2.evaluate(b, a);
 };
 
-basintor.onevaluate = function (a, b){
+basintor2.onevaluate = function (a, b){
     if (b instanceof IntClass)
         return new IntClass(a.value | b.value);
-    return basnumor(b, a);
+    return basnumor2.evaluate(b, a);
 };
 
-basintnot.onevaluate = function (a){
+basintnot2.onevaluate = function (a){
     return new IntClass(~a.value);
 };
 
