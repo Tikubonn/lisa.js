@@ -3013,10 +3013,8 @@ optmod.onexpand = function (){
 // define debug function
 
 var debprint = new PrimitiveFunctionClass();
-var debtime = new SpecialFunctionClass();
 
 inp.scope.intern(new StringClass(slice("print").map(atoc))).setfunc(debprint);
-inp.scope.intern(new StringClass(slice("time").map(atoc))).setfunc(debtime);
 
 debprint.onevaluate = function (some){
     console.log(some.toString());
@@ -3036,29 +3034,5 @@ debprint.onexpand = function (some){
                                      new ConsClass(sym))))).expandarg();
 };
 
-debtime.onevaluate = function (){
-    var beginning;
-    var end;
-    var temp;
-    beginning = Date.now();
-    temp = synprogn.evaluate.apply(synprogn, arguments);
-    end = Date.now();
-    console.log("spend time of " + (end - beginning) + "ms.");
-    return temp;
-};
-
 // ** test code
 
-// var source = new StringStreamClass(
-//     StreamClass.direction.input,
-//     // string('(flet ((example (sequence) (let ((a 1) (b 2) (c 3)) (+ a b c)))) (example)')
-//     // string('(+ 1 2 3)')
-//     // string('(print @@moco)')
-//     string('(print (map (lambda (a) a) "moco"))')
-// );
-
-// var sourcec = rdread.evaluate(source);
-
-// console.log(sourcec.evaluatearg());
-// // console.log(sourcec.evaluatearg().toString());
-// // console.log(sourcec.expandarg().toString());
