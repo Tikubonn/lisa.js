@@ -1526,16 +1526,27 @@ UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
     var ncons, bindsi, index;
     for (ncons = new ConsClass(synprogn), bindsi = this.args.iter(), index = 0;
          bindsi.isalive() && index < arguments.length; index++)
-        ncons = new ConsClass(
-            new ConsClass(macdeflvar,
-                          new ConsClass(bindsi.next(),
-                                        new ConsClass(arguments[index]))), ncons);
+        ncons = makecons(
+            makecons(macdeflvar,
+                     makecons(bindsi.next(),
+                              makecons(arguments[index]))),
+            ncons);
     ncons = ncons.reverse();
-    return new ConsClass(synprogn,
-                         new ConsClass(ncons,
-                                       new ConsClass(
-                                           new ConsClass(synblock_func,
-                                                         ConsClass.toCons(this.rest))))).evaluatearg();
+    return makecons(
+        synblock,
+        makecons(
+            makecons(
+                synprogn,
+                makecons(ncons)),
+            this.rest)).evaluatearg();
+    // return makecons(
+    //     synprogn,
+    //     makecons(
+    //         ncons,
+    //         makecons(
+    //             makecons(
+    //                 synblock_func,
+    //                 makecons(this.rest))))).evaluatearg();
 };
 
 UserFunctionClass.prototype.onexpandarg = function (){ // ** should check again
@@ -2262,6 +2273,8 @@ var synand = new SpecialFunctionClass();
 var synor = new SpecialFunctionClass();
 var synnot = new SpecialFunctionClass();
 var synsetf = new SpecialFunctionClass();
+var synlocal = new SpecialFunctionClass();
+var synglobal = new SpecialFunctionClass();
 
 inp.scope.intern(makestring("if")).setfunc(synif);
 inp.scope.intern(makestring("block")).setfunc(synblock);
@@ -2364,8 +2377,8 @@ synprogn_source.onexpand = function (){
 
 synand.onevaluate = function (){
     var res, index;
-    for (res = nil, index = 0; index < arguments.length; index++)
-        if ((res = arguments[index].evaluatearg()).status() == false)
+    for (res = t, index = 0; index < arguments.length; index++)
+        if ((res  = arguments[index].evaluatearg()) == nil)
             return nil;
     return res;
 };
@@ -2399,10 +2412,6 @@ synsetf.onevaluate = function (formula, value){
 };
 
 synsetf.onexpand = function (formula, value){
-    // synsetf.evaluate(formula, value);
-    // return new Expanded(
-    //     formula.evaluatearg().expandarg() + "=" + 
-    //         value.evaluatearg().expandarg());
     var formulad = formula.evaluatearg();
     var valued = value.evaluatearg();
     formulad.set(valued);
@@ -2521,7 +2530,8 @@ macunless.onevaluate = function (cond){
 };
 
 maclambda.onevaluate = function (args){
-    return new UserFunctionClass(null, args, slice(arguments, 1));
+    // return new UserFunctionClass(null, args, slice(arguments, 1));
+    return new UserFunctionClass(null, args, ConsClass.toCons(slice(arguments, 1)));
 };
 
 macdefun.onevaluate = function (name){
@@ -2535,7 +2545,8 @@ macdefun.onevaluate = function (name){
 };
 
 macmacro.onevaluate = function (args){
-    return new UserMacroClass(null, args, slice(arguments, 1));
+    // return new UserMacroClass(null, args, slice(arguments, 1));
+    return new UserMacroClass(null, args, ConsClass.toCons(slice(arguments, 1)));
 };
 
 macdefmacro.onevaluate = function (name){
@@ -2729,23 +2740,38 @@ baslocal.onevaluate = function (sym){
 };
 
 basadd.onevaluate = function (){
-    return slice(arguments).reduce(function (a,b){return a.add(b);});
+    return slice(arguments).reduce(function (a,b){
+        if (a instanceof NumberClass == false) throw new Error("" + a + " a is not number class."); 
+        if (b instanceof NumberClass == false) throw new Error("" + b + " b is not number class.");
+        return a.add(b);});
 };
 
 bassub.onevaluate = function (){
-    return slice(arguments).reduce(function (a,b){return a.sub(b);});
+    return slice(arguments).reduce(function (a,b){
+        if (a instanceof NumberClass == false) throw new Error("" + a + " a is not number class."); 
+        if (b instanceof NumberClass == false) throw new Error("" + b + " b is not number class."); 
+        return a.sub(b);});
 };
 
 basmul.onevaluate = function (){
-    return slice(arguments).reduce(function (a,b){return a.mul(b);});
+    return slice(arguments).reduce(function (a,b){
+        if (a instanceof NumberClass == false) throw new Error("" + a + " a is not number class."); 
+        if (b instanceof NumberClass == false) throw new Error("" + b + " b is not number class."); 
+        return a.mul(b);});
 };
 
 basdiv.onevaluate = function (){
-    return slice(arguments).reduce(function (a,b){return a.div(b);});
+    return slice(arguments).reduce(function (a,b){
+        if (a instanceof NumberClass == false) throw new Error("" + a + " a is not number class."); 
+        if (b instanceof NumberClass == false) throw new Error("" + b + " b is not number class."); 
+        return a.div(b);});
 };
 
 basmod.onevaluate = function (){
-    return slice(arguments).reduce(function (a,b){return a.mod(b);});
+    return slice(arguments).reduce(function (a,b){
+        if (a instanceof NumberClass == false) throw new Error("" + a + " a is not number class."); 
+        if (b instanceof NumberClass == false) throw new Error("" + b + " b is not number class."); 
+        return a.mod(b);});
 };
 
 basadd.onexpand = function (){
@@ -3181,14 +3207,82 @@ basintnot2.onevaluate = function (a){
     return new IntClass(~a.value);
 };
 
+// define basic function methods
+
+var basfnfuncall = new PrimitiveFunctionClass();
+var basfnapply = new PrimitiveFunctionClass();
+
+// define basic cons methods
+
+var basconmap = new UserFunctionClass();
+var basconmap_func = inp.scope.intern(makestring("func"));
+var basconmap_sequence = inp.scope.intern(makestring("sequence"));
+
+var basconfilter = new UserFunctionClass();
+var basconfilter_func = inp.scope.intern(makestring("func"));
+var basconfilter_sequence = inp.scope.intern(makestring("sequence"));
+
+var basconreduce = new UserFunctionClass();
+var basconreducein = new UserFunctionClass();
+var basconcons = new PrimitiveFunctionClass();
+var basconcar = new PrimitiveFunctionClass();
+var basoncdr = new PrimitiveFunctionClass();
+
+/* -- 
+    (defun map (func sequence)
+        (and sequence
+            (cons (funcall func (car sequence))
+                (cdr sequence))))
+-- */
+
+basconmap.args = makelist(
+    basconmap_func,
+    basconmap_sequence);
+
+basconmap.rest = 
+    makelist(
+        synand,
+        basconmap_sequence,
+        makelist(
+            bascons,
+            makelist(
+                basfuncall,
+                basconmap_func,
+                makelist(
+                    bascar,
+                    basconmap_sequence)),
+            makelist(
+                basconmap,
+                basconmap_func,
+                makelist(
+                    bascdr,
+                    basconmap_sequence))));
+
 // ** test code
 
-var source = 
-        makecons(macprog1,
-                 makecons(makeint(1),
-                          makecons(makeint(2), 
-                                   makecons(makeint(3)))));
+// var source = 
+//         makecons(macprog1,
+//                  makecons(makeint(1),
+//                           makecons(makeint(2), 
+//                                    makecons(makeint(3)))));
 
-console.log(source);
-console.log(source.evaluatearg());
-console.log(source.evaluatearg().expandarg());
+//// console.log(source);
+// console.log(source.evaluatearg());
+// console.log(source.evaluatearg().expandarg());
+
+// var source = 
+//         makelist(
+//             basconmap,
+//             makelist(
+//                 maclambda,
+//                 makelist(inp.scope.intern(makestring("a"))),
+//                 makelist(basadd,  inp.scope.intern(makestring("a")), makeint(10))),
+//             makelist(
+//                 baslist, 
+//                 makeint(1),
+//                 makeint(2),
+//                 makeint(3)));
+
+// // console.log(source);
+// console.log(source.evaluatearg());
+// console.log(source.evaluatearg().expandarg());
