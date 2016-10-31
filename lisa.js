@@ -11,6 +11,47 @@ function keys (some){
     return Object.keys(some);
 }
 
+// strace
+
+function Strace (){
+    this.strace = [];
+};
+
+Strace.prototype.push = function (func){
+    this.strace.push(func + "");
+};
+
+Strace.prototype.pop = function (func){
+    this.strace.pop();
+};
+
+Strace.prototype.willstrace = function (func){
+    var temp, self = this;
+    return function willstrace_closure (){
+        self.push(this);
+        temp = func.apply(this, arguments);
+        self.pop();
+        return temp;
+    };
+};
+
+Strace.prototype.unwindstrace = function (func){
+    var temp, self = this;
+    return function unwindstrace_closure (){
+        try { temp = func.apply(this, arguments); }
+        catch (errorn) { console.log(errorn); self.print(); }
+        return temp;
+    };
+};
+
+Strace.prototype.print = function (){
+    var index;
+    for (index = 0; index < this.strace.length; index++)
+        console.log("" + index + ":" + this.strace[index]);
+};
+
+var strace = new Strace();
+
 // unique class
 //     <- native, function class
 
@@ -156,6 +197,9 @@ Evaluatable.prototype.evaluatearg  = function (){
         throw new Error("" + this + " onevaluatearg was not defined.");
     return this.onevaluatearg();
 };
+
+Evaluatable.prototype.evaluate = 
+    strace.willstrace(Evaluatable.prototype.evaluate);
 
 Evaluatable.prototype.evaluatedata = function (){
     if (this.onevaluatedata == null)
@@ -1518,9 +1562,7 @@ function UserFunctionClass (name, args, rest){
 UserFunctionClass.prototype = 
     Object.create(FunctionClass.prototype);
 
-UserFunctionClass.prototype.toString = function (){
-    return "<#user function class>";
-};
+UserFunctionClass.prototype.label = "<#user function class>";
 
 UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
     var ncons, bindsi, index;
@@ -1532,13 +1574,9 @@ UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
                               makecons(arguments[index]))),
             ncons);
     ncons = ncons.reverse();
-    return makecons(
-        synblock,
-        makecons(
-            makecons(
-                synprogn,
-                makecons(ncons)),
-            this.rest)).evaluatearg();
+    return makecons(synblock,
+                    makecons(ncons,
+                             makecons(this.rest))).evaluatearg();
     // return makecons(
     //     synprogn,
     //     makecons(
@@ -1549,7 +1587,7 @@ UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
     //                 makecons(this.rest))))).evaluatearg();
 };
 
-UserFunctionClass.prototype.onexpandarg = function (){ // ** should check again
+UserFunctionClass.prototype.onexpandarg = function (){
     return new Expanded(
         "function(" + this.args.toArray().map(getvaluename).join(",") + ")" + 
             "{" + new ConsClass(synblock_func,
@@ -1745,7 +1783,7 @@ VariableSymbolClass.prototype.toString = function (){
 };
 
 VariableSymbolClass.prototype.toString = function (){
-    return this.getvaluename() + "/*--" + this.name + "--*/";
+    return this.getvaluename(); // + "/*--" + this.name + "--*/";
 };
 
 VariableSymbolClass.prototype.getvaluename = function (){
@@ -2377,9 +2415,9 @@ synprogn_source.onexpand = function (){
 
 synand.onevaluate = function (){
     var res, index;
-    for (res = t, index = 0; index < arguments.length; index++)
+    for (res = t, index = 0; index < arguments.length; index++){
         if ((res  = arguments[index].evaluatearg()) == nil)
-            return nil;
+            return nil;}
     return res;
 };
 
@@ -3003,75 +3041,75 @@ basapply.onexpand = function (func, sequence){
     return new Expanded(func + "(" + sequence.toArray().join(",") + ")");
 };
 
-// define optimize function 
+// // define optimize function 
 
-var optconcat = new OptimizeFunctionClass();
- var optadd = new OptimizeFunctionClass();
-var optsub = new OptimizeFunctionClass();
-var optmul = new OptimizeFunctionClass();
-var optdiv = new OptimizeFunctionClass();
-var optmod = new OptimizeFunctionClass();
+// var optconcat = new OptimizeFunctionClass();
+//  var optadd = new OptimizeFunctionClass();
+// var optsub = new OptimizeFunctionClass();
+// var optmul = new OptimizeFunctionClass();
+// var optdiv = new OptimizeFunctionClass();
+// var optmod = new OptimizeFunctionClass();
 
-inp.scope.intern(makestring("concat")).setfunc(optconcat);
-inp.scope.intern(makestring("+")).setfunc(optadd);
-inp.scope.intern(makestring("-")).setfunc(optsub);
-inp.scope.intern(makestring("*")).setfunc(optmul);
-inp.scope.intern(makestring("/")).setfunc(optdiv);
-inp.scope.intern(makestring("%")).setfunc(optmod);
+// inp.scope.intern(makestring("concat")).setfunc(optconcat);
+// inp.scope.intern(makestring("+")).setfunc(optadd);
+// inp.scope.intern(makestring("-")).setfunc(optsub);
+// inp.scope.intern(makestring("*")).setfunc(optmul);
+// inp.scope.intern(makestring("/")).setfunc(optdiv);
+// inp.scope.intern(makestring("%")).setfunc(optmod);
 
-optconcat.onevaluate = 
-    beforeevaluatearg(basconcat.onevaluate);
+// optconcat.onevaluate = 
+//     beforeevaluatearg(basconcat.onevaluate);
 
-optconcat.onexpand = function (){
-    if (isoptimizableall(arguments))
-        return basconcat.expand.apply(basconcat, arguments);
-    return basconcat.evaluate.apply(basconcat, arguments).constant();
-};
+// optconcat.onexpand = function (){
+//     if (isoptimizableall(arguments))
+//         return basconcat.expand.apply(basconcat, arguments);
+//     return basconcat.evaluate.apply(basconcat, arguments).constant();
+// };
 
-optadd.onevaluate = 
-    beforeevaluatearg(basadd.onevaluate);
+// optadd.onevaluate = 
+//     beforeevaluatearg(basadd.onevaluate);
 
-optadd.onexpand = function (){
-    if (isoptimizableall(arguments))
-        return basconcat.expand.apply(basadd, arguments);
-    return basconcat.evaluate.apply(basadd, arguments).constant();
-};
+// optadd.onexpand = function (){
+//     if (isoptimizableall(arguments))
+//         return basconcat.expand.apply(basadd, arguments);
+//     return basconcat.evaluate.apply(basadd, arguments).constant();
+// };
 
-optsub.onevaluate = 
-    beforeevaluatearg(bassub.onevaluate);
+// optsub.onevaluate = 
+//     beforeevaluatearg(bassub.onevaluate);
 
-optsub.onexpand = function (){
-    if (isoptimizableall(arguments))
-        return basconcat.expand.apply(bassub, arguments);
-    return basconcat.evaluate.apply(bassub, arguments).constant();
-};
+// optsub.onexpand = function (){
+//     if (isoptimizableall(arguments))
+//         return basconcat.expand.apply(bassub, arguments);
+//     return basconcat.evaluate.apply(bassub, arguments).constant();
+// };
 
-optmul.onevaluate = 
-    beforeevaluatearg(basmul.onevaluate);
+// optmul.onevaluate = 
+//     beforeevaluatearg(basmul.onevaluate);
 
-optmul.onexpand = function (){
-    if (isoptimizableall(arguments))
-        return basconcat.expand.apply(basmul, arguments);
-    return basconcat.evaluate.apply(basmul, arguments).constant();
-};
+// optmul.onexpand = function (){
+//     if (isoptimizableall(arguments))
+//         return basconcat.expand.apply(basmul, arguments);
+//     return basconcat.evaluate.apply(basmul, arguments).constant();
+// };
 
-optdiv.onevaluate = 
-    beforeevaluatearg(basdiv.onevaluate);
+// optdiv.onevaluate = 
+//     beforeevaluatearg(basdiv.onevaluate);
 
-optdiv.onexpand = function (){
-    if (isoptimizableall(arguments))
-        return basconcat.expand.apply(basdiv, arguments);
-    return basconcat.evaluate.apply(basdiv, arguments).constant();
-};
+// optdiv.onexpand = function (){
+//     if (isoptimizableall(arguments))
+//         return basconcat.expand.apply(basdiv, arguments);
+//     return basconcat.evaluate.apply(basdiv, arguments).constant();
+// };
 
-optmod.onevaluate = 
-    beforeevaluatearg(basmod.onevaluate);
+// optmod.onevaluate = 
+//     beforeevaluatearg(basmod.onevaluate);
 
-optmod.onexpand = function (){
-    if (isoptimizableall(arguments))
-        return basconcat.expand.apply(basmod, arguments);
-    return basconcat.evaluate.apply(basmod, arguments).constant();
-};
+// optmod.onexpand = function (){
+//     if (isoptimizableall(arguments))
+//         return basconcat.expand.apply(basmod, arguments);
+//     return basconcat.evaluate.apply(basmod, arguments).constant();
+// };
 
 // define debug function
 
@@ -3228,6 +3266,14 @@ var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
 var basoncdr = new PrimitiveFunctionClass();
 
+basconmap.label = "<#primitive cons map>";
+basconfilter.label = "<#primitive cons filter>";
+basconreduce.label = "<#primitive cons reduce>";
+basconreducein.label = "<#primitive cons reducein>";
+basconcons.label = "<#primitive cons cons>";
+basconcar.label = "<#primitive cons car>";
+basoncdr.label = "<#primitive cons cdr>";
+
 /* -- 
     (defun map (func sequence)
         (and sequence
@@ -3270,19 +3316,22 @@ basconmap.rest =
 // console.log(source.evaluatearg());
 // console.log(source.evaluatearg().expandarg());
 
-// var source = 
-//         makelist(
-//             basconmap,
-//             makelist(
-//                 maclambda,
-//                 makelist(inp.scope.intern(makestring("a"))),
-//                 makelist(basadd,  inp.scope.intern(makestring("a")), makeint(10))),
-//             makelist(
-//                 baslist, 
-//                 makeint(1),
-//                 makeint(2),
-//                 makeint(3)));
+var source = 
+        makelist(
+            basconmap,
+            makelist(
+                maclambda,
+                makelist(inp.scope.intern(makestring("a"))),
+                makeint(10)),
+                // makelist(basadd,  inp.scope.intern(makestring("a")), makeint(10))),
+            makelist(
+                baslist, 
+                makeint(1),
+                makeint(2),
+                makeint(3)));
 
-// // console.log(source);
-// console.log(source.evaluatearg());
-// console.log(source.evaluatearg().expandarg());
+strace.unwindstrace(function (){
+    // console.log(source);
+    console.log(source.evaluatearg());
+    console.log(source.evaluatearg().expandarg());
+})();
