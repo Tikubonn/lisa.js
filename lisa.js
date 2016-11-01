@@ -39,7 +39,7 @@ Strace.prototype.unwindstrace = function (func){
     var temp, self = this;
     return function unwindstrace_closure (){
         try { temp = func.apply(this, arguments); }
-        catch (errorn) { self.print(); console.log("exception: " + errorn.message); }
+        catch (errorn) { self.print(); throw errorn; }
         return temp;
     };
 };
@@ -1387,6 +1387,10 @@ QuoteClass.prototype.onexpandarg = function (){
     return this.value.expanddata();
 };
 
+function makequote  (some){
+    return new QuoteClass(some);
+};
+
 // unquote class
 //     <- quote family class
 
@@ -1412,6 +1416,10 @@ UnQuoteClass.prototype.onexpandarg = function (){
     return this.value.expandarg();
 };
 
+function makeunquote (some){
+    return new UnQuoteClass(some);
+};
+
 // unquoteat class
 //     <- quote family class
 
@@ -1424,6 +1432,10 @@ UnQuoteAtClass.prototype =
 
 UnQuoteAtClass.prototype.toString = function (){
     return "/*--unquoteat--*/" + this.value.toString();
+};
+
+function makeunquoteat (some){
+    return new UnQuoteAtClass(some);
 };
 
 // callable class
@@ -1553,12 +1565,6 @@ PrimitiveFunctionClass.prototype.label = "<#primitive function class>";
 // user function class
 //     <- function class
 
-// function UserFunctionClass (name, args, rest){
-//     this.name = name || null;
-//     this.args = args || null;
-//     this.rest = rest || null;
-// }
-
 function UserFunctionClass (args, rest){
     this.args = args || null;
     this.rest = rest || null;
@@ -1569,31 +1575,94 @@ UserFunctionClass.prototype =
 
 UserFunctionClass.prototype.label = "<#user function class>";
 
-UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
-    var formula, ncons, bindsi, index;
-    for (ncons = new ConsClass(synprogn), bindsi = this.args.iter(), index = 0;
-         bindsi.isalive() && index < arguments.length; index++)
-        ncons = makecons(
-            makecons(macdeflvar,
-                     makecons(bindsi.next(),
-                              makecons(arguments[index]))),
-            ncons);
-    ncons = ncons.reverse();
-    // return makecons(synblock,
-    //                 makecons(ncons,
-    //                          makecons(this.rest))).evaluatearg();
-    formula = 
-        makecons(synblock,
-                 makecons(ncons, this.rest));
-    return formula.evaluatearg();
-    // return makecons(
-    //     synprogn,
-    //     makecons(
-    //         ncons,
-    //         makecons(
-    //             makecons(
-    //                 synblock_func,
-    //                 makecons(this.rest))))).evaluatearg();
+UserFunctionClass.prototype.onevaluate = function (){
+
+    // bound initalize
+
+    var bound, consa, consb;
+    bound = makecons(synprogn);
+    consa = this.args;
+    consb = ConsClass.toCons(arguments);
+
+    // argument binding.
+
+    for (; consa != nil && consb != nil; 
+         consa = consa.cdr, consb = consb.cdr){
+        if (consa.car == makeintern2("&rest")) break;
+        if (consa.car == makeintern2("&optional")) break;
+        bound = 
+            makecons(
+                makecons(macdeflvar,
+                         makecons(consa.car,
+                                  makecons(consb.car))),
+                bound);
+    };
+
+    // optional argument binding.
+ 
+    if (consa.car == makeintern2("&optional")){
+        consa = consa.cdr;
+        for (; consa != nil && consb != nil;
+             consa = consa.cdr, consb = consb.cdr){
+            if (consa.car == makeintern2("&rest")) break;
+            bound =
+                makecons(
+                    makecons(macdeflvar,
+                             (consb == nil) ?
+                             (consa.car instanceof ConsClass == false) ?
+                             (makecons(consa.car, makecons(nil))):
+                             (makecons(consa.car.car, makecons(consa.car.cdr.car))):
+                             (consa.car instanceof ConsClass == false) ?
+                             (makecons(consa.car, makecons(consb.car))):
+                             (makecons(consa.car.car, makecons(consb.car)))),
+                    bound);
+        }};
+    
+    // rest argument binding.
+
+    if (consa.car == makeintern2("&rest")){
+        consa = consa.cdr;
+        bound = 
+            makecons(
+                makecons(macdeflvar,
+                         makecons(consa.car,
+                                  makecons(consb))),
+                bound);
+    };
+
+    // reverse binding arguments.
+
+    bound = bound.reverse();
+    
+    // build formula and evaluate
+   
+    return makecons(synblock,
+                    makecons(bound, this.rest)).evaluatearg();
+ 
+    // var formula, ncons, bindsi, index;
+    // for (ncons = new ConsClass(synprogn), bindsi = this.args.iter(), index = 0;
+    //      bindsi.isalive() && index < arguments.length; index++)
+    //     ncons = makecons(
+    //         makecons(macdeflvar,
+    //                  makecons(bindsi.next(),
+    //                           makecons(arguments[index]))),
+    //         ncons);
+    // ncons = ncons.reverse();
+    // // return makecons(synblock,
+    // //                 makecons(ncons,
+    // //                          makecons(this.rest))).evaluatearg();
+    // formula = 
+    //     makecons(synblock,
+    //              makecons(ncons, this.rest));
+    // return formula.evaluatearg();
+    // // return makecons(
+    // //     synprogn,
+    // //     makecons(
+    // //         ncons,
+    // //         makecons(
+    // //             makecons(
+    // //                 synblock_func,
+    // //                 makecons(this.rest))))).evaluatearg();
 };
 
 UserFunctionClass.prototype.onexpandarg = function (){
@@ -1608,13 +1677,13 @@ UserFunctionClass.prototype.onexpandarg = function (){
 
 function MacroClass (){}
 
+// primitive macro class
+//     <- macro class
+
 function PrimitiveMacroClass (){}
 
-// function UserMacroClass (name, args, rest){
-//     this.name = name || null;
-//     this.args = args || null;
-//     this.rest = rest || null;
-// }
+// user macro class
+//     <- macro class
 
 function UserMacroClass (args, rest){
     this.args = args || null;
@@ -1780,6 +1849,25 @@ function makeintern (name){
     return new InternSymbolClass(makestring(name));
 };
 
+// interned symbol class 
+
+var interneds = [];
+
+function InternSymbolClass2 (name){
+    var index;
+    for (index = 0; index < interneds.length; index++)
+        if (interneds[index].name.toString() == name.toString())
+            return interneds[index];
+    InternSymbolClass.apply(this, arguments);
+};
+
+InternSymbolClass2.prototype = 
+    Object.create(InternSymbolClass);
+
+function makeintern2 (name){
+    return new InternSymbolClass2(makestring(name));
+};
+
 // variable symbol class
 //     <- symbol class
 
@@ -1799,7 +1887,7 @@ VariableSymbolClass.prototype.toString = function (){
 };
 
 VariableSymbolClass.prototype.toString = function (){
-    return this.getvaluename(); // + "/*--" + this.name + "--*/";
+    return this.getvaluename() + "/*--" + this.name + "--*/";
 };
 
 VariableSymbolClass.prototype.getvaluename = function (){
@@ -2462,6 +2550,10 @@ synnot.onexpand = function (some){
 };
 
 synsetf.onevaluate = function (formula, value){
+    // return formula.evaluatearg().set(value.evaluatearg());
+    // var valued = value.evaluatearg();
+    // var formulaed = formula.evaluatearg();
+    // return formulaed.set(valued);
     return formula.evaluatearg().set(value.evaluatearg());
 };
 
@@ -3328,6 +3420,105 @@ basconmap.rest =
                 makelist(
                     bascdr,
                     basconmap_sequence))));
+
+// define basic macros
+
+var macnull = new UserMacroClass();
+var macnull_some = inp.scope.intern(makestring("some"));
+
+var macnot = new UserMacroClass();
+var macnot_some = inp.scope.intern(makestring("some"));
+
+var macand = new UserMacroClass();
+var macand_rest = inp.scope.intern(makestring("&rest"));
+var macand_args = inp.scope.intern(makestring("args"));
+
+var macor = new UserMacroClass();
+var macor_rest = inp.scope.intern(makestring("&rest"));
+var macor_args = inp.scope.intern(makestring("args"));
+
+macnull.args = makelist(macnull_some);
+macnull.rest = makelist(synif, macnull_some, t, nil);
+
+macnot.args = makelist(macnot_some);
+macnot.rest = makelist(synif, macnot_some, nil, t);
+
+/* -- 
+    (if (null args) t
+        (if (null (cdr args)) (car args)
+            `(if ,(car args) (and ,@(cdr args)) nil)))
+-- */
+
+macand.args = makelist(
+    macand_rest,
+    macand_args);
+
+macand.rest = 
+    makelist(
+        synif,
+        makelist(
+            macnull, 
+            macand_args),
+        t,
+        makelist(
+            synif,
+            makelist(
+                macnull,
+                makelist(
+                    basconcdr,
+                    macand_args)),
+            makelist(
+                basconcar,
+                macand_args),
+            makequote(
+                makelist(
+                    synif,
+                    makeunquote(
+                        makelist(
+                            basconcar,
+                            macand_args)),
+                    makelist(
+                        macand,
+                        makeunquoteat(
+                            makelist(
+                                basconcdr,
+                                macand_args))),
+                    nil))));
+
+/* -- 
+    (if (null args) nil
+        `(if ,(car args) ,(car args)
+            (or ,@(cdr args))))
+-- */
+
+macor.args = makelist(
+    macor_rest,
+    macor_args);
+
+macor.rest = 
+    makelist(
+        synif,
+        makelist(
+            macnull,
+            macor_args),
+        nil,
+        makequote(
+            makelist(
+                synif,
+                makeunquote(
+                    makelist(
+                        basconcar,
+                        macor_args)),
+                makeunquote(
+                    makelist(
+                        basconcar,
+                        macor_args)),
+                makelist(
+                    macor,
+                    makeunquoteat(
+                        makelist(
+                            basconcdr,
+                            macor_args))))));
 
 // ** test code
 
