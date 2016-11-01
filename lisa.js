@@ -39,7 +39,7 @@ Strace.prototype.unwindstrace = function (func){
     var temp, self = this;
     return function unwindstrace_closure (){
         try { temp = func.apply(this, arguments); }
-        catch (errorn) { console.log(errorn); self.print(); }
+        catch (errorn) { self.print(); console.log("exception: " + errorn.message); }
         return temp;
     };
 };
@@ -1553,11 +1553,16 @@ PrimitiveFunctionClass.prototype.label = "<#primitive function class>";
 // user function class
 //     <- function class
 
-function UserFunctionClass (name, args, rest){
-    this.name = name || null;
+// function UserFunctionClass (name, args, rest){
+//     this.name = name || null;
+//     this.args = args || null;
+//     this.rest = rest || null;
+// }
+
+function UserFunctionClass (args, rest){
     this.args = args || null;
     this.rest = rest || null;
-}
+};
 
 UserFunctionClass.prototype = 
     Object.create(FunctionClass.prototype);
@@ -1565,7 +1570,7 @@ UserFunctionClass.prototype =
 UserFunctionClass.prototype.label = "<#user function class>";
 
 UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
-    var ncons, bindsi, index;
+    var formula, ncons, bindsi, index;
     for (ncons = new ConsClass(synprogn), bindsi = this.args.iter(), index = 0;
          bindsi.isalive() && index < arguments.length; index++)
         ncons = makecons(
@@ -1574,9 +1579,14 @@ UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
                               makecons(arguments[index]))),
             ncons);
     ncons = ncons.reverse();
-    return makecons(synblock,
-                    makecons(ncons,
-                             makecons(this.rest))).evaluatearg();
+    // return makecons(synblock,
+    //                 makecons(ncons,
+    //                          makecons(this.rest))).evaluatearg();
+    formula = 
+        makecons(synblock,
+                 makecons(ncons,
+                          makecons(this.rest)));
+    return formula.evaluatearg();
     // return makecons(
     //     synprogn,
     //     makecons(
@@ -1601,11 +1611,16 @@ function MacroClass (){}
 
 function PrimitiveMacroClass (){}
 
-function UserMacroClass (name, args, rest){
-    this.name = name || null;
+// function UserMacroClass (name, args, rest){
+//     this.name = name || null;
+//     this.args = args || null;
+//     this.rest = rest || null;
+// }
+
+function UserMacroClass (args, rest){
     this.args = args || null;
     this.rest = rest || null;
-}
+};
 
 MacroClass.prototype = 
     Object.create(CallableClass.prototype);
@@ -2569,7 +2584,8 @@ macunless.onevaluate = function (cond){
 
 maclambda.onevaluate = function (args){
     // return new UserFunctionClass(null, args, slice(arguments, 1));
-    return new UserFunctionClass(null, args, ConsClass.toCons(slice(arguments, 1)));
+    // return new UserFunctionClass(null, args, ConsClass.toCons(slice(arguments, 1)));
+    return new UserFunctionClass(args, ConsClass.toCons(slice(arguments, 1)));
 };
 
 macdefun.onevaluate = function (name){
@@ -2584,7 +2600,8 @@ macdefun.onevaluate = function (name){
 
 macmacro.onevaluate = function (args){
     // return new UserMacroClass(null, args, slice(arguments, 1));
-    return new UserMacroClass(null, args, ConsClass.toCons(slice(arguments, 1)));
+    // return new UserMacroClass(null, args, ConsClass.toCons(slice(arguments, 1)));
+    return new UserMacroClass(args, ConsClass.toCons(slice(arguments, 1)));
 };
 
 macdefmacro.onevaluate = function (name){
@@ -3261,10 +3278,17 @@ var basconfilter_func = inp.scope.intern(makestring("func"));
 var basconfilter_sequence = inp.scope.intern(makestring("sequence"));
 
 var basconreduce = new UserFunctionClass();
+var basconreduce_func = inp.scope.intern(makestring("func"));
+var basconreduce_sequence = inp.scope.intern(makestring("sequence"));
+
 var basconreducein = new UserFunctionClass();
+var basconreducein_func = inp.scope.intern(makestring("func"));
+var basconreducein_sum = inp.scope.intern(makestring("sum"));
+var basconreducein_sequence = inp.scope.intern(makestring("sequence"));
+
 var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
-var basoncdr = new PrimitiveFunctionClass();
+var basconcdr = new PrimitiveFunctionClass();
 
 basconmap.label = "<#primitive cons map>";
 basconfilter.label = "<#primitive cons filter>";
@@ -3272,7 +3296,7 @@ basconreduce.label = "<#primitive cons reduce>";
 basconreducein.label = "<#primitive cons reducein>";
 basconcons.label = "<#primitive cons cons>";
 basconcar.label = "<#primitive cons car>";
-basoncdr.label = "<#primitive cons cdr>";
+basconcdr.label = "<#primitive cons cdr>";
 
 /* -- 
     (defun map (func sequence)
@@ -3323,7 +3347,6 @@ var source =
                 maclambda,
                 makelist(inp.scope.intern(makestring("a"))),
                 makeint(10)),
-                // makelist(basadd,  inp.scope.intern(makestring("a")), makeint(10))),
             makelist(
                 baslist, 
                 makeint(1),
