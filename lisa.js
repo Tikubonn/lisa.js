@@ -1584,8 +1584,7 @@ UserFunctionClass.prototype.onevaluate = function (){ // ** should check again
     //                          makecons(this.rest))).evaluatearg();
     formula = 
         makecons(synblock,
-                 makecons(ncons,
-                          makecons(this.rest)));
+                 makecons(ncons, this.rest));
     return formula.evaluatearg();
     // return makecons(
     //     synprogn,
