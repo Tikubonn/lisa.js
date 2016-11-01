@@ -1669,24 +1669,26 @@ SymbolClass.prototype.toString = function (){
 };
 
 SymbolClass.prototype.getvalue = function (){
+    if (this.value == null)
+        throw new Error("symbol " + this + " has no value.");
     return this.value;
 };
 
 SymbolClass.prototype.getfunc = function (){
+    if (this.func == null)
+        throw new Error("symbol " + this + " has no func.");
     return this.func;
 };
 
-SymbolClass.prototype.getvaluee = function (){
-    if (this.getvalue() == null)
-        throw new Error("symbol " + this + " has no value.");
-    return this.getvalue();
-};
+// SymbolClass.prototype.getvaluee = function (){
+//     if (this.getvalue() == null) throw new Error("symbol " + this + " has no value.");
+//     return this.getvalue();
+// };
 
-SymbolClass.prototype.getfunce = function (){
-    if (this.getfunc() == null)
-        throw new Error("symbol " + this + " has no func.");
-    return this.getfunc();
-};
+// SymbolClass.prototype.getfunce = function (){
+//     if (this.getfunc() == null) throw new Error("symbol " + this + " has no func.");
+//     return this.getfunc();
+// };
 
 SymbolClass.prototype.setvalue = function (value){
     this.value = value;
@@ -1704,11 +1706,11 @@ SymbolClass.prototype.onevaluate = function (){
 };
 
 SymbolClass.prototype.onevaluatearg = function (){
-    return this.getvaluee();
+    return this.getvalue();
 };
 
 SymbolClass.prototype.onexpand = function (){
-    var func = this.getfunce();
+    var func = this.getfunc();
     return func.expand.apply(func, arguments);
 };
 
@@ -1731,11 +1733,11 @@ InternSymbolClass.prototype.toString = function (){
 };
 
 InternSymbolClass.prototype.getvalue = function (){
-    return inp.scope.finde(this.name).getvaluee();
+    return inp.scope.finde(this.name).getvalue();
 };
 
 InternSymbolClass.prototype.getfunc = function (){
-    return inp.scope.finde(this.name).getfunce();
+    return inp.scope.finde(this.name).getfunc();
 };
 
 InternSymbolClass.prototype.setvalue = function (value){
