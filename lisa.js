@@ -25,10 +25,23 @@ Strace.prototype.pop = function (func){
     this.strace.pop();
 };
 
-Strace.prototype.willstrace = function (func){
-    var temp, self = this;
+// Strace.prototype.willstrace = function (func){
+//     var temp, self = this;
+//     return function willstrace_closure (){
+//         self.push(this);
+//         temp = func.apply(this, arguments);
+//         self.pop();
+//         return temp;
+//     };
+// };
+
+Strace.prototype.willstrace = function (){
+    var message = arguments.length == 2 ? arguments[0] : "";
+    var func = arguments.length == 2 ? arguments[1] : arguments[0];
+    var temp;
+    var self = this;
     return function willstrace_closure (){
-        self.push(this);
+        self.push(message + this);
         temp = func.apply(this, arguments);
         self.pop();
         return temp;
@@ -39,15 +52,20 @@ Strace.prototype.unwindstrace = function (func){
     var temp, self = this;
     return function unwindstrace_closure (){
         try { temp = func.apply(this, arguments); }
-        catch (errorn) { self.print(); throw errorn; }
+        catch (errorn) { 
+            self.print();
+            throw errorn;
+        };
         return temp;
     };
 };
 
 Strace.prototype.print = function (){
-    var index;
-    for (index = 0; index < this.strace.length; index++)
-        console.log("" + index + ":" + this.strace[index]);
+    var message, index;
+    for (message = "lisa trace\n",
+         index = 0; index < this.strace.length; index++)
+        message += "    " + index + ": " + this.strace[index] + "\n";
+    console.log(message);
 };
 
 var strace = new Strace();
@@ -199,7 +217,10 @@ Evaluatable.prototype.evaluatearg  = function (){
 };
 
 Evaluatable.prototype.evaluate = 
-    strace.willstrace(Evaluatable.prototype.evaluate);
+    strace.willstrace("evaluate <- ", Evaluatable.prototype.evaluate);
+
+// Evaluatable.prototype.evaluatearg = 
+//     strace.willstrace("evaluatearg <- ", Evaluatable.prototype.evaluatearg);
 
 Evaluatable.prototype.evaluatedata = function (){
     if (this.onevaluatedata == null)
@@ -631,22 +652,36 @@ var nilf = new NilReferenceClass();
 // symbol reference class
 //      <- reference class
 
-function SymbolReferenceClass (){};
+function SymbolReferenceClass (value){
+
+    // ** check the reference value.
+
+    if (value instanceof SymbolFamilyClass == false)
+        throw new Error("in the symbol reference, " + value + " is not symbol instance.");
+
+    // ** set the members.
+
+    this.value = value;
+};
 
 SymbolReferenceClass.prototype = 
     Object.create(ReferenceClass.prototype);
 
 // symbol value reference class
 
-function SymbolValueReferenceClass (value){
-    this.value = value || null;
-}
+// function SymbolValueReferenceClass (value){
+//     this.value = value || null;
+// }
+
+function SymbolValueReferenceClass (){
+    SymbolReferenceClass.apply(this, arguments);
+};
 
 SymbolValueReferenceClass.prototype = 
     Object.create(SymbolReferenceClass.prototype);
 
 SymbolValueReferenceClass.prototype.get = function (){
-    return this.value.getvaluee();
+    return this.value.getvalue();
 };
 
 SymbolValueReferenceClass.prototype.set = function (value){
@@ -659,9 +694,13 @@ SymbolValueReferenceClass.prototype.onexpandarg = function (){
 
 // symbol function reference class
 
-function SymbolFunctionReferenceClass (value){
-    this.value = value || null;
-}
+// function SymbolFunctionReferenceClass (value){
+//     this.value = value || null;
+// }
+
+function SymbolFunctionReferenceClass (){
+    SymbolReferenceClass.apply(this, arguments);
+};
 
 SymbolFunctionReferenceClass.prototype = 
     Object.create(SymbolReferenceClass.prototype);
@@ -765,7 +804,8 @@ IntClass.prototype =
     Object.create(NumberClass.prototype);
 
 IntClass.prototype.toString = function (){
-    return "(" + this.value.toString() + "|0)";
+    // return "(" + this.value.toString() + "|0)";
+    return this.value.toString();
 };
 
 IntClass.prototype.clone = function (){
@@ -1579,6 +1619,7 @@ UserFunctionClass.prototype.onevaluate = function (){
 
     // bound initalize
 
+    var formula;
     var bound, consa, consb;
     bound = makecons(synprogn);
     consa = this.args;
@@ -1588,8 +1629,8 @@ UserFunctionClass.prototype.onevaluate = function (){
 
     for (; consa != nil && consb != nil; 
          consa = consa.cdr, consb = consb.cdr){
-        if (consa.car == makeintern2("&rest")) break;
-        if (consa.car == makeintern2("&optional")) break;
+        if (consa.car == makeintern("&rest")) break;
+        if (consa.car == makeintern("&optional")) break;
         bound = 
             makecons(
                 makecons(macdeflvar,
@@ -1600,11 +1641,11 @@ UserFunctionClass.prototype.onevaluate = function (){
 
     // optional argument binding.
  
-    if (consa.car == makeintern2("&optional")){
+    if (consa.car == makeintern("&optional")){
         consa = consa.cdr;
         for (; consa != nil && consb != nil;
              consa = consa.cdr, consb = consb.cdr){
-            if (consa.car == makeintern2("&rest")) break;
+            if (consa.car == makeintern("&rest")) break;
             bound =
                 makecons(
                     makecons(macdeflvar,
@@ -1620,13 +1661,14 @@ UserFunctionClass.prototype.onevaluate = function (){
     
     // rest argument binding.
 
-    if (consa.car == makeintern2("&rest")){
+    if (consa.car == makeintern("&rest")){
         consa = consa.cdr;
         bound = 
             makecons(
                 makecons(macdeflvar,
                          makecons(consa.car,
-                                  makecons(consb))),
+                                  makecons(
+                                      makecons(baslist, consb)))),
                 bound);
     };
 
@@ -1634,10 +1676,15 @@ UserFunctionClass.prototype.onevaluate = function (){
 
     bound = bound.reverse();
     
-    // build formula and evaluate
-   
-    return makecons(synblock,
-                    makecons(bound, this.rest)).evaluatearg();
+    // build formula.
+ 
+    formula = makecons(synblock,
+                    makecons(bound, this.rest));
+
+    // evaluate formula.
+
+    strace.push("user define <- " + formula + "");
+    return formula.evaluatearg();
  
     // var formula, ncons, bindsi, index;
     // for (ncons = new ConsClass(synprogn), bindsi = this.args.iter(), index = 0;
@@ -1744,17 +1791,17 @@ SymbolClass.prototype.getvalue = function (){
 };
 
 SymbolClass.prototype.getfunc = function (){
-    if (this.func == null)
+    if (this.func == null) 
         throw new Error("symbol " + this + " has no func.");
     return this.func;
 };
 
-// SymbolClass.prototype.getvaluee = function (){
+// SymbolClass.prototype.getvalue = function (){
 //     if (this.getvalue() == null) throw new Error("symbol " + this + " has no value.");
 //     return this.getvalue();
 // };
 
-// SymbolClass.prototype.getfunce = function (){
+// SymbolClass.prototype.getfunc = function (){
 //     if (this.getfunc() == null) throw new Error("symbol " + this + " has no func.");
 //     return this.getfunc();
 // };
@@ -1770,7 +1817,7 @@ SymbolClass.prototype.setfunc = function (func){
 };
 
 SymbolClass.prototype.onevaluate = function (){
-    var func = this.getfunce();
+    var func = this.getfunc();
     return func.evaluate.apply(func, arguments);
 };
 
@@ -1790,8 +1837,21 @@ SymbolClass.prototype.onexpandarg = function (){
 // intern symbol class
 //     <- symbol family class
 
+var interneds = [];
+
 function InternSymbolClass (name){
+
+    // find aleady interneds
+
+    var index;
+    for (index = 0; index < interneds.length; index++)
+        if (name.toString() == interneds[index].name.toString())
+            return interneds[index];
+    
+    // make the instance
+
     this.name = name ? name.copy() : null;
+    interneds.push(this);
 }
 
 InternSymbolClass.prototype = 
@@ -1849,25 +1909,6 @@ function makeintern (name){
     return new InternSymbolClass(makestring(name));
 };
 
-// interned symbol class 
-
-var interneds = [];
-
-function InternSymbolClass2 (name){
-    var index;
-    for (index = 0; index < interneds.length; index++)
-        if (interneds[index].name.toString() == name.toString())
-            return interneds[index];
-    InternSymbolClass.apply(this, arguments);
-};
-
-InternSymbolClass2.prototype = 
-    Object.create(InternSymbolClass);
-
-function makeintern2 (name){
-    return new InternSymbolClass2(makestring(name));
-};
-
 // variable symbol class
 //     <- symbol class
 
@@ -1887,7 +1928,7 @@ VariableSymbolClass.prototype.toString = function (){
 };
 
 VariableSymbolClass.prototype.toString = function (){
-    return this.getvaluename() + "/*--" + this.name + "--*/";
+    return this.getvaluename(); // + "/*--" + this.name + "--*/";
 };
 
 VariableSymbolClass.prototype.getvaluename = function (){
@@ -2030,8 +2071,11 @@ Obarray.prototype.intern = function (name){
     var found;
     if ((found = this.find(name)))
         return found;
+    // var sym = new VariableSymbolClass(name);
+    // return this.set(name, sym);
     var sym = new VariableSymbolClass(name);
-    return this.set(name, sym);
+    this.set(name, sym);
+    return new InternSymbolClass(name);
 };
 
 Obarray.prototype.list = function (){
@@ -2417,6 +2461,7 @@ var synnot = new SpecialFunctionClass();
 var synsetf = new SpecialFunctionClass();
 var synlocal = new SpecialFunctionClass();
 var synglobal = new SpecialFunctionClass();
+var synquote = new SpecialFunctionClass();
 
 inp.scope.intern(makestring("if")).setfunc(synif);
 inp.scope.intern(makestring("block")).setfunc(synblock);
@@ -2425,6 +2470,7 @@ inp.scope.intern(makestring("and")).setfunc(synand);
 inp.scope.intern(makestring("or")).setfunc(synor);
 inp.scope.intern(makestring("not")).setfunc(synnot);
 inp.scope.intern(makestring("setf")).setfunc(synsetf);
+inp.scope.intern(makestring("quote")).setfunc(synquote);
 
 synif.label = "<#syntax if>";
 synblock.label = "<#syntax block>";
@@ -2436,9 +2482,10 @@ synand.label = "<#syntax and>";
 synor.label = "<#syntax or>";
 synnot.label = "<#syntax not>";
 synsetf.label = "<#syntax setf>";
+synquote.label = "<#syntax quote>";
 
 synif.onevaluate = function (cond, truecase, falsecase){
-    if (cond.evaluatearg().status())
+    if (cond.evaluatearg() != nil)
         return truecase.evaluatearg();
     return falsecase.evaluatearg();
 };
@@ -2551,10 +2598,9 @@ synnot.onexpand = function (some){
 
 synsetf.onevaluate = function (formula, value){
     // return formula.evaluatearg().set(value.evaluatearg());
-    // var valued = value.evaluatearg();
-    // var formulaed = formula.evaluatearg();
-    // return formulaed.set(valued);
-    return formula.evaluatearg().set(value.evaluatearg());
+    var valued = value.evaluatearg();
+    var formulaed = formula.evaluatearg();
+    return formulaed.set(valued);
 };
 
 synsetf.onexpand = function (formula, value){
@@ -2564,6 +2610,10 @@ synsetf.onexpand = function (formula, value){
     return new Expanded(
         formulad.expandarg() + "=" +
             valued.expandarg());
+};
+
+synquote.onevaluate = function (some){
+    return new QuoteClass(some);
 };
 
 // define basic macro functions
@@ -2599,6 +2649,22 @@ inp.scope.intern(makestring("flet")).setfunc(macflet);
 inp.scope.intern(makestring("mlet")).setfunc(macmlet);
 inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
 inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
+
+macprog1.label = "<#primtive macro prog1>";
+macwhen.label = "<#primtive macro when>";
+macunless.label = "<#primtive macro unless>";
+maclambda.label = "<#primtive macro lambda>";
+macdefun.label = "<#primtive macro defun>";
+macmacro.label = "<#primtive macro macro>";
+macdefmacro.label = "<#primtive macro defmacro>";
+macsetq.label = "<#primtive macro setq>";
+macincf.label = "<#primtive macro incf>";
+macdecf.label = "<#primtive macro decf>";
+maclet.label = "<#primtive macro let>";
+macflet.label = "<#primtive macro flet>";
+macmlet.label = "<#primtive macro mlet>";
+macdefvar.label = "<#primtive macro defvar>";
+macdeflvar.label = "<#primtive macro deflvar>";
 
 macprog1.onevaluate = function (n){
     var sym = makevar("");
@@ -3391,6 +3457,24 @@ basconcons.label = "<#primitive cons cons>";
 basconcar.label = "<#primitive cons car>";
 basconcdr.label = "<#primitive cons cdr>";
 
+basconcons.onevaluate = function (car, cdr){
+    return new ConsClass(car, cdr);
+};
+
+basconcar.onevaluate = function (cons){
+    if (cons instanceof ConsClass == false)
+        throw new Error("" + cons + " is not cons instance.");
+    // return cons.car;
+    return cons == nil ? nil : cons.car;
+};
+
+basconcdr.onevaluate = function (cons){
+    if (cons instanceof ConsClass == false) 
+        throw new Error("" + cons + " is not cons instance.");
+    // return cons.cdr;
+    return cons == nil ? nil : cons.cdr;
+};
+
 /* -- 
     (defun map (func sequence)
         (and sequence
@@ -3433,15 +3517,61 @@ var macand = new UserMacroClass();
 var macand_rest = inp.scope.intern(makestring("&rest"));
 var macand_args = inp.scope.intern(makestring("args"));
 
+var macandin = new UserFunctionClass();
+var macandin_sequence = inp.scope.intern(makestring("sequence"));
+
 var macor = new UserMacroClass();
 var macor_rest = inp.scope.intern(makestring("&rest"));
 var macor_args = inp.scope.intern(makestring("args"));
 
+macnull.label = "<#primitive macro null>";
+macnot.label = "<#primitive macro not>";
+macand.label = "<#primitive macro and>";
+macor.label = "<#primitive macro or>";
+
+/* -- 
+    (if some nil t)
+-- */
+
 macnull.args = makelist(macnull_some);
-macnull.rest = makelist(synif, macnull_some, t, nil);
+macnull.rest = 
+    makelist(
+        makequote(
+            makelist(
+                synif,
+                makeunquote(
+                    macnull_some),
+                nil,
+                t)));
+    // makelist(
+    //     makelist(
+    //         baslist,
+    //         synif,
+    //         macnull_some,
+    //         nil,
+    //         t));
+
+// console.log(
+//     "nil is " + macnull.evaluate(nil) + ", ",
+//     "t is " + macnull.evaluate(t) + ", ",
+//     "sym is " + macnull.evaluate(new SymbolClass(makestring("a"), makeint(0))) + ", ",
+//     "sym is " + macnull.evaluate(new SymbolClass(makestring("a"), nil)));
+
+/* --
+    (if some nil t)
+-- */
 
 macnot.args = makelist(macnot_some);
-macnot.rest = makelist(synif, macnot_some, nil, t);
+macnot.args = 
+    makelist(
+        makelist(
+            baslist,
+            synif,
+            makelist(
+                synquote,
+                macnot_some),
+            nil,
+            t));
 
 /* -- 
     (if (null args) t
@@ -3455,35 +3585,98 @@ macand.args = makelist(
 
 macand.rest = 
     makelist(
-        synif,
         makelist(
-            macnull, 
-            macand_args),
-        t,
-        makelist(
+            macandin,
+            macand_args));
+
+macandin.args = makelist(
+    macandin_sequence);
+
+macandin.rest = 
+    makelist(
+        makelist( // (if (null sequence) t ...
             synif,
             makelist(
                 macnull,
+                macandin_sequence),
+            t,
+            makelist( // (if (null (cdr sequence)) (car sequence) ...
+                synif,
                 makelist(
-                    basconcdr,
-                    macand_args)),
-            makelist(
-                basconcar,
-                macand_args),
-            makequote(
-                makelist(
-                    synif,
-                    makeunquote(
-                        makelist(
-                            basconcar,
-                            macand_args)),
+                    macnull,
                     makelist(
-                        macand,
-                        makeunquoteat(
+                        basconcdr,
+                        macandin_sequence)),
+                makelist(
+                    basconcar,
+                    macandin_sequence),
+                makelist(
+                    baslist,
+                    synif,
+                    makelist(
+                        debprint,
+                        makelist(
+                            macnull,
                             makelist(
-                                basconcdr,
-                                macand_args))),
-                    nil))));
+                                basconcar,
+                                macandin_sequence))),
+                    nil,
+                    makelist(
+                        macandin,
+                        makelist(
+                            basconcdr,
+                            macandin_sequence))
+                    ))));
+                // makelist( // (if (car sequence) (and (cdr sequence)) nil)
+                //     basconcons,
+                //     synif,
+                //     makelist(
+                //         basconcons,
+                //         makelist(
+                //             basconcar,
+                //             macandin_sequence),
+                //         makelist(
+                //             basconcons,
+                //             makelist(
+                //                 macandin,
+                //                 makelist(
+                //                     basconcdr,
+                //                     macandin_sequence),
+                //                 makelist(
+                //                     basconcons,
+                //                     nil))))))));
+                
+// macand.rest = 
+//     makelist(
+//         makelist( // (if (null args) t ...
+//             synif,
+//             makelist(
+//                 macnull,
+//                 macand_args), 
+//             t,
+//             makelist( // (if (null (cdr args)) (car args) ...
+//                 synif,
+//                 makelist(
+//                     macnull,
+//                     makelist(
+//                         basconcdr,
+//                         macand_args)),
+//                 makelist(
+//                     basconcar,
+//                     macand_args),
+//                 makelist( // (list if (car args) (cons and (cdr args)) nil)
+//                     baslist,
+//                     synif,
+//                     makelist(
+//                         basconcar,
+//                         macand_args),
+//                     makecons(
+//                         macand,
+//                         makecons(
+//                             makelist(
+//                                 basconcdr,
+//                                 macand_args))),
+//                     nil))));
 
 /* -- 
     (if (null args) nil
@@ -3532,21 +3725,33 @@ macor.rest =
 // console.log(source.evaluatearg());
 // console.log(source.evaluatearg().expandarg());
 
-var source = 
-        makelist(
-            basconmap,
-            makelist(
-                maclambda,
-                makelist(inp.scope.intern(makestring("a"))),
-                makeint(10)),
-            makelist(
-                baslist, 
-                makeint(1),
-                makeint(2),
-                makeint(3)));
+// var source = 
+//         makelist(
+//             basconmap,
+//             makelist(
+//                 maclambda,
+//                 makelist(inp.scope.intern(makestring("a"))),
+//                 makeint(10)),
+//             makelist(
+//                 baslist, 
+//                 makeint(1),
+//                 makeint(2),
+//                 makeint(3)));
 
-strace.unwindstrace(function (){
-    // console.log(source);
-    console.log(source.evaluatearg());
-    console.log(source.evaluatearg().expandarg());
-})();
+// strace.unwindstrace(function (){
+//     // console.log(source);
+//     console.log(source.evaluatearg());
+//     console.log(source.evaluatearg().expandarg());
+// })();
+
+// var source = 
+//         makelist(
+//             macand,
+//             makeint(1),
+//             makeint(2),
+//             makeint(3));
+
+// strace.unwindstrace(function (){
+//     // console.log(source);
+//     console.log(source.evaluatearg());
+// })();
