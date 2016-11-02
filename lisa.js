@@ -1928,7 +1928,7 @@ VariableSymbolClass.prototype.toString = function (){
 };
 
 VariableSymbolClass.prototype.toString = function (){
-    return this.getvaluename(); // + "/*--" + this.name + "--*/";
+    return this.getvaluename() + "/*--" + this.name + "--*/";
 };
 
 VariableSymbolClass.prototype.getvaluename = function (){
@@ -2491,10 +2491,14 @@ synif.onevaluate = function (cond, truecase, falsecase){
 };
 
 synif.onexpand = function (cond, truecase, falsecase){
+    // return new Expanded(
+    //     "(" + cond.expandarg().unpack() + "?" +
+    //         truecase.expandarg().unpack() + ":" + 
+    //         falsecase.expandarg().unpack() + ")");
     return new Expanded(
-        "(" + cond.expandarg().unpack() + "?" +
-            truecase.expandarg().unpack() + ":" + 
-            falsecase.expandarg().unpack() + ")");
+        "(" + cond.expandarg().unpack() + "===null?" + 
+            falsecase.expandarg().unpack() + ":" + 
+            truecase.expandarg().unpack() + ")");
 };
         
 synblock.onevaluate = function (){
@@ -3168,12 +3172,20 @@ baslength.onexpand = function (sequence){
     return new Expanded(sequence + ".length");
 };
 
+// basnull.onevaluate = function (sequence){
+//     return new BooleanClass(sequence == nil);
+// };
+
+// basnull.onexpand = function (sequence){
+//     return new Expanded("(" + sequence + ".length==0)");
+// };
+
 basnull.onevaluate = function (sequence){
-    return new BooleanClass(sequence == nil);
+    return sequence == nil ? t : nil;
 };
 
 basnull.onexpand = function (sequence){
-    return new Expanded("(" + sequence + ".length==0)");
+    return new Expanded("(" + sequence + "==null?true:null)");
 };
 
 basreadchar.onevaluate = function (stream){
@@ -3564,14 +3576,14 @@ macnull.rest =
 macnot.args = makelist(macnot_some);
 macnot.args = 
     makelist(
-        makelist(
-            baslist,
-            synif,
+        makequote(
             makelist(
-                synquote,
-                macnot_some),
-            nil,
-            t));
+                baslist,
+                synif,
+                makeunquote(
+                    macnot_some),
+                nil,
+                t)));
 
 /* -- 
     (if (null args) t
@@ -3579,72 +3591,80 @@ macnot.args =
             `(if ,(car args) (and ,@(cdr args)) nil)))
 -- */
 
-macand.args = makelist(
-    macand_rest,
-    macand_args);
+var tempstream;
 
-macand.rest = 
-    makelist(
-        makelist(
-            macandin,
-            macand_args));
+tempstream = new StringStreamClass(
+    StreamClass.direction.input,
+    makestring("(defmacro and (&rest args) (if (null args) t (if (null (cdr args)) (car args) '(if ,(car args) ,(cons 'and (cdr args)) '()))))"));
 
-macandin.args = makelist(
-    macandin_sequence);
+rdread.evaluate(tempstream).evaluatearg();
 
-macandin.rest = 
-    makelist(
-        makelist( // (if (null sequence) t ...
-            synif,
-            makelist(
-                macnull,
-                macandin_sequence),
-            t,
-            makelist( // (if (null (cdr sequence)) (car sequence) ...
-                synif,
-                makelist(
-                    macnull,
-                    makelist(
-                        basconcdr,
-                        macandin_sequence)),
-                makelist(
-                    basconcar,
-                    macandin_sequence),
-                makelist(
-                    baslist,
-                    synif,
-                    makelist(
-                        debprint,
-                        makelist(
-                            macnull,
-                            makelist(
-                                basconcar,
-                                macandin_sequence))),
-                    nil,
-                    makelist(
-                        macandin,
-                        makelist(
-                            basconcdr,
-                            macandin_sequence))
-                    ))));
-                // makelist( // (if (car sequence) (and (cdr sequence)) nil)
-                //     basconcons,
-                //     synif,
-                //     makelist(
-                //         basconcons,
-                //         makelist(
-                //             basconcar,
-                //             macandin_sequence),
-                //         makelist(
-                //             basconcons,
-                //             makelist(
-                //                 macandin,
-                //                 makelist(
-                //                     basconcdr,
-                //                     macandin_sequence),
-                //                 makelist(
-                //                     basconcons,
-                //                     nil))))))));
+// macand.args = makelist(
+//     macand_rest,
+//     macand_args);
+
+// macand.rest = 
+//     makelist(
+//         makelist(
+//             macandin,
+//             macand_args));
+
+// macandin.args = makelist(
+//     macandin_sequence);
+
+// macandin.rest = 
+//     makelist(
+//         makelist( // (if (null sequence) t ...
+//             synif,
+//             makelist(
+//                 macnull,
+//                 macandin_sequence),
+//             t,
+//             makelist( // (if (null (cdr sequence)) (car sequence) ...
+//                 synif,
+//                 makelist(
+//                     macnull,
+//                     makelist(
+//                         basconcdr,
+//                         macandin_sequence)),
+//                 makelist(
+//                     basconcar,
+//                     macandin_sequence),
+//                 makelist(
+//                     baslist,
+//                     synif,
+//                     makelist(
+//                         debprint,
+//                         makelist(
+//                             macnull,
+//                             makelist(
+//                                 basconcar,
+//                                 macandin_sequence))),
+//                     nil,
+//                     makelist(
+//                         macandin,
+//                         makelist(
+//                             basconcdr,
+//                             macandin_sequence))
+//                     ))));
+//                 // makelist( // (if (car sequence) (and (cdr sequence)) nil)
+//                 //     basconcons,
+//                 //     synif,
+//                 //     makelist(
+//                 //         basconcons,
+//                 //         makelist(
+//                 //             basconcar,
+//                 //             macandin_sequence),
+//                 //         makelist(
+//                 //             basconcons,
+//                 //             makelist(
+//                 //                 macandin,
+//                 //                 makelist(
+//                 //                     basconcdr,
+//                 //                     macandin_sequence),
+//                 //                 makelist(
+//                 //                     basconcons,
+//                 //                     nil))))))));
                 
 // macand.rest = 
 //     makelist(
@@ -3755,3 +3775,16 @@ macor.rest =
 //     // console.log(source);
 //     console.log(source.evaluatearg());
 // })();
+
+var source = 
+        makelist(
+            makeintern("and"),
+            makeint(1),
+            makeint(2),
+            makeint(3));
+
+strace.unwindstrace(function (){
+    // console.log(source);
+    console.log(source.evaluatearg() + "");
+    console.log(source.expandarg() + "");
+})();
