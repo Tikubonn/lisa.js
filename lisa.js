@@ -3776,15 +3776,15 @@ macor.rest =
 //     console.log(source.evaluatearg());
 // })();
 
-var source = 
-        makelist(
-            makeintern("and"),
-            makeint(1),
-            makeint(2),
-            makeint(3));
+// var source = 
+//         makelist(
+//             makeintern("and"),
+//             makeint(1),
+//             makeint(2),
+//             makeint(3));
 
-strace.unwindstrace(function (){
-    // console.log(source);
-    console.log(source.evaluatearg() + "");
-    console.log(source.expandarg() + "");
-})();
+// strace.unwindstrace(function (){
+//     // console.log(source);
+//     console.log(source.evaluatearg() + "");
+//     console.log(source.expandarg() + "");
+// })();
