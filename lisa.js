@@ -2029,11 +2029,6 @@ Obarray.prototype.intern = function (name){
     if (this.find(name) == null)
         this.set(name, new VariableSymbolClass(name));
     return new InternSymbolClass(name);
-    // var found;
-    // if ((found = this.find(name)))
-    //     return found;
-    // this.set(name, new VariableSymbolClass(name));
-    // return new InternSymbolClass(name);
 };
 
 Obarray.prototype.list = function (){ // ** for degug
@@ -2084,10 +2079,6 @@ Obarrays.prototype.intern = function (name){
     if (this.find(name) == null)
         return this.obarray.intern(name);
     return new InternSymbolClass(name);
-    // var found;
-    // if ((found = this.find(name))) 
-    //     return found;
-    // return this.obarray.intern(name);
 };
 
 Obarrays.prototype.internf = function (name){
@@ -2140,9 +2131,6 @@ Obscope.prototype.finde = function (name){
 };
 
 Obscope.prototype.intern = function (name){
-    // var found = this.find(name);
-    // if (found) return found;
-    // return this.obarray.intern(name);
     if (this.find(name) == null)
         return this.obarray.intern(name);
     return new InternSymbolClass(name);
@@ -2439,14 +2427,10 @@ synif.onevaluate = function (cond, truecase, falsecase){
 };
 
 synif.onexpand = function (cond, truecase, falsecase){
-    // return new Expanded(
-    //     "(" + cond.expandarg().unpack() + "?" +
-    //         truecase.expandarg().unpack() + ":" + 
-    //         falsecase.expandarg().unpack() + ")");
     return new Expanded(
-        "(" + cond.expandarg().unpack() + "===null?" + 
-            falsecase.expandarg().unpack() + ":" + 
-            truecase.expandarg().unpack() + ")");
+        "(" + cond.expandarg() + "==null?" + 
+            falsecase.expandarg() + ":" + 
+            truecase.expandarg() + ")");
 };
         
 synblock.onevaluate = function (){
@@ -2863,7 +2847,7 @@ var basnreverse = new PrimitiveFunctionClass();
 var basslice = new PrimitiveFunctionClass();
 var basnth = new PrimitiveFunctionClass();
 var baslength = new PrimitiveFunctionClass();
-var basnull = new PrimitiveFunctionClass();
+// var basnull = new PrimitiveFunctionClass();
 var basreadchar = new PrimitiveFunctionClass();
 var basreadline = new PrimitiveFunctionClass();
 var bassymbolname = new PrimitiveFunctionClass();
@@ -2898,7 +2882,7 @@ inp.scope.intern(makestring("nreverse")).setfunc(basnreverse);
 inp.scope.intern(makestring("slice")).setfunc(basslice);
 inp.scope.intern(makestring("nth")).setfunc(basnth);
 inp.scope.intern(makestring("length")).setfunc(baslength);
-inp.scope.intern(makestring("null")).setfunc(basnull);
+// inp.scope.intern(makestring("null")).setfunc(basnull);
 inp.scope.intern(makestring("read-char")).setfunc(basreadchar);
 inp.scope.intern(makestring("read")).setfunc(rdread);
 inp.scope.intern(makestring("symbol-name")).setfunc(bassymbolname);
@@ -2933,7 +2917,7 @@ basnreverse.label = "<#primitive nreverse>";
 basslice.label = "<#primitive slice>";
 basnth.label = "<#primitive nth>";
 baslength.label = "<#primitive length>";
-basnull.label = "<#primitive null>";
+// basnull.label = "<#primitive null>";
 basreadchar.label = "<#primitive readchar>";
 basreadline.label = "<#primitive readline>";
 bassymbolname.label = "<#primitive symbolname>";
@@ -3174,20 +3158,12 @@ baslength.onexpand = function (sequence){
 };
 
 // basnull.onevaluate = function (sequence){
-//     return new BooleanClass(sequence == nil);
+//     return sequence == nil ? t : nil;
 // };
 
 // basnull.onexpand = function (sequence){
-//     return new Expanded("(" + sequence + ".length==0)");
+//     return new Expanded("(" + sequence + "==null?true:null)");
 // };
-
-basnull.onevaluate = function (sequence){
-    return sequence == nil ? t : nil;
-};
-
-basnull.onexpand = function (sequence){
-    return new Expanded("(" + sequence + "==null?true:null)");
-};
 
 basreadchar.onevaluate = function (stream){
     return stream.get();
@@ -3479,14 +3455,12 @@ basconcons.onevaluate = function (car, cdr){
 basconcar.onevaluate = function (cons){
     if (cons instanceof ConsClass == false)
         throw new Error("" + cons + " is not cons instance.");
-    // return cons.car;
     return cons == nil ? nil : cons.car;
 };
 
 basconcdr.onevaluate = function (cons){
     if (cons instanceof ConsClass == false) 
         throw new Error("" + cons + " is not cons instance.");
-    // return cons.cdr;
     return cons == nil ? nil : cons.cdr;
 };
 
@@ -3523,11 +3497,11 @@ basconcdr.onevaluate = function (cons){
 // define basic macros
 // with user macro class
 
-var macnull = new UserMacroClass();
-var macnull_some = inp.scope.intern(makestring("some"));
+var basnull = new UserFunctionClass();
+var basnull_some = inp.scope.intern(makestring("some"));
 
-var macnot = new UserMacroClass();
-var macnot_some = inp.scope.intern(makestring("some"));
+var basnot = new UserFunctionClass();
+var basnot_some = inp.scope.intern(makestring("some"));
 
 var macand = new UserMacroClass();
 var macand_rest = inp.scope.intern(makestring("&rest"));
@@ -3537,24 +3511,24 @@ var macor = new UserMacroClass();
 var macor_rest = inp.scope.intern(makestring("&rest"));
 var macor_args = inp.scope.intern(makestring("args"));
 
-macnull.label = "<#primitive macro null>";
-macnot.label = "<#primitive macro not>";
+basnull.label = "<#primitive basic null>";
+basnot.label = "<#primitive basic not>";
 macand.label = "<#primitive macro and>";
 macor.label = "<#primitive macro or>";
+
+inp.scope.intern(makestring("null")).setfunc(basnull);
+inp.scope.intern(makestring("not")).setfunc(basnot);
 
 /* -- 
     (if some nil t)
 -- */
 
-macnull.args = makelist(macnull_some);
-macnull.rest = 
+basnull.args = makelist(basnull_some);
+basnull.rest = 
     makelist(
         makelist(
-            baslist,
             synif,
-            makelist(
-                synquote,
-                macnull_some),
+            basnull_some,
             nil,
             t));
 
@@ -3562,31 +3536,55 @@ macnull.rest =
     (if some nil t)
 -- */
 
-macnot.args = makelist(macnot_some);
-macnot.args = 
+basnot.args = makelist(basnot_some);
+basnot.args = 
     makelist(
         makelist(
-            baslist,
             synif,
-            makelist(
-                synquote,
-                macnot_some),
+            basnot_some,
             nil,
             t));
-
+            
 /* -- 
     (if (null args) t
         (if (null (cdr args)) (car args)
             `(if ,(car args) (and ,@(cdr args)) nil)))
 -- */
 
-var tempstream;
+macand.args = makelist(
+    macand_rest,
+    macand_args);
 
-tempstream = new StringStreamClass(
-    StreamClass.direction.input,
-    makestring("(defmacro and (&rest args) (if (null args) t (if (null (cdr args)) (car args) '(if ,(car args) ,(cons 'and (cdr args)) '()))))"));
-
-rdread.evaluate(tempstream).evaluatearg();
+macand.rest = 
+    makelist( // (if (null args) t ...
+        synif,
+        makelist(
+            basnull,
+            macand_args),
+        t,
+        makelist( // (if (null (cdr args)) (car args) ...
+            synif,
+            makelist(
+                basnull,
+                makelist(
+                    basconcdr,
+                    macand_args)),
+            makelist(
+                basconcar,
+                macand_args),
+            makelist( // (list 'if (car args) (cons 'and (cdr args) '())
+                baslist,
+                synif,
+                makelist(
+                    basconcar,
+                    macand_args),
+                makelist(
+                    basconcons,
+                    macand,
+                    makelist(
+                        basconcdr,
+                        macand_args)),
+                makelist())));
 
 /* -- 
     (if (null args) nil
@@ -3594,56 +3592,44 @@ rdread.evaluate(tempstream).evaluatearg();
             (or ,@(cdr args))))
 -- */
 
-// tempstream = new StringStreamClass(
-//     StreamClass.direction.input,
-//     makestring(
-//         "(defmacro or (&rest args) (if (null args) nil (if ,(car args) ,(car args) ,(cons 'or (cdr args)))))"
-//     ));
-
-// rdread.evaluate(tempstream).evaluatearg();
-
 macor.args = makelist(
     macor_rest,
     macor_args);
 
 macor.rest = 
     makelist(
-        makelist(
-            debprint,
-            macor_args));
-    // makelist(
-    //     makelist( // (if (null args) nil ...
-    //         synif,
-    //         makelist(
-    //             macnull,
-    //             macor_args),
-    //         nil,
-    //         makelist( // (if (null (cdr args)) (car args) ...
-    //             synif,
-    //             makelist(
-    //                 macnull,
-    //                 makelist(
-    //                     basconcdr,
-    //                     macor_args)),
-    //             makelist(
-    //                 basconcar,
-    //                 macor_args),
-    //             makelist( // (list if (car args) (car args) (cons 'or (cdr args))
-    //                 baslist,
-    //                 synif,
-    //                 makelist(
-    //                     basconcar,
-    //                     macor_args),
-    //                 makelist(
-    //                     basconcar, 
-    //                     macor_args),
-    //                 makelist(
-    //                     basconcons,
-    //                     macor,
-    //                     makelist(
-    //                         basconcdr,
-    //                         macor_args)))
-    //         )));
+        makelist( // (if (null args) nil ...
+            synif,
+            makelist(
+                basnull,
+                macor_args),
+            nil,
+            makelist( // (if (null (cdr args)) (car args) ...
+                synif,
+                makelist(
+                    basnull,
+                    makelist(
+                        basconcdr,
+                        macor_args)),
+                makelist(
+                    basconcar,
+                    macor_args),
+                makelist( // (list if (car args) (car args) (cons 'or (cdr args))
+                    baslist,
+                    synif,
+                    makelist(
+                        basconcar,
+                        macor_args),
+                    makelist(
+                        basconcar, 
+                        macor_args),
+                    makelist(
+                        basconcons,
+                        macor,
+                        makelist(
+                            basconcdr,
+                            macor_args)))
+            )));
                             
 // ** test code
 
@@ -3655,18 +3641,18 @@ source =
         makelist(
             debprint,
             makelist(
-                macor)),
+                macand)),
         makelist(
             debprint,
             makelist(
-                macor,
-                nil,
+                macand,
+                makeint(1),
                 nil,
                 makeint(3))),
         makelist(
             debprint,
             makelist(
-                macor,
+                macand,
                 makeint(1),
                 makeint(2),
                 makeint(3))));
@@ -3674,6 +3660,33 @@ source =
 strace.unwindstrace(function (){
     // console.log(source + "");
     console.log(source.evaluatearg() + "");
-    // console.log(source.expandarg() + "");
+    console.log(source.expandarg() + "");
 })();
 
+// source = 
+//     makelist(
+//         synprogn,
+//         makelist(
+//             debprint,
+//             makelist(
+//                 macor)),
+//         makelist(
+//             debprint,
+//             makelist(
+//                 macor,
+//                 nil,
+//                 nil,
+//                 makeint(3))),
+//         makelist(
+//             debprint,
+//             makelist(
+//                 macor,
+//                 makeint(1),
+//                 makeint(2),
+//                 makeint(3))));
+
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+//     console.log(source.expandarg() + "");
+// })();
