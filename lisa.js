@@ -706,7 +706,7 @@ SymbolFunctionReferenceClass.prototype =
     Object.create(SymbolReferenceClass.prototype);
 
 SymbolFunctionReferenceClass.prototype.get = function (){
-    return this.value.getfunce();
+    return this.value.getfunc();
 };
 
 SymbolFunctionReferenceClass.prototype.set = function (func){
@@ -1152,7 +1152,7 @@ ConsClass.prototype.clone = function (){ // ** should update here
             consb.cdr = ncons;
             ncons = consa;
         }
-    else if (cons.car instanceof UnQuoteClass)
+        else if (cons.car instanceof UnQuoteClass)
             ncons = new ConsClass(cons.car.evaluatearg(), ncons);
         else ncons = new ConsClass(cons.car, ncons);
     return ncons.reverse();
@@ -2617,7 +2617,8 @@ synsetf.onexpand = function (formula, value){
 };
 
 synquote.onevaluate = function (some){
-    return new QuoteClass(some);
+    // return new QuoteClass(some);
+    return some;
 };
 
 // define basic macro functions
@@ -2686,63 +2687,109 @@ macprog1.onevaluate = function (n){
 };
 
 macincf.onevaluate = function (formula){
-    return new ConsClass(synsetf,
-                         new ConsClass(formula,
-                                       new ConsClass(
-                                           new ConsClass(basadd, 
-                                                         new ConsClass(formula,
-                                                                       new ConsClass(
-                                                                           new IntClass(1)))))));
+    return makelist(
+        synsetf,
+        formula,
+        makelist(
+            basadd,
+            formula,
+            makeint(1)));
+    // return new ConsClass(synsetf,
+    //                      new ConsClass(formula,
+    //                                    new ConsClass(
+    //                                        new ConsClass(basadd, 
+    //                                                      new ConsClass(formula,
+    //                                                                    new ConsClass(
+    //                                                                        new IntClass(1)))))));
 };
 
 macdecf.onevaluate = function (formula){
-    return new ConsClass(synsetf,
-                         new ConsClass(formula,
-                                       new ConsClass(
-                                           new ConsClass(bassub,
-                                                         new ConsClass(formula,
-                                                                       new ConsClass(
-                                                                           new IntClass(1)))))));
+    return makelist(
+        synsetf,
+        formula,
+        makelist(
+            bassub,
+            formula,
+            makeint(1)));
+    // return new ConsClass(synsetf,
+    //                      new ConsClass(formula,
+    //                                    new ConsClass(
+    //                                        new ConsClass(bassub,
+    //                                                      new ConsClass(formula,
+    //                                                                    new ConsClass(
+    //                                                                        new IntClass(1)))))));
 };
 
 macdefvar.onevaluate = function (sym, value){
-    return new ConsClass(synsetf,
-                         new ConsClass(
-                             new ConsClass(bassymbolvalue,
-                                           new ConsClass(
-                                               new ConsClass(basglobal,
-                                                             new ConsClass(
-                                                                 new QuoteClass(sym))))),
-                             new ConsClass(value)));
+    return makelist(
+        synsetf,
+        makelist(
+            bassymbolvalue,
+            makelist(
+                basglobal,
+                makelist(
+                    synquote,
+                    sym))),
+        value);
+    // return new ConsClass(synsetf,
+    //                      new ConsClass(
+    //                          new ConsClass(bassymbolvalue,
+    //                                        new ConsClass(
+    //                                            new ConsClass(basglobal,
+    //                                                          new ConsClass(
+    //                                                              new QuoteClass(sym))))),
+    //                          new ConsClass(value)));
 }
 
 macdeflvar.onevaluate = function (sym, value){
-    return new ConsClass(synsetf,
-                         new ConsClass(
-                             new ConsClass(bassymbolvalue,
-                                           new ConsClass(
-                                               new ConsClass(baslocal,
-                                                             new ConsClass(
-                                                                 new QuoteClass(sym))))),
-                             new ConsClass(value)));
+    return makelist(
+        synsetf,
+        makelist(
+            bassymbolvalue,
+            makelist(
+                baslocal,
+                makelist(
+                    synquote, 
+                    sym))),
+        value);
+    // return new ConsClass(synsetf,
+    //                      new ConsClass(
+    //                          new ConsClass(bassymbolvalue,
+    //                                        new ConsClass(
+    //                                            new ConsClass(baslocal,
+    //                                                          new ConsClass(
+    //                                                              new QuoteClass(sym))))),
+    //                          new ConsClass(value)));
 };
 
 macwhen.onevaluate = function (cond){
-    return new ConsClass(synif,
-                         new ConsClass(cond,
-                                       new ConsClass(
-                                           new ConsClass(synprogn, 
-                                                         ConsClass.toCons(slice(arguments, 1))),
-                                           new ConsClass(nil))));
+    return makelist(
+        synif,
+        cond,
+        makecons(synprogn,
+                 ConsClass.toCons(slice(arguments, 1))),
+        nil);
+    // return new ConsClass(synif,
+    //                      new ConsClass(cond,
+    //                                    new ConsClass(
+    //                                        new ConsClass(synprogn, 
+    //                                                      ConsClass.toCons(slice(arguments, 1))),
+    //                                        new ConsClass(nil))));
 };
 
 macunless.onevaluate = function (cond){
-    return new ConsClass(synif,
-                         new ConsClass(cond,
-                                       new ConsClass(nil,
-                                                     new ConsClass(
-                                                         new ConsClass(synprogn,
-                                                                       ConsClass.toCons(slice(arguments, 1)))))));
+    return makelist(
+        synif,
+        cond,
+        nil,
+        makecons(synprogn,
+                 ConsClass.toCons(slice(arguments, 1))));
+    // return new ConsClass(synif,
+    //                      new ConsClass(cond,
+    //                                    new ConsClass(nil,
+    //                                                  new ConsClass(
+    //                                                      new ConsClass(synprogn,
+    //                                                                    ConsClass.toCons(slice(arguments, 1)))))));
 };
 
 maclambda.onevaluate = function (args){
@@ -2785,17 +2832,23 @@ macsetq.onevaluate = function (sym, value){
                              new ConsClass(value)));
 };
 
-maclet.onevaluate = function (binds){ // ** must update here.
-    var ncons, bindsi;
-    for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();)
-        ncons = new ConsClass(
-            new ConsClass(macdeflvar, bindsi.next()), ncons);
-    ncons = ncons.reverse();
-    return new ConsClass(synblock,
-                         new ConsClass(ncons,
-                                       new ConsClass(
-                                           new ConsClass(synprogn,
-                                                         ConsClass.toCons(slice(arguments, 1))))));
+maclet.onevaluate = function (bounds /* binds */){ // ** must update here.
+    // var ncons, bindsi;
+    // for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();)
+    //     ncons = new ConsClass(
+    //         new ConsClass(macdeflvar, bindsi.next()), ncons);
+    // ncons = ncons.reverse();
+    // return new ConsClass(synblock,
+    //                      new ConsClass(ncons,
+    //                                    new ConsClass(
+    //                                        new ConsClass(synprogn,
+    //                                                      ConsClass.toCons(slice(arguments, 1))))));
+    var bound, formula;
+    for (bound = makecons(synprogn); bounds != nil; bounds = bounds.cdr)
+        bound = makecons(makecons(macdeflvar, bounds.car), bound);
+    return makecons(synblock,
+                    makecons(bound.reverse(),
+                             ConsClass.toCons(slice(arguments, 1))));
 };
 
 macflet.onevaluate = function (binds){ // ** must update here
@@ -3320,7 +3373,8 @@ debprint.onexpand = function (some){
                     makecons(
                         makecons(
                             new Expanded("console.log"),
-                            makecons(sym))))).expandarg();
+                            makecons(sym)),
+                        makecons(sym)))).expandarg();
 };
 
 // define basic number methods
@@ -3541,6 +3595,17 @@ macnot.label = "<#primitive macro not>";
 macand.label = "<#primitive macro and>";
 macor.label = "<#primitive macro or>";
 
+var tempgensym = new PrimitiveMacroClass();
+var tempgensym_count = 0;
+
+tempgensym.onevaluate = function (){
+    // return inp.scope.intern(
+    //     makestring("<#gensym " + tempgensym_count++ + ">"));
+    return new VariableSymbolClass();
+};
+
+inp.scope.intern(makestring("gensym")).setfunc(tempgensym);
+
 /* -- 
     (if some nil t)
 -- */
@@ -3704,38 +3769,70 @@ rdread.evaluate(tempstream).evaluatearg();
             (or ,@(cdr args))))
 -- */
 
-macor.args = makelist(
-    macor_rest,
-    macor_args);
+tempstream = new StringStreamClass(
+    StreamClass.direction.input,
+    makestring(
+        "(defmacro or (&rest args) (if (null args) nil (if ,(car args) ,(car args) ,(cons 'or (cdr args)))))"
+        // "(defmacro or (&rest args) (if (null args) nil '(let ((temp ,(car args))) (if temp temp ,(cons 'or (cdr args)))))))" // may be missed evaluate timing.
+    ));
 
-macor.rest = 
-    makelist(
-        synif,
-        makelist(
-            macnull,
-            macor_args),
-        nil,
-        makequote(
-            makelist(
-                synif,
-                makeunquote(
-                    makelist(
-                        basconcar,
-                        macor_args)),
-                makeunquote(
-                    makelist(
-                        basconcar,
-                        macor_args)),
-                makelist(
-                    macor,
-                    makeunquoteat(
-                        makelist(
-                            basconcdr,
-                            macor_args))))));
+rdread.evaluate(tempstream).evaluatearg();
+
+// macor.args = makelist(
+//     macor_rest,
+//     macor_args);
+
+// macor.rest = 
+//     makelist(
+//         synif,
+//         makelist(
+//             macnull,
+//             macor_args),
+//         nil,
+//         makequote(
+//             makelist(
+//                 synif,
+//                 makeunquote(
+//                     makelist(
+//                         basconcar,
+//                         macor_args)),
+//                 makeunquote(
+//                     makelist(
+//                         basconcar,
+//                         macor_args)),
+//                 makelist(
+//                     macor,
+//                     makeunquoteat(
+//                         makelist(
+//                             basconcdr,
+//                             macor_args))))));
 
 // ** test code
 
-// var source = 
+var source;
+
+source = 
+    makelist(
+        maclet,
+        makelist(
+            makelist(
+                makeintern("name"),
+                makestring("tikubonn"))),
+        nil
+        // makequote(
+        //     makelist(
+        //         makestring("name is "),
+        //         makeunquote(makeintern("name"))
+        //     ))
+    );
+ 
+strace.unwindstrace( function (){
+    // console.log(source + "");
+    console.log(source.evaluatearg() + "");
+    console.log(source.expandarg() + "");
+})();
+
+// source = 
 //         makecons(macprog1,
 //                  makecons(makeint(1),
 //                           makecons(makeint(2), 
@@ -3745,7 +3842,7 @@ macor.rest =
 // console.log(source.evaluatearg());
 // console.log(source.evaluatearg().expandarg());
 
-// var source = 
+// source = 
 //         makelist(
 //             basconmap,
 //             makelist(
@@ -3764,7 +3861,7 @@ macor.rest =
 //     console.log(source.evaluatearg().expandarg());
 // })();
 
-// var source = 
+// source = 
 //         makelist(
 //             macand,
 //             makeint(1),
@@ -3776,15 +3873,58 @@ macor.rest =
 //     console.log(source.evaluatearg());
 // })();
 
-// var source = 
+// source = 
 //         makelist(
-//             makeintern("and"),
-//             makeint(1),
-//             makeint(2),
-//             makeint(3));
+//             synprogn,
+//             makelist(
+//                 makeintern("print"),
+//                 makelist(
+//                     makeintern("and"))),
+//             makelist(
+//                 makeintern("print"),
+//                 makelist(
+//                     makeintern("and"),
+//                     nil,
+//                     makeint(2),
+//                     makeint(3))),
+//             makelist(
+//                 makeintern("print"),
+//                 makelist(
+//                     makeintern("and"),
+//                     makeint(1),
+//                     makeint(2),
+//                     makeint(3))));
 
 // strace.unwindstrace(function (){
 //     // console.log(source);
 //     console.log(source.evaluatearg() + "");
 //     console.log(source.expandarg() + "");
+// })();
+
+// source = 
+//     makelist(
+//         synprogn,
+//         makelist(
+//             debprint,
+//             makelist(
+//                 makeintern("or"))),
+//         makelist(
+//             debprint,
+//             makelist(
+//                 makeintern("or"),
+//                 nil,
+//                 makeint(2),
+//                 makeint(3))),
+//         makelist(
+//             debprint,
+//             makelist(
+//                 makeintern("or"),
+//                 makeint(1),
+//                 makeint(2),
+//                 makeint(3))));
+
+// strace.unwindstrace(function (){
+//     // console.log(source);
+//     console.log(source.evaluatearg());
+//     // console.log(source.expandarg());
 // })();
