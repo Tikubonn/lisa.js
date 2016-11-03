@@ -3416,83 +3416,21 @@ basintnot2.onevaluate = function (a){
 var basfnfuncall = new PrimitiveFunctionClass();
 var basfnapply = new PrimitiveFunctionClass();
 
-// define basic cons methods
-// with user function class
-
-var basconmap = new UserFunctionClass();
-var basconmap_func = inp.scope.intern(makestring("func"));
-var basconmap_sequence = inp.scope.intern(makestring("sequence"));
-
-var basconfilter = new UserFunctionClass();
-var basconfilter_func = inp.scope.intern(makestring("func"));
-var basconfilter_sequence = inp.scope.intern(makestring("sequence"));
-
-var basconreduce = new UserFunctionClass();
-var basconreduce_func = inp.scope.intern(makestring("func"));
-var basconreduce_sequence = inp.scope.intern(makestring("sequence"));
-
-var basconreducein = new UserFunctionClass();
-var basconreducein_func = inp.scope.intern(makestring("func"));
-var basconreducein_sum = inp.scope.intern(makestring("sum"));
-var basconreducein_sequence = inp.scope.intern(makestring("sequence"));
-
-var basconcons = new PrimitiveFunctionClass();
-var basconcar = new PrimitiveFunctionClass();
-var basconcdr = new PrimitiveFunctionClass();
-
-basconmap.label = "<#primitive cons map>";
-basconfilter.label = "<#primitive cons filter>";
-basconreduce.label = "<#primitive cons reduce>";
-basconreducein.label = "<#primitive cons reducein>";
-basconcons.label = "<#primitive cons cons>";
-basconcar.label = "<#primitive cons car>";
-basconcdr.label = "<#primitive cons cdr>";
-
-basconcons.onevaluate = function (car, cdr){
-    return new ConsClass(car, cdr);
+basfnfuncall.onevaluate = function (func){
+    return func.evaluate.apply(func, slice(arguments, 1));
 };
 
-basconcar.onevaluate = function (cons){
-    if (cons instanceof ConsClass == false)
-        throw new Error("" + cons + " is not cons instance.");
-    return cons == nil ? nil : cons.car;
+basfnapply.onevaluate = function (func, args){
+    return func.evaluate.apply(func, args.toArray());
 };
 
-basconcdr.onevaluate = function (cons){
-    if (cons instanceof ConsClass == false) 
-        throw new Error("" + cons + " is not cons instance.");
-    return cons == nil ? nil : cons.cdr;
+basfnfuncall.onexpand = function (func){
+    return new Expanded("" + func + "(" + slice(arguments, 1).join(",") + ")");
 };
 
-/* -- 
-    (defun map (func sequence)
-        (and sequence
-            (cons (funcall func (car sequence))
-                (cdr sequence))))
--- */
-
-// basconmap.args = makelist(
-//     basconmap_func,
-//     basconmap_sequence);
-
-// basconmap.rest = 
-//     makelist(
-//         synand,
-//         basconmap_sequence,
-//         makelist(
-//             bascons,
-//             makelist(
-//                 basfuncall,
-//                 basconmap_func,
-//                 makelist(
-//                     bascar,
-//                     basconmap_sequence)),
-//             makelist(
-//                 basconmap,
-//                 basconmap_func,
-//                 makelist(
-//                     bascdr,
-//                     basconmap_sequence))));
+basfnapply.onexpand = function (func, args){
+    return new Expanded("" + func + "(" + args.toArray().join(",") + ")");
+};
 
 // define basic macros
 // with user macro class
@@ -3630,6 +3568,84 @@ macor.rest =
                             basconcdr,
                             macor_args)))
             )));
+
+// define basic cons methods
+// with user function class
+
+var basconmap = new UserFunctionClass();
+var basconmap_func = inp.scope.intern(makestring("func"));
+var basconmap_sequence = inp.scope.intern(makestring("sequence"));
+
+var basconfilter = new UserFunctionClass();
+var basconfilter_func = inp.scope.intern(makestring("func"));
+var basconfilter_sequence = inp.scope.intern(makestring("sequence"));
+
+var basconreduce = new UserFunctionClass();
+var basconreduce_func = inp.scope.intern(makestring("func"));
+var basconreduce_sequence = inp.scope.intern(makestring("sequence"));
+
+var basconreducein = new UserFunctionClass();
+var basconreducein_func = inp.scope.intern(makestring("func"));
+var basconreducein_sum = inp.scope.intern(makestring("sum"));
+var basconreducein_sequence = inp.scope.intern(makestring("sequence"));
+
+var basconcons = new PrimitiveFunctionClass();
+var basconcar = new PrimitiveFunctionClass();
+var basconcdr = new PrimitiveFunctionClass();
+
+basconmap.label = "<#primitive cons map>";
+basconfilter.label = "<#primitive cons filter>";
+basconreduce.label = "<#primitive cons reduce>";
+basconreducein.label = "<#primitive cons reducein>";
+basconcons.label = "<#primitive cons cons>";
+basconcar.label = "<#primitive cons car>";
+basconcdr.label = "<#primitive cons cdr>";
+
+basconcons.onevaluate = function (car, cdr){
+    return new ConsClass(car, cdr);
+};
+
+basconcar.onevaluate = function (cons){
+    if (cons instanceof ConsClass == false)
+        throw new Error("" + cons + " is not cons instance.");
+    return cons == nil ? nil : cons.car;
+};
+
+basconcdr.onevaluate = function (cons){
+    if (cons instanceof ConsClass == false) 
+        throw new Error("" + cons + " is not cons instance.");
+    return cons == nil ? nil : cons.cdr;
+};
+
+/* -- 
+    (defun map (func sequence)
+        (and sequence
+            (cons (funcall func (car sequence))
+                (cdr sequence))))
+-- */
+
+basconmap.args = makelist(
+    basconmap_func,
+    basconmap_sequence);
+
+basconmap.rest = 
+    makelist(
+        synif,
+        makelist(
+            basnull,
+            basconmap_sequence),
+        nil,
+        makelist(
+            basconcons,
+            makelist(
+                basfnfuncall,
+                basconmap_func),
+            makelist(
+                basconmap,
+                basconmap_func,
+                makelist(
+                    basconcdr,
+                    basconmap_sequence))));
                             
 // ** test code
 
