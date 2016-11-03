@@ -3779,9 +3779,61 @@ basconlength.rest =
                         basconcdr,
                         basconlength_sequence)))));
 
+/* -- 
+    (defun nth (index sequence)
+        (if (null sequence) nil
+            (if (= index 0) (car sequence)
+                (nth (- index 1) (cdr sequence)))))
+-- */
+
+basconnth.args = makelist(
+    basconnth_index,
+    basconnth_sequence);
+
+basconnth.rest = 
+    makelist(
+        makelist( // (if (null sequence) nil ...
+            synif,
+            makelist(
+                basnull,
+                basconnth_sequence),
+            nil,
+            makelist( // (if (= index 0) (car sequence) ...
+                synif,
+                makelist(
+                    basnumeq2,
+                    basconnth_index,
+                    makeint(0)),
+                makelist(
+                    basconcar,
+                    basconnth_sequence),
+                makelist( // (nth (- index 1) (cdr sequence))
+                    basconnth,
+                    makelist(
+                        bassub,
+                        basconnth_index,
+                        makeint(1)),
+                    makelist(
+                        basconcdr,
+                        basconnth_sequence)))));
+
 // ** test code
 
 var source;
+
+// source = makelist(
+//     basconnth,
+//     makeint(1),
+//     makelist(
+//         baslist,
+//         makeint(1),
+//         makeint(2),
+//         makeint(3)));
+
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+// })();
 
 // source = 
 //     makelist(
