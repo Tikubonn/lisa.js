@@ -3564,6 +3564,13 @@ var basconreducein_func = inp.scope.intern(makestring("func"));
 var basconreducein_sum = inp.scope.intern(makestring("sum"));
 var basconreducein_sequence = inp.scope.intern(makestring("sequence"));
 
+var basconlength = new UserFunctionClass();
+var basconlength_sequence = inp.scope.intern(makestring("sequence"));
+
+var basconnth = new UserFunctionClass();
+var basconnth_index = inp.scope.intern(makestring("index"));
+var basconnth_sequence = inp.scope.intern(makestring("sequence"));
+
 var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
 var basconcdr = new PrimitiveFunctionClass();
@@ -3726,13 +3733,13 @@ basconreducein.args = makelist(
 
 basconreducein.rest = 
     makelist(
-        makelist(
+        makelist( // (if (null sequence) sum ...
             synif,
             makelist(
                 basnull,
                 basconreducein_sequence),
             basconreducein_sum,
-            makelist(
+            makelist( // (reducein func (funcall func sum (car sequence)) (cdr sequence))
                 basconreducein,
                 basconreducein_func,
                 makelist(
@@ -3746,9 +3753,49 @@ basconreducein.rest =
                     basconcdr,
                     basconreducein_sequence))));
 
+/* --
+    (defun length (sequence)
+        (if (null sequence) 0
+            (+ 1 (length (cdr sequence)))))
+-- */
+
+basconlength.args = makelist(
+    basconlength_sequence);
+
+basconlength.rest = 
+    makelist(
+        makelist( // (if (null sequence) 0 ...
+            synif,
+            makelist(
+                basnull,
+                basconlength_sequence),
+            makeint(0),
+            makelist( // (+ 1 (length (cdr sequence)))
+                basadd,
+                makeint(1),
+                makelist(
+                    basconlength,
+                    makelist(
+                        basconcdr,
+                        basconlength_sequence)))));
+
 // ** test code
 
 var source;
+
+// source = 
+//     makelist(
+//         basconlength,
+//         makelist(
+//             baslist,
+//             makeint(1),
+//             makeint(2),
+//             makeint(3)));
+
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+// })();
 
 // source = 
 //     makelist(
