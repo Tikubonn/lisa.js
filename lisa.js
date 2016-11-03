@@ -1654,31 +1654,6 @@ UserFunctionClass.prototype.onevaluate = function (){
 
     strace.push("user define <- " + formula + "");
     return formula.evaluatearg();
- 
-    // var formula, ncons, bindsi, index;
-    // for (ncons = new ConsClass(synprogn), bindsi = this.args.iter(), index = 0;
-    //      bindsi.isalive() && index < arguments.length; index++)
-    //     ncons = makecons(
-    //         makecons(macdeflvar,
-    //                  makecons(bindsi.next(),
-    //                           makecons(arguments[index]))),
-    //         ncons);
-    // ncons = ncons.reverse();
-    // // return makecons(synblock,
-    // //                 makecons(ncons,
-    // //                          makecons(this.rest))).evaluatearg();
-    // formula = 
-    //     makecons(synblock,
-    //              makecons(ncons, this.rest));
-    // return formula.evaluatearg();
-    // // return makecons(
-    // //     synprogn,
-    // //     makecons(
-    // //         ncons,
-    // //         makecons(
-    // //             makecons(
-    // //                 synblock_func,
-    // //                 makecons(this.rest))))).evaluatearg();
 };
 
 UserFunctionClass.prototype.onexpandarg = function (){
@@ -3630,26 +3605,120 @@ basconmap.args = makelist(
 
 basconmap.rest = 
     makelist(
-        synif,
-        makelist(
-            basnull,
-            basconmap_sequence),
-        nil,
-        makelist(
-            basconcons,
+        makelist( // (if (null sequence) nil ...
+            synif,
             makelist(
-                basfnfuncall,
-                basconmap_func),
-            makelist(
-                basconmap,
-                basconmap_func,
+                basnull,
+                basconmap_sequence),
+            nil,
+            makelist( // (cons (funcall func (car sequence)) ...
+                basconcons,
                 makelist(
-                    basconcdr,
-                    basconmap_sequence))));
+                    basfnfuncall,
+                    basconmap_func,
+                    makelist(
+                        basconcar,
+                        basconmap_sequence)),
+                makelist( // (map func (cdr sequence))
+                    basconmap,
+                    basconmap_func,
+                    makelist(
+                        basconcdr,
+                        basconmap_sequence)))));
+
+/* -- 
+    (defun filter (func sequence)
+        (and sequence
+            (if (funcall func (car sequence))
+                (cons (car sequence) (filter func (cdr sequence)))
+                (filter func (cdr sequence)))))
+-- */
+
+basconfilter.args = makelist(
+    basconfilter_func,
+    basconfilter_sequence);
+
+basconfilter.rest = 
+    makelist(
+        makelist( // (if (null sequence) nil ...
+            synif,
+            makelist(
+                basnull,
+                basconfilter_sequence),
+            nil,
+            makelist( // (if (funcall func (car sequence)) (cons (car sequence) (filter func (cdr sequence)) ..
+                synif,
+                makelist(
+                    basfnfuncall,
+                    basconfilter_func,
+                    makelist(
+                        basconcar,
+                        basconfilter_sequence)),
+                makelist(
+                    basconcons,
+                    makelist(
+                        basconcar,
+                        basconfilter_sequence),
+                    makelist(
+                        basconfilter,
+                        basconfilter_func,
+                        makelist(
+                            basconcdr,
+                            basconfilter_sequence))),
+                makelist( // (filter func (cdr sequence))
+                    basconfilter,
+                    basconfilter_func,
+                    makelist(
+                        basconcdr,
+                        basconfilter_sequence)))));
                             
 // ** test code
 
 var source;
+
+// source = 
+//     makelist(
+//         basconfilter,
+//         makelist(
+//             maclambda,
+//             makelist(
+//                 makeintern("a")),
+//             makeintern("a")),
+//         makelist(
+//             baslist,
+//             nil,
+//             makeint(1),
+//             nil,
+//             makeint(2),
+//             nil,
+//             makeint(3)));
+
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+// })();
+
+// source = 
+//     makelist(
+//         basconmap,
+//         makelist(
+//             maclambda,
+//             makelist(
+//                 makeintern("a")),
+//             makelist(
+//                 basadd,
+//                 makeintern("a"),
+//                 makeint(10))),
+//         makelist(
+//             baslist,
+//             makeint(1),
+//             makeint(2),
+//             makeint(3)));
+
+// strace.unwindstrace(function (){
+//     console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+// })();
 
 // source = 
 //     makelist(
