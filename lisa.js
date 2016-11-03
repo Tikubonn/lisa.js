@@ -3671,10 +3671,99 @@ basconfilter.rest =
                     makelist(
                         basconcdr,
                         basconfilter_sequence)))));
-                            
+
+/* -- 
+    (defun reduce (func sequence)
+        (if (null sequence) nil
+            (if (null (cdr sequence)) (car sequence)
+                (reducein func (car sequence) (cdr sequence)))))
+ -- */
+
+basconreduce.args = makelist(
+    basconreduce_func,
+    basconreduce_sequence);
+
+basconreduce.rest = 
+    makelist(
+        makelist( // (if (null sequence) nil ...
+            synif,
+            makelist(
+                basnull,
+                basconreduce_sequence),
+            nil,
+            makelist( // (if (null (cdr sequence)) (car sequence) ...
+                synif,
+                makelist(
+                    basnull,
+                    makelist(
+                        basconcdr,
+                        basconreduce_sequence)),
+                makelist(
+                    basconcar,
+                    basconreduce_sequence),
+                makelist( // (reducein func (car sequence) (cdr sequence))
+                    basconreducein,
+                    basconreduce_func,
+                    makelist(
+                        basconcar,
+                        basconreduce_sequence),
+                    makelist(
+                        basconcdr,
+                        basconreduce_sequence)))));
+
+/* --
+    (defun reducein (func sum sequence)
+        (if (null sequence) sum
+            (reducein func 
+                (funcall func sum (car sequence))
+                (cdr sequence))))
+-- */
+
+basconreducein.args = makelist(
+    basconreducein_func,
+    basconreducein_sum,
+    basconreducein_sequence);
+
+basconreducein.rest = 
+    makelist(
+        makelist(
+            synif,
+            makelist(
+                basnull,
+                basconreducein_sequence),
+            basconreducein_sum,
+            makelist(
+                basconreducein,
+                basconreducein_func,
+                makelist(
+                    basfnfuncall,
+                    basconreducein_func,
+                    basconreducein_sum,
+                    makelist(
+                        basconcar,
+                        basconreducein_sequence)),
+                makelist(
+                    basconcdr,
+                    basconreducein_sequence))));
+
 // ** test code
 
 var source;
+
+// source = 
+//     makelist(
+//         basconreduce,
+//         basadd,
+//         makelist(
+//             baslist,
+//             makeint(1),
+//             makeint(10),
+//             makeint(100)));
+
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+// })();
 
 // source = 
 //     makelist(
