@@ -3635,33 +3635,33 @@ macor.rest =
 
 var source;
 
-source = 
-    makelist(
-        synprogn,
-        makelist(
-            debprint,
-            makelist(
-                macand)),
-        makelist(
-            debprint,
-            makelist(
-                macand,
-                makeint(1),
-                nil,
-                makeint(3))),
-        makelist(
-            debprint,
-            makelist(
-                macand,
-                makeint(1),
-                makeint(2),
-                makeint(3))));
+// source = 
+//     makelist(
+//         synprogn,
+//         makelist(
+//             debprint,
+//             makelist(
+//                 macand)),
+//         makelist(
+//             debprint,
+//             makelist(
+//                 macand,
+//                 makeint(1),
+//                 nil,
+//                 makeint(3))),
+//         makelist(
+//             debprint,
+//             makelist(
+//                 macand,
+//                 makeint(1),
+//                 makeint(2),
+//                 makeint(3))));
 
-strace.unwindstrace(function (){
-    // console.log(source + "");
-    console.log(source.evaluatearg() + "");
-    console.log(source.expandarg() + "");
-})();
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+//     console.log(source.expandarg() + "");
+// })();
 
 // source = 
 //     makelist(
