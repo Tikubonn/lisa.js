@@ -3388,23 +3388,21 @@ basintnot2.onevaluate = function (a){
 
 // define basic function methods
 
-var basfnfuncall = new PrimitiveFunctionClass();
-var basfnapply = new PrimitiveFunctionClass();
+// var basfnfuncall = new PrimitiveFunctionClass();
+// var basfnapply = new PrimitiveFunctionClass();
+
+var basfnfuncall = new FunctionClass();
+var basfnapply = new FunctionClass();
+
+basfnfuncall.label = "<#primitive funcall>";
+basfnapply.label = "<#primitive apply>";
 
 basfnfuncall.onevaluate = function (func){
-    return func.evaluate.apply(func, slice(arguments, 1));
+    return func.evaluatearg().evaluate.apply(func, slice(arguments, 1));
 };
 
 basfnapply.onevaluate = function (func, args){
     return func.evaluate.apply(func, args.toArray());
-};
-
-basfnfuncall.onexpand = function (func){
-    return new Expanded("" + func + "(" + slice(arguments, 1).join(",") + ")");
-};
-
-basfnapply.onexpand = function (func, args){
-    return new Expanded("" + func + "(" + args.toArray().join(",") + ")");
 };
 
 // define basic macros
@@ -3571,6 +3569,22 @@ var basconnth = new UserFunctionClass();
 var basconnth_index = inp.scope.intern(makestring("index"));
 var basconnth_sequence = inp.scope.intern(makestring("sequence"));
 
+var basconappend2 = new UserFunctionClass();
+var basconappend2_sequence = inp.scope.intern(makestring("sequence"));
+var basconappend2_sequencec = inp.scope.intern(makestring("sequencec"));
+
+var basconappend = new UserFunctionClass();
+var basconappend_rest = inp.scope.intern(makestring("&rest"));
+var basconappend_args = inp.scope.intern(makestring("args"));
+
+var basconnappend2 = new UserFunctionClass();
+var basconnappend2_sequence = inp.scope.intern(makestring("sequence"));
+var basconnappend2_sequencec = inp.scope.intern(makestring("sequencec"));
+
+var basconnappend = new UserFunctionClass();
+var basconnappend_rest = inp.scope.intern(makestring("&rest"));
+var basconnappend_args = inp.scope.intern(makestring("args"));
+
 var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
 var basconcdr = new PrimitiveFunctionClass();
@@ -3579,6 +3593,12 @@ basconmap.label = "<#primitive cons map>";
 basconfilter.label = "<#primitive cons filter>";
 basconreduce.label = "<#primitive cons reduce>";
 basconreducein.label = "<#primitive cons reducein>";
+basconlength.label = "<#primitive cons length>";
+basconnth.label = "<#primitive cons nth>";
+basconappend2.label = "<#primitive cons append2>";
+basconappend.label = "<#primitive cons append>";
+basconnappend2.label = "<#primitive cons nappend2>";
+basconnappend.label = "<#primitive cons nappend>";
 basconcons.label = "<#primitive cons cons>";
 basconcar.label = "<#primitive cons car>";
 basconcdr.label = "<#primitive cons cdr>";
@@ -3817,9 +3837,76 @@ basconnth.rest =
                         basconcdr,
                         basconnth_sequence)))));
 
+/* --
+    (defun append2 (sequence sequencec)
+        (if (null sequence) sequencec
+            (cons (car sequence)
+                (append2 (cdr sequence) sequencec))))
+-- */
+
+basconappend2.args = makelist(
+    basconappend2_sequence,
+    basconappend2_sequencec);
+
+basconappend2.rest = 
+    makelist(
+        makelist( // (if (null sequence) sequencec ...
+            synif,
+            makelist(
+                basnull,
+                basconappend2_sequence),
+            basconappend2_sequencec,
+            makelist( // (cons (car sequence) (append2 (cdr sequence) sequencec))
+                basconcons,
+                makelist(
+                    basconcar,
+                    basconappend2_sequence),
+                makelist(
+                    basconappend2,
+                    makelist(
+                        basconcdr,
+                        basconappend2_sequence),
+                    basconappend2_sequencec))));
+
+/* --
+    (defun append (&rest args)
+        (reduce append2 args))
+-- */
+
+basconappend.args = makelist(
+    basconappend_rest,
+    basconappend_args);
+
+basconappend.rest = 
+    makelist(
+        makelist(
+            basconreduce,
+            basconappend2,
+            basconappend_args));
+
 // ** test code
 
 var source;
+
+source = makelist(
+    basconappend,
+    makelist(
+        baslist,
+        makeint(1)),
+    makelist(
+        baslist,
+        makeint(2)),
+    makelist(
+        baslist,
+        makeint(3)),
+    makelist(
+        baslist,
+        makeint(4)));
+
+strace.unwindstrace(function (){
+    // console.log(source + "");
+    console.log(source.evaluatearg() + "");
+})();
 
 // source = makelist(
 //     basconnth,
