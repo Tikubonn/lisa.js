@@ -589,22 +589,75 @@ ArrayReferenceClass.prototype.onexpanddata = function (){
     return new Expanded(this.value.expanddata().unpack() + "[" + this.index + "]");
 };
 
-// cons reference class
-//     <- reference class
+// // cons reference class
+// //     <- reference class
 
-function ConsReferenceClass (value){
-    this.value = value || null;
-}
+// function ConsReferenceClass (value){
+//     this.value = value || null;
+// }
 
-ConsReferenceClass.prototype = 
-    Object.create(ConsReferenceClass.prototype);
+// ConsReferenceClass.prototype = 
+//     Object.create(ConsReferenceClass.prototype);
 
-ConsReferenceClass.prototype.get = function (){
-    return this.value.car;
+// ConsReferenceClass.prototype.get = function (){
+//     return this.value.car;
+// };
+
+// ConsReferenceClass.prototype.set = function(value){
+//     this.value.car = value;
+//     return value;
+// };
+
+function ConsReferenceClass (cons){
+
+    // check the reference target.
+
+    if (cons instanceof ConsClass == false)
+        throw new Error("cons is not cons instance.");
+
+    // set the member.
+
+    this.cons = cons;
 };
 
-ConsReferenceClass.prototype.set = function(value){
-    this.value.car = value;
+ConsReferenceClass.prototype = 
+    Object.create(ReferenceClass.prototype);
+
+// cons car reference class
+//     <- cons reference class
+
+function ConsCarReferenceClass (){
+    ConsReferenceClass.apply(this, arguments);
+};
+
+ConsCarReferenceClass.prototype =
+    Object.create(ConsReferenceClass.prototype);
+
+ConsCarReferenceClass.get = function (){
+    return this.cons.car;
+};
+
+ConsCarReferenceClass.set = function (value){
+    this.cons.car = value;
+    return value;
+};
+
+// cons cdr reference class
+//     <- cons reference class
+
+function ConsCdrReferenceClass (){
+    ConsReferenceClass.apply(this, arguments);
+};
+
+ConsCdrReferenceClass.prototype =
+    Object.create(ConsReferenceClass.prototype);
+
+ConsCdrReferenceClass.get = function (){
+    return this.cons.cdr;
+};
+
+ConsCdrReferenceClass.set = function (value){
+    this.cons.cdr = value;
     return value;
 };
 
@@ -2514,8 +2567,8 @@ synsetf.onevaluate = function (formula, value){
     // return formulaed.set(valued);
     var valued = value.evaluatearg();
     var formulaed = formula.evaluatearg();
-    if (valued instanceof ReferenceClass == false) throw new Error("" + valued + " valued is not reference familly.");
-    if (formulaed instanceof ReferenceClass == false) throw new Error("" + formulaed + " formulaed is not reference familly.");
+    if (formulaed instanceof ReferenceClass == false)
+        throw new Error("(" + formulaed + " = "  + valued + ") formula is not reference instance.");
     return formulaed.set(valued);
 };
 
@@ -3631,13 +3684,15 @@ basconcons.onevaluate = function (car, cdr){
 basconcar.onevaluate = function (cons){
     if (cons instanceof ConsClass == false)
         throw new Error("" + cons + " is not cons instance.");
-    return cons == nil ? nil : cons.car;
+    // return cons == nil ? nil : cons.car;
+    return cons == nil ? nil : new ConsCarReferenceClass(cons);
 };
 
 basconcdr.onevaluate = function (cons){
     if (cons instanceof ConsClass == false) 
         throw new Error("" + cons + " is not cons instance.");
-    return cons == nil ? nil : cons.cdr;
+    // return cons == nil ? nil : cons.cdr;
+    return cons == nil ? nil : new ConsCdrReferenceClass(cons);
 };
 
 /* -- 
@@ -4090,7 +4145,7 @@ basconnreversein.rest =
                         basconnreversein,
                         basconnreversein_after,
                         basconnreversein_sequence)))));
-                            
+
 // ** test code
 
 var source;
