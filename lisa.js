@@ -4137,13 +4137,22 @@ basconnreverse.rest =
             basconnreverse_sequence,
             nil));
 
-/* --
+/* -- invaild code
     (defun nreverse (sequence before)
         (if (null sequence) nil
             (if (null (cdr sequence)) sequence
                 (let ((after (cdr sequence))
                     (setf (cdr sequence) before)
                     (nreverse after sequence)))))
+-- */
+
+/* -- 
+    (defun nreversein (sequence before)
+        (if (null sequence) nil
+            (let ((after (cdr sequence)))
+                (setf (cdr sequence) before)
+                (if (null after) sequence
+                    (nreversein after sequence)))))
 -- */
 
 basconnreversein.args = makelist(
@@ -4158,36 +4167,78 @@ basconnreversein.rest =
                 basnull,
                 basconnreversein_sequence),
             nil,
-            makelist( // (if (null (cdr sequence)) sequence ...
-                synif,
+            makelist( // (let ((after (cdr sequence))) ... 
+                maclet,
                 makelist(
-                    basnull,
                     makelist(
-                        basconcdr,
-                        basconnreversein_sequence)),
-                basconnreversein_sequence,
-                makelist( // (let ((after (cdr sequence))) ...
-                    maclet,
-                    makelist(
-                        makelist(
-                            basconnreversein_after,
-                            makelist(
-                                basconcdr,
-                                basconnreversein_sequence))),
-                    makelist( // (setf (cdr sequence) before) 
-                        synsetf,
+                        basconnreversein_after,
                         makelist(
                             basconcdr,
-                            basconnreversein_sequence),
-                        basconnreversein_before),
+                            basconnreversein_sequence))),
+                // makelist( // ** debug
+                //     debprint,
+                //     basconnreversein_before),
+                // makelist( // ** debug
+                //     debprint,
+                //     basconnreversein_sequence),
+                // makelist( // ** debug
+                //     debprint,
+                //     basconnreversein_after),
+                makelist( // (setf (cdr sequence) before)
+                    synsetf,
+                    makelist(
+                        basconcdr,
+                        basconnreversein_sequence),
+                    basconnreversein_before),
+                makelist( // (if (null after) sequence ...
+                    synif,
+                    makelist(
+                        basnull,
+                        basconnreversein_after),
+                    basconnreversein_sequence,
                     makelist( // (nreversein after sequence)
                         basconnreversein,
                         basconnreversein_after,
                         basconnreversein_sequence)))));
 
+// basconnreversein.rest = 
+//     makelist(
+//         makelist( // (if (null sequence) nil ...
+//             synif,
+//             makelist(
+//                 basnull,
+//                 basconnreversein_sequence),
+//             nil,
+//             makelist( // (if (null (cdr sequence)) sequence ...
+//                 synif,
+//                 makelist(
+//                     basnull,
+//                     makelist(
+//                         basconcdr,
+//                         basconnreversein_sequence)),
+//                 basconnreversein_sequence,
+//                 makelist( // (let ((after (cdr sequence))) ...
+//                     maclet,
+//                     makelist(
+//                         makelist(
+//                             basconnreversein_after,
+//                             makelist(
+//                                 basconcdr,
+//                                 basconnreversein_sequence))),
+//                     makelist( // (setf (cdr sequence) before) 
+//                         synsetf,
+//                         makelist(
+//                             basconcdr,
+//                             basconnreversein_sequence),
+//                         basconnreversein_before),
+//                     makelist( // (nreversein after sequence)
+//                         basconnreversein,
+//                         basconnreversein_after,
+//                         basconnreversein_sequence)))));
+
 // ** test code
 
-// var source;
+var source;
 
 // source = makelist(
 //     basconnreverse,
