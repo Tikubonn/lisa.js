@@ -2509,8 +2509,13 @@ synnot.onexpand = function (some){
 
 synsetf.onevaluate = function (formula, value){
     // return formula.evaluatearg().set(value.evaluatearg());
+    // var valued = value.evaluatearg();
+    // var formulaed = formula.evaluatearg();
+    // return formulaed.set(valued);
     var valued = value.evaluatearg();
     var formulaed = formula.evaluatearg();
+    if (valued instanceof ReferenceClass == false) throw new Error("" + valued + " valued is not reference familly.");
+    if (formulaed instanceof ReferenceClass == false) throw new Error("" + formulaed + " formulaed is not reference familly.");
     return formulaed.set(valued);
 };
 
@@ -3593,6 +3598,11 @@ var basconcopy_sequence = inp.scope.intern(makestring("sequence"));
 var basconnreverse = new UserFunctionClass();
 var basconnreverse_sequence = inp.scope.intern(makestring("sequence"));
 
+var basconnreversein = new UserFunctionClass();
+var basconnreversein_sequence = inp.scope.intern(makestring("sequence"));
+var basconnreversein_before = inp.scope.intern(makestring("before"));
+var basconnreversein_after = inp.scope.intern(makestring("after"));
+
 var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
 var basconcdr = new PrimitiveFunctionClass();
@@ -3607,6 +3617,9 @@ basconappend2.label = "<#primitive cons append2>";
 basconappend.label = "<#primitive cons append>";
 basconfindif.label = "<#primitive cons findif>";
 basconpositionif.label = "<#primitive cons positionif>";
+basconcopy.label = "<#primitive cons copy>";
+basconnreverse.label = "<#primitive cons nreverse>";
+basconnreversein.label = "<#primitive cons nreversein>";
 basconcons.label = "<#primitive cons cons>";
 basconcar.label = "<#primitive cons car>";
 basconcdr.label = "<#primitive cons cdr>";
@@ -4015,9 +4028,85 @@ basconcopy.rest =
                         basconcdr,
                         basconcopy_sequence)))));
 
+/* --
+    (defun nreverse (sequence)
+        (nreversein sequence nil))
+-- */
+
+basconnreverse.args = makelist(
+    basconnreverse_sequence);
+
+basconnreverse.rest = 
+    makelist(
+        makelist(
+            basconnreversein,
+            basconnreverse_sequence,
+            nil));
+
+/* --
+    (defun nreverse (sequence before)
+        (if (null sequence) nil
+            (if (null (cdr sequence)) sequence
+                (let ((after (cdr sequence))
+                    (setf (cdr sequence) before)
+                    (nreverse after sequence)))))
+-- */
+
+basconnreversein.args = makelist(
+    basconnreversein_sequence,
+    basconnreversein_before);
+
+basconnreversein.rest = 
+    makelist(
+        makelist( // (if (null sequence) nil ...
+            synif,
+            makelist(
+                basnull,
+                basconnreversein_sequence),
+            nil,
+            makelist( // (if (null (cdr sequence)) sequence ...
+                synif,
+                makelist(
+                    basnull,
+                    makelist(
+                        basconcdr,
+                        basconnreversein_sequence)),
+                basconnreversein_sequence,
+                makelist( // (let ((after (cdr sequence))) ...
+                    maclet,
+                    makelist(
+                        makelist(
+                            basconnreversein_after,
+                            makelist(
+                                basconcdr,
+                                basconnreversein_sequence))),
+                    makelist( // (setf (cdr sequence) before) 
+                        synsetf,
+                        makelist(
+                            basconcdr,
+                            basconnreversein_sequence),
+                        basconnreversein_before),
+                    makelist( // (nreversein after sequence)
+                        basconnreversein,
+                        basconnreversein_after,
+                        basconnreversein_sequence)))));
+                            
 // ** test code
 
 var source;
+
+source = makelist(
+    basconnreverse,
+    makelist(
+        baslist,
+        makeint(1),
+        makeint(2),
+        makeint(3)));
+
+strace.unwindstrace(function (){
+    // console.log(source + "");
+    console.log(source.evaluatearg() + "");
+})();
 
 // source = makelist(
 //     basconcopy,
