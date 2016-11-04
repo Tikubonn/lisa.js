@@ -3587,6 +3587,12 @@ var basconpositionifin_func = inp.scope.intern(makestring("func"));
 var basconpositionifin_sequence = inp.scope.intern(makestring("sequence"));
 var basconpositionifin_count = inp.scope.intern(makestring("count"));
 
+var basconcopy = new UserFunctionClass();
+var basconcopy_sequence = inp.scope.intern(makestring("sequence"));
+
+var basconnreverse = new UserFunctionClass();
+var basconnreverse_sequence = inp.scope.intern(makestring("sequence"));
+
 var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
 var basconcdr = new PrimitiveFunctionClass();
@@ -3980,9 +3986,51 @@ basconpositionifin.rest =
                         basconpositionifin_count,
                         makeint(1))))));
 
+/* --
+    (defun copy (sequence)
+        (if (null sequence) nil
+            (cons (car sequence) 
+                (copy (cdr sequence)))))
+-- */
+
+basconcopy.args = makelist(
+    basconcopy_sequence);
+
+basconcopy.rest = 
+    makelist(
+        makelist( // (if (null sequence) nil ...
+            synif,
+            makelist(
+                basnull,
+                basconcopy_sequence),
+            nil,
+            makelist( // (cons (car sequence) (copy (cdr sequence)))
+                basconcons,
+                makelist(
+                    basconcar,
+                    basconcopy_sequence),
+                makelist(
+                    basconcopy,
+                    makelist(
+                        basconcdr,
+                        basconcopy_sequence)))));
+
 // ** test code
 
 var source;
+
+// source = makelist(
+//     basconcopy,
+//     makelist(
+//         baslist,
+//         makeint(1),
+//         makeint(2),
+//         makeint(3)));
+
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+// })();
 
 // source = makelist(
 //     basconpositionif,
