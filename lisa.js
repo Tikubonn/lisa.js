@@ -3582,6 +3582,11 @@ var basconpositionif = new UserFunctionClass();
 var basconpositionif_func = inp.scope.intern(makestring("func"));
 var basconpositionif_sequence = inp.scope.intern(makestring("sequence"));
 
+var basconpositionifin = new UserFunctionClass();
+var basconpositionifin_func = inp.scope.intern(makestring("func"));
+var basconpositionifin_sequence = inp.scope.intern(makestring("sequence"));
+var basconpositionifin_count = inp.scope.intern(makestring("count"));
+
 var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
 var basconcdr = new PrimitiveFunctionClass();
@@ -3876,7 +3881,7 @@ basconappend.args = makelist(
 
 basconappend.rest = 
     makelist(
-        makelist(
+        makelist( // (reduce append2 args)
             basconreduce,
             basconappend2,
             basconappend_args));
@@ -3894,13 +3899,13 @@ basconfindif.args = makelist(
 
 basconfindif.rest = 
     makelist(
-        makelist(
+        makelist( // (if (null sequence) nil ...
             synif,
             makelist(
                 basnull,
                 basconfindif_sequence),
             nil,
-            makelist(
+            makelist( // (if (funcall (car sequence)) (car sequence) ...
                 synif,
                 makelist(
                     basfnfuncall,
@@ -3911,34 +3916,109 @@ basconfindif.rest =
                 makelist(
                     basconcar,
                     basconfindif_sequence),
-                makelist(
+                makelist( // (findif func (cdr sequence))
                     basconfindif,
                     basconfindif_func,
                     makelist(
                         basconcdr,
                         basconfindif_sequence)))));
 
+/* --
+    (defun positionif (func sequence)
+        (positionifin func sequence 0))
+-- */
+
+basconpositionif.args = makelist(
+    basconpositionif_func,
+    basconpositionif_sequence);
+
+basconpositionif.rest = 
+    makelist(
+        makelist( // (positionifin func sequence)
+            basconpositionifin,
+            basconpositionif_func,
+            basconpositionif_sequence,
+            makeint(0)));
+
+/* --
+    (defun positionifin (func sequence count)
+        (if (null sequence) nil
+            (if (funcall (car sequence)) count
+                (positionifin func (cdr sequence) (+ count 1)))))
+-- */
+
+basconpositionifin.args = makelist(
+    basconpositionifin_func,
+    basconpositionifin_sequence,
+    basconpositionifin_count);
+
+basconpositionifin.rest = 
+    makelist(
+        makelist( // (if (null sequence) nil ...
+            synif,
+            makelist(
+                basnull,
+                basconpositionifin_sequence),
+            nil,
+            makelist( // (if (funcall func (car sequence)) count ...
+                synif,
+                makelist(
+                    basfnfuncall,
+                    basconpositionifin_func,
+                    makelist(
+                        basconcar,
+                        basconpositionifin_sequence)),
+                basconpositionifin_count,
+                makelist( // (positionifin func (cdr sequence) (+ count 1))
+                    basconpositionifin,
+                    basconpositionifin_func,
+                    makelist(
+                        basconcdr,
+                        basconpositionifin_sequence),
+                    makelist(
+                        basadd,
+                        basconpositionifin_count,
+                        makeint(1))))));
+
 // ** test code
 
 var source;
 
-source = makelist(
-    basconfindif,
-    makelist(
-        maclambda,
-        makelist(
-            makeintern("a")),
-        makeintern("a")),
-    makelist(
-        baslist,
-        nil,
-        nil,
-        makestring("non nil")));
+// source = makelist(
+//     basconpositionif,
+//     makelist(
+//         maclambda,
+//         makelist(
+//             makeintern("a")),
+//         makeintern("a")),
+//     makelist(
+//         baslist,
+//         nil,
+//         nil,
+//         makestring("non nil")));
 
-strace.unwindstrace(function (){
-    // console.log(source + "");
-    console.log(source.evaluatearg() + "");
-})();
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+// })();
+
+// source = makelist(
+//     basconfindif,
+//     makelist(
+//         maclambda,
+//         makelist(
+//             makeintern("a")),
+//         makeintern("a")),
+//     makelist(
+//         baslist,
+//         nil,
+//         nil,
+//         makestring("non nil")));
+
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+// })();
 
 // source = makelist(
 //     basconappend,
