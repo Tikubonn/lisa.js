@@ -209,9 +209,6 @@ Evaluatable.prototype.evaluatearg  = function (){
 Evaluatable.prototype.evaluate = 
     strace.willstrace("evaluate <- ", Evaluatable.prototype.evaluate);
 
-// Evaluatable.prototype.evaluatearg = 
-//     strace.willstrace("evaluatearg <- ", Evaluatable.prototype.evaluatearg);
-
 Evaluatable.prototype.evaluatedata = function (){
     if (this.onevaluatedata == null)
         return this.evaluatearg();
@@ -559,7 +556,7 @@ ReferenceClass.prototype.set = function (){
 };
 
 ReferenceClass.prototype.onevaluatearg = function (){
-    return this.get();
+    return this.get().evaluatearg();
 };
 
 ReferenceClass.prototype.onevaluate = null;
@@ -609,19 +606,33 @@ ArrayReferenceClass.prototype.onexpanddata = function (){
 // };
 
 function ConsReferenceClass (cons){
-
-    // check the reference target.
-
-    if (cons instanceof ConsClass == false)
-        throw new Error("cons is not cons instance.");
-
-    // set the member.
-
-    this.cons = cons;
+    this.cons = cons || null;
 };
 
 ConsReferenceClass.prototype = 
     Object.create(ReferenceClass.prototype);
+
+ConsReferenceClass.prototype.getcar = function (){
+    throw new Error("in the cons reference, getcar was not defined.");};
+
+ConsReferenceClass.prototype.getcdr = function (){
+    throw new Error("in the cons reference, getcdr was not defined.");};
+
+ConsReferenceClass.prototype.setcar = function (value){
+    return this.get().setcar(value);
+};
+
+ConsReferenceClass.prototype.setcdr = function (value){
+    return this.get().setcdr(value);
+};
+
+ConsReferenceClass.prototype.getcar = function (){
+    return this.get().getcar();
+};
+
+ConsReferenceClass.prototype.getcdr = function (){
+    return this.get().getcdr();
+};
 
 // cons car reference class
 //     <- cons reference class
@@ -633,13 +644,16 @@ function ConsCarReferenceClass (){
 ConsCarReferenceClass.prototype =
     Object.create(ConsReferenceClass.prototype);
 
-ConsCarReferenceClass.get = function (){
-    return this.cons.car;
+ConsCarReferenceClass.prototype.get = function (){
+    return this.cons.getcar();
 };
 
-ConsCarReferenceClass.set = function (value){
-    this.cons.car = value;
-    return value;
+ConsCarReferenceClass.prototype.set = function (value){
+    return this.get().setcdr(value);
+};
+
+function makeconscarreference (cons){
+    return new ConsCarReferenceClass(cons);
 };
 
 // cons cdr reference class
@@ -652,13 +666,16 @@ function ConsCdrReferenceClass (){
 ConsCdrReferenceClass.prototype =
     Object.create(ConsReferenceClass.prototype);
 
-ConsCdrReferenceClass.get = function (){
-    return this.cons.cdr;
+ConsCdrReferenceClass.prototype.get = function (){
+    return this.cons.getcdr();
 };
 
-ConsCdrReferenceClass.set = function (value){
-    this.cons.cdr = value;
-    return value;
+ConsCdrReferenceClass.prototype.set = function (value){
+    return this.get().setcdr(value);
+};
+
+function makeconscdrreference (cons){
+    return new ConsCdrReferenceClass(cons);
 };
 
 // nil reference class
@@ -1117,6 +1134,11 @@ function ConsClass (car, cdr){
 ConsClass.prototype = 
     Object.create(SequencialClass.prototype);
 
+ConsClass.prototype.getcar = function (){return this.car;};
+ConsClass.prototype.getcdr = function (){return this.cdr;};
+ConsClass.prototype.setcar = function (value){return this.car = value;};
+ConsClass.prototype.setcdr = function (value){return this.cdr = value;};
+
 ConsClass.prototype.onexpand = function (){
     var func = this.expandarg();
     return func.expand.apply(func, arguments);
@@ -1312,6 +1334,11 @@ NilClass.prototype =
 
 NilClass.prototype.car = nil;
 NilClass.prototype.cdr = nil;
+
+NilClass.prototype.getcar = function (){return new NilReferenceClass();};
+NilClass.prototype.getcdr = function (){return new NilReferenceClass();};
+NilClass.prototype.setcar = function (){throw new Error("nil cannot setcar.");};
+NilClass.prototype.setcdr = function (){throw new Error("nil cannot setcdr.");};
 
 NilClass.prototype.onevaluatearg = function (){
     return this;
@@ -3682,17 +3709,29 @@ basconcons.onevaluate = function (car, cdr){
 };
 
 basconcar.onevaluate = function (cons){
-    if (cons instanceof ConsClass == false)
-        throw new Error("" + cons + " is not cons instance.");
-    // return cons == nil ? nil : cons.car;
-    return cons == nil ? nil : new ConsCarReferenceClass(cons);
+    // if (cons instanceof ConsClass == false)
+    //     throw new Error("" + cons + " is not cons instance.");
+    // // return cons == nil ? nil : cons.car;
+    // // return cons == nil ? nil : new ConsCarReferenceClass(cons);
+    // return cons == nil ? nil : makeconscarreference(cons);
+    // return cons instanceof ReferenceClass == false ?
+    //     cons == nil ? nil : makeconscarreference(cons) : 
+    //     cons.get() == nil ? nil : makeconscarreference(cons);
+    // return cons.getcar();
+    return new ConsCarReferenceClass(cons);
 };
 
 basconcdr.onevaluate = function (cons){
-    if (cons instanceof ConsClass == false) 
-        throw new Error("" + cons + " is not cons instance.");
-    // return cons == nil ? nil : cons.cdr;
-    return cons == nil ? nil : new ConsCdrReferenceClass(cons);
+    // if (cons instanceof ConsClass == false) 
+    //     throw new Error("" + cons + " is not cons instance.");
+    // // return cons == nil ? nil : cons.cdr;
+    // // return cons == nil ? nil : new ConsCdrReferenceClass(cons);
+    // return cons == nil ? nil : makeconscdrreference(cons);
+    // return cons instanceof ReferenceClass == false ? 
+    //     cons == nil ? nil : makeconscdrreference(cons) :
+    //     cons.get() == nil ? nil : makeconscdrreference(cons);
+    // return cons.getcdr();
+    return new ConsCdrReferenceClass(cons);
 };
 
 /* -- 
@@ -4148,20 +4187,20 @@ basconnreversein.rest =
 
 // ** test code
 
-var source;
+// var source;
 
-source = makelist(
-    basconnreverse,
-    makelist(
-        baslist,
-        makeint(1),
-        makeint(2),
-        makeint(3)));
+// source = makelist(
+//     basconnreverse,
+//     makelist(
+//         baslist,
+//         makeint(1),
+//         makeint(2),
+//         makeint(3)));
 
-strace.unwindstrace(function (){
-    // console.log(source + "");
-    console.log(source.evaluatearg() + "");
-})();
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+// })();
 
 // source = makelist(
 //     basconcopy,
