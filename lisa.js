@@ -563,6 +563,30 @@ ReferenceClass.prototype.onevaluate = null;
 ReferenceClass.prototype.onexpand = null;
 ReferenceClass.prototype.onexpandarg = null;
 
+function getreference (reference){
+    return reference instanceof ReferenceClass ?
+        reference.get() : 
+        reference;
+};
+
+function setreference (reference, value){
+    if (reference instanceof ReferenceClass == false)
+        throw new Error("reference is not reference instance.");
+    return reference.set(value);
+};
+
+function beforegetreference (func){
+    return function beforegetreference_closure (){
+        return func.apply(this, slice(arguments).map(getreference));
+    };
+};
+
+function aftergetreference (func){
+    return function aftergetreference_closure (){
+        return getreference(func.apply(this, arguments));
+    };
+};
+
 // array reference class 
 //     <- atom class
 
@@ -588,22 +612,6 @@ ArrayReferenceClass.prototype.onexpanddata = function (){
 
 // // cons reference class
 // //     <- reference class
-
-// function ConsReferenceClass (value){
-//     this.value = value || null;
-// }
-
-// ConsReferenceClass.prototype = 
-//     Object.create(ConsReferenceClass.prototype);
-
-// ConsReferenceClass.prototype.get = function (){
-//     return this.value.car;
-// };
-
-// ConsReferenceClass.prototype.set = function(value){
-//     this.value.car = value;
-//     return value;
-// };
 
 function ConsReferenceClass (cons){
     this.cons = cons || null;
@@ -637,7 +645,7 @@ ConsReferenceClass.prototype.getcdr = function (){
 // cons car reference class
 //     <- cons reference class
 
-function ConsCarReferenceClass (){
+function ConsCarReferenceClass (cons){
     ConsReferenceClass.apply(this, arguments);
 };
 
@@ -649,7 +657,7 @@ ConsCarReferenceClass.prototype.get = function (){
 };
 
 ConsCarReferenceClass.prototype.set = function (value){
-    return this.get().setcdr(value);
+    return this.cons.setcar(value);
 };
 
 function makeconscarreference (cons){
@@ -671,7 +679,7 @@ ConsCdrReferenceClass.prototype.get = function (){
 };
 
 ConsCdrReferenceClass.prototype.set = function (value){
-    return this.get().setcdr(value);
+    return this.cons.setcdr(value);
 };
 
 function makeconscdrreference (cons){
@@ -681,18 +689,13 @@ function makeconscdrreference (cons){
 // nil reference class
 //     <- reference class
 
-function NilReferenceClass (value){}
+function NilReferenceClass (){}
 
 NilReferenceClass.prototype = 
     Object.create(ReferenceClass.prototype);
 
-NilReferenceClass.prototype.get = function (){
-        return nil;
-};
-
-NilReferenceClass.prototype.set = function (){
-        throw new Error("nil reference could not assign.");
-};
+NilReferenceClass.prototype.get = function (){return nil;};
+NilReferenceClass.prototype.set = function (){throw new Error("nil reference could not assign.");};
 
 var nilf = new NilReferenceClass();
 
@@ -1136,8 +1139,8 @@ ConsClass.prototype =
 
 ConsClass.prototype.getcar = function (){return this.car;};
 ConsClass.prototype.getcdr = function (){return this.cdr;};
-ConsClass.prototype.setcar = function (value){return this.car = value;};
-ConsClass.prototype.setcdr = function (value){return this.cdr = value;};
+ConsClass.prototype.setcar = function (value){this.car = value; return value;};
+ConsClass.prototype.setcdr = function (value){this.cdr = value; return value;};
 
 ConsClass.prototype.onexpand = function (){
     var func = this.expandarg();
@@ -1186,7 +1189,7 @@ ConsClass.prototype.toCons = function (){
 
 ConsClass.prototype.clone = function (){ // ** should update here
     var ncons, cons;
-    for (ncons = nil, cons = this; cons != nil; cons = cons.cdr)
+    for (ncons = nil, cons = this; cons != nil; cons = cons.cdr){
         if (cons.car instanceof UnQuoteAtClass){
             var consa, consb;
             for (consa = cons.car.evaluatearg(),
@@ -1198,7 +1201,7 @@ ConsClass.prototype.clone = function (){ // ** should update here
         }
         else if (cons.car instanceof UnQuoteClass)
             ncons = new ConsClass(cons.car.evaluatearg(), ncons);
-        else ncons = new ConsClass(cons.car, ncons);
+        else ncons = new ConsClass(cons.car, ncons);}
     return ncons.reverse();
 };
 
@@ -1644,10 +1647,20 @@ PrimitiveFunctionClass.prototype =
     Object.create(FunctionClass.prototype);
 
 PrimitiveFunctionClass.prototype.evaluate = 
-    beforeevaluatearg(FunctionClass.prototype.evaluate);
+    beforeevaluatearg(
+        beforegetreference(
+            FunctionClass.prototype.evaluate));
 
 PrimitiveFunctionClass.prototype.expand = 
-    beforeexpandarg(FunctionClass.prototype.expand);
+    beforeexpandarg(
+        beforegetreference(
+            FunctionClass.prototype.expand));
+
+// PrimitiveFunctionClass.prototype.evaluate = 
+//     beforeevaluatearg(FunctionClass.prototype.evaluate);
+
+// PrimitiveFunctionClass.prototype.expand = 
+//     beforeexpandarg(FunctionClass.prototype.expand);
 
 PrimitiveFunctionClass.prototype.label = "<#primitive function class>";
 
@@ -2592,7 +2605,12 @@ synsetf.onevaluate = function (formula, value){
     // var valued = value.evaluatearg();
     // var formulaed = formula.evaluatearg();
     // return formulaed.set(valued);
-    var valued = value.evaluatearg();
+    // var valued = value.evaluatearg();
+    // var formulaed = formula.evaluatearg();
+    // if (formulaed instanceof ReferenceClass == false)
+    //     throw new Error("(" + formulaed + " = "  + valued + ") formula is not reference instance.");
+    // return formulaed.set(valued);
+    var valued = getreference(value.evaluatearg());
     var formulaed = formula.evaluatearg();
     if (formulaed instanceof ReferenceClass == false)
         throw new Error("(" + formulaed + " = "  + valued + ") formula is not reference instance.");
@@ -3709,28 +3727,10 @@ basconcons.onevaluate = function (car, cdr){
 };
 
 basconcar.onevaluate = function (cons){
-    // if (cons instanceof ConsClass == false)
-    //     throw new Error("" + cons + " is not cons instance.");
-    // // return cons == nil ? nil : cons.car;
-    // // return cons == nil ? nil : new ConsCarReferenceClass(cons);
-    // return cons == nil ? nil : makeconscarreference(cons);
-    // return cons instanceof ReferenceClass == false ?
-    //     cons == nil ? nil : makeconscarreference(cons) : 
-    //     cons.get() == nil ? nil : makeconscarreference(cons);
-    // return cons.getcar();
     return new ConsCarReferenceClass(cons);
 };
 
 basconcdr.onevaluate = function (cons){
-    // if (cons instanceof ConsClass == false) 
-    //     throw new Error("" + cons + " is not cons instance.");
-    // // return cons == nil ? nil : cons.cdr;
-    // // return cons == nil ? nil : new ConsCdrReferenceClass(cons);
-    // return cons == nil ? nil : makeconscdrreference(cons);
-    // return cons instanceof ReferenceClass == false ? 
-    //     cons == nil ? nil : makeconscdrreference(cons) :
-    //     cons.get() == nil ? nil : makeconscdrreference(cons);
-    // return cons.getcdr();
     return new ConsCdrReferenceClass(cons);
 };
 
@@ -4124,7 +4124,7 @@ basconcopy.rest =
 
 /* --
     (defun nreverse (sequence)
-        (nreversein sequence nil))
+        (nreversein nil sequence (cdr sequence)))
 -- */
 
 basconnreverse.args = makelist(
@@ -4134,17 +4134,11 @@ basconnreverse.rest =
     makelist(
         makelist(
             basconnreversein,
+            nil,
             basconnreverse_sequence,
-            nil));
-
-/* -- invaild code
-    (defun nreverse (sequence before)
-        (if (null sequence) nil
-            (if (null (cdr sequence)) sequence
-                (let ((after (cdr sequence))
-                    (setf (cdr sequence) before)
-                    (nreverse after sequence)))))
--- */
+            makelist(
+                basconcdr,
+                basconnreverse_sequence)));
 
 /* -- 
     (defun nreversein (sequence before)
@@ -4155,51 +4149,53 @@ basconnreverse.rest =
                     (nreversein after sequence)))))
 -- */
 
+/* --
+    (defun nreversein (before sequence after)
+        (if (null sequence) nil
+            (if (null after) sequence
+                (progn
+                    (setf (cdr sequence) before)
+                    (nreversein sequence after (cdr after))))))
+-- */
+
 basconnreversein.args = makelist(
+    basconnreversein_before,
     basconnreversein_sequence,
-    basconnreversein_before);
+    basconnreversein_after);
 
 basconnreversein.rest = 
     makelist(
-        makelist( // (if (null sequence) nil ...
+        makelist(
             synif,
             makelist(
                 basnull,
                 basconnreversein_sequence),
             nil,
-            makelist( // (let ((after (cdr sequence))) ... 
-                maclet,
+            makelist(
+                synprogn,
                 makelist(
-                    makelist(
-                        basconnreversein_after,
-                        makelist(
-                            basconcdr,
-                            basconnreversein_sequence))),
-                // makelist( // ** debug
-                //     debprint,
-                //     basconnreversein_before),
-                // makelist( // ** debug
-                //     debprint,
-                //     basconnreversein_sequence),
-                // makelist( // ** debug
-                //     debprint,
-                //     basconnreversein_after),
-                makelist( // (setf (cdr sequence) before)
                     synsetf,
                     makelist(
                         basconcdr,
                         basconnreversein_sequence),
                     basconnreversein_before),
-                makelist( // (if (null after) sequence ...
+                makelist(
                     synif,
                     makelist(
                         basnull,
                         basconnreversein_after),
                     basconnreversein_sequence,
-                    makelist( // (nreversein after sequence)
+                    makelist(
                         basconnreversein,
+                        basconnreversein_sequence,
                         basconnreversein_after,
-                        basconnreversein_sequence)))));
+                        makelist(
+                            basconcdr,
+                            basconnreversein_after))))));
+
+// basconnreversein.args = makelist(
+//     basconnreversein_sequence,
+//     basconnreversein_before);
 
 // basconnreversein.rest = 
 //     makelist(
@@ -4209,28 +4205,26 @@ basconnreversein.rest =
 //                 basnull,
 //                 basconnreversein_sequence),
 //             nil,
-//             makelist( // (if (null (cdr sequence)) sequence ...
-//                 synif,
+//             makelist( // (let ((after (cdr sequence))) ... 
+//                 maclet,
 //                 makelist(
-//                     basnull,
 //                     makelist(
-//                         basconcdr,
-//                         basconnreversein_sequence)),
-//                 basconnreversein_sequence,
-//                 makelist( // (let ((after (cdr sequence))) ...
-//                     maclet,
-//                     makelist(
-//                         makelist(
-//                             basconnreversein_after,
-//                             makelist(
-//                                 basconcdr,
-//                                 basconnreversein_sequence))),
-//                     makelist( // (setf (cdr sequence) before) 
-//                         synsetf,
+//                         basconnreversein_after,
 //                         makelist(
 //                             basconcdr,
-//                             basconnreversein_sequence),
-//                         basconnreversein_before),
+//                             basconnreversein_sequence))),
+//                 makelist( // (setf (cdr sequence) before)
+//                     synsetf,
+//                     makelist(
+//                         basconcdr,
+//                         basconnreversein_sequence),
+//                     basconnreversein_before),
+//                 makelist( // (if (null after) sequence ...
+//                     synif,
+//                     makelist(
+//                         basnull,
+//                         basconnreversein_after),
+//                     basconnreversein_sequence,
 //                     makelist( // (nreversein after sequence)
 //                         basconnreversein,
 //                         basconnreversein_after,
@@ -4238,7 +4232,7 @@ basconnreversein.rest =
 
 // ** test code
 
-var source;
+// var source;
 
 // source = makelist(
 //     basconnreverse,
