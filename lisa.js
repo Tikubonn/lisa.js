@@ -620,11 +620,17 @@ function ConsReferenceClass (cons){
 ConsReferenceClass.prototype = 
     Object.create(ReferenceClass.prototype);
 
+ConsReferenceClass.prototype.get = function (){
+    return this.cons;
+};
+
 ConsReferenceClass.prototype.getcar = function (){
-    throw new Error("in the cons reference, getcar was not defined.");};
+    return this.get().getcar();
+};
 
 ConsReferenceClass.prototype.getcdr = function (){
-    throw new Error("in the cons reference, getcdr was not defined.");};
+    return this.get().getcdr();
+};
 
 ConsReferenceClass.prototype.setcar = function (value){
     return this.get().setcar(value);
@@ -1407,37 +1413,37 @@ NilClass.prototype.reverse = function (){
 
 var nil = new NilClass();
 
-// cons stack class
-//     <- cons class
+// // cons stack class
+// //     <- cons class
 
-function ConsStackClass (car, cdr){
-    this.car = car || nil;
-    this.cdr = cdr || nil;
-}
+// function ConsStackClass (car, cdr){
+//     this.car = car || nil;
+//     this.cdr = cdr || nil;
+// }
 
-ConsStackClass.prototype = 
-    Object.create(ConsClass.prototype);
+// ConsStackClass.prototype = 
+//     Object.create(ConsClass.prototype);
 
-ConsStackClass.prototype.push = function (element){
-    var ncons = new ConsClass(element);
-    if (this.car == nil){
-        this.car = ncons;
-        this.cdr = ncons;
-    }
-    else this.cdr.cdr = ncons;
-    return element;
-};
+// ConsStackClass.prototype.push = function (element){
+//     var ncons = new ConsClass(element);
+//     if (this.car == nil){
+//         this.car = ncons;
+//         this.cdr = ncons;
+//     }
+//     else this.cdr.cdr = ncons;
+//     return element;
+// };
 
-ConsStackClass.prototype.pop = function (){
-    if (this.car == nil) return nil;
-    var element = this.car.car;
-    this.car = this.car.cdr;
-    return element;
-};
+// ConsStackClass.prototype.pop = function (){
+//     if (this.car == nil) return nil;
+//     var element = this.car.car;
+//     this.car = this.car.cdr;
+//     return element;
+// };
 
-ConsStackClass.prototype.iter = function (){
-    return this.car.iter();
-};
+// ConsStackClass.prototype.iter = function (){
+//     return this.car.iter();
+// };
 
 // quote family class 
 //     <- atom class
@@ -1761,10 +1767,24 @@ UserFunctionClass.prototype.onexpandarg = function (){
 
 function MacroClass (){}
 
+MacroClass.prototype = 
+    Object.create(CallableClass.prototype);
+
+MacroClass.prototype.evaluate = 
+    aftergetreference(
+        afterevaluatearg(
+            CallableClass.prototype.evaluate));
+
+MacroClass.prototype.expand = 
+    afterexpandarg(CallableClass.prototype.evaluate);
+
 // primitive macro class
 //     <- macro class
 
 function PrimitiveMacroClass (){}
+
+PrimitiveMacroClass.prototype = 
+    Object.create(MacroClass.prototype);
 
 // user macro class
 //     <- macro class
@@ -1773,18 +1793,6 @@ function UserMacroClass (args, rest){
     this.args = args || null;
     this.rest = rest || null;
 };
-
-MacroClass.prototype = 
-    Object.create(CallableClass.prototype);
-
-MacroClass.prototype.evaluate = 
-    afterevaluatearg(CallableClass.prototype.evaluate);
-
-MacroClass.prototype.expand = 
-    afterexpandarg(CallableClass.prototype.evaluate);
-
-PrimitiveMacroClass.prototype = 
-    Object.create(MacroClass.prototype);
 
 UserMacroClass.prototype = 
     Object.create(MacroClass.prototype);
@@ -2842,17 +2850,7 @@ macsetq.onevaluate = function (sym, value){
                              new ConsClass(value)));
 };
 
-maclet.onevaluate = function (bounds /* binds */){ // ** must update here.
-    // var ncons, bindsi;
-    // for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();)
-    //     ncons = new ConsClass(
-    //         new ConsClass(macdeflvar, bindsi.next()), ncons);
-    // ncons = ncons.reverse();
-    // return new ConsClass(synblock,
-    //                      new ConsClass(ncons,
-    //                                    new ConsClass(
-    //                                        new ConsClass(synprogn,
-    //                                                      ConsClass.toCons(slice(arguments, 1))))));
+maclet.onevaluate = function (bounds){
     var bound, formula;
     for (bound = makecons(synprogn); bounds != nil; bounds = bounds.cdr)
         bound = makecons(makecons(macdeflvar, bounds.car), bound);
@@ -2861,44 +2859,68 @@ maclet.onevaluate = function (bounds /* binds */){ // ** must update here.
                              ConsClass.toCons(slice(arguments, 1))));
 };
 
-macflet.onevaluate = function (binds){ // ** must update here
-    var ncons, bindsi, bind;
-    for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();){
-        bind = bindsi.next();
-        ncons = new ConsClass(
-            new ConsClass(synsetf,
-                          new ConsClass(
-                              new ConsClass(bassymbolfunction,
-                                            new ConsClass(
-                                                new QuoteClass(bind.car))),
-                              new ConsClass(
-                                  new ConsClass(maclambda, bind.cdr)))), ncons);}
-    ncons = ncons.reverse();
-    return new ConsClass(synblock,
-                         new ConsClass(ncons,
-                                       new ConsClass(
-                                           new ConsClass(synprogn, 
-                                                         ConsClass.toCons(slice(arguments, 1))))));
+macflet.onevaluate = function (bounds /* binds */){ // ** must update here
+    // var ncons, bindsi, bind;
+    // for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();){
+    //     bind = bindsi.next();
+    //     ncons = new ConsClass(
+    //         new ConsClass(synsetf,
+    //                       new ConsClass(
+    //                           new ConsClass(bassymbolfunction,
+    //                                         new ConsClass(
+    //                                             new QuoteClass(bind.car))),
+    //                           new ConsClass(
+    //                               new ConsClass(maclambda, bind.cdr)))), ncons);}
+    // ncons = ncons.reverse();
+    // return new ConsClass(synblock,
+    //                      new ConsClass(ncons,
+    //                                    new ConsClass(
+    //                                        new ConsClass(synprogn, 
+    //                                                      ConsClass.toCons(slice(arguments, 1))))));
+    var bound, formula;
+    for (bound = makecons(synprogn); bounds != nil; bounds = bounds.cdr)
+        bound = makecons(
+            makelist(
+                synsetf, 
+                makelist(
+                    bassymbolfunction, 
+                    makelist(synquote, bounds.car.car)),
+                makecons(maclambda, bounds.car.cdr)), bound);
+    return makecons(synblock,
+                    makecons(bound.reverse(),
+                             ConsClass.toCons(slice(arguments, 1))));
 };
 
-macmlet.onevaluate = function (binds){ // ** must update here.
-    var ncons, bindsi, bind;
-    for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();){
-        bind = bindsi.next();
-        ncons = new ConsClass(
-            new ConsClass(synsetf,
-                          new ConsClass(
-                              new ConsClass(bassymbolfunction,
-                                            new ConsClass(
-                                                new QuoteClass(bind.car))),
-                              new ConsClass(
-                                  new ConsClass(macmacro, bind.cdr)))), ncons);}
-    ncons = ncons.reverse();
-    return new ConsClass(synblock,
-                         new ConsClass(ncons,
-                                       new ConsClass(
-                                           new ConsClass(synprogn, 
-                                                         ConsClass.toCons(slice(arguments, 1))))));
+macmlet.onevaluate = function (bounds /* binds */){ // ** must update here.
+    // var ncons, bindsi, bind;
+    // for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();){
+    //     bind = bindsi.next();
+    //     ncons = new ConsClass(
+    //         new ConsClass(synsetf,
+    //                       new ConsClass(
+    //                           new ConsClass(bassymbolfunction,
+    //                                         new ConsClass(
+    //                                             new QuoteClass(bind.car))),
+    //                           new ConsClass(
+    //                               new ConsClass(macmacro, bind.cdr)))), ncons);}
+    // ncons = ncons.reverse();
+    // return new ConsClass(synblock,
+    //                      new ConsClass(ncons,
+    //                                    new ConsClass(
+    //                                        new ConsClass(synprogn, 
+    //                                                      ConsClass.toCons(slice(arguments, 1))))));
+    var bound, formula;
+    for (bound = makecons(synprogn); bounds != nil; bounds = bounds.cdr)
+        bound = makecons(
+            makelist(
+                synsetf, 
+                makelist(
+                    bassymbolfunction, 
+                    makelist(synquote, bounds.car.car)),
+                makecons(macmacro, bounds.car.cdr)), bound);
+    return makecons(synblock,
+                    makecons(bound.reverse(),
+                             ConsClass.toCons(slice(arguments, 1))));
 };
 
 // define basic functions
@@ -3723,7 +3745,9 @@ basconcar.label = "<#primitive cons car>";
 basconcdr.label = "<#primitive cons cdr>";
 
 basconcons.onevaluate = function (car, cdr){
-    return new ConsClass(car, cdr);
+    // return new ConsClass(car, cdr);
+    return new ConsReferenceClass(
+        new ConsClass(car, cdr));
 };
 
 basconcar.onevaluate = function (cons){
@@ -3733,6 +3757,32 @@ basconcar.onevaluate = function (cons){
 basconcdr.onevaluate = function (cons){
     return new ConsCdrReferenceClass(cons);
 };
+
+basconcons.onexpandarg = function (){
+    return new Expanded("function(a,b){return new Cons(a,b);}");
+};
+
+basconcar.onexpandarg = function (){
+    return new Expanded("function(a){if (a instanceof Cons == false) throw new Error(a + \" is not cons instance.\"); return a.car;}");
+};
+
+basconcdr.onexpandarg = function (){
+    return new Expanded("function(a){if (a instanceof Cons == false) throw new Error(a + \" is not cons instance.\"); return a.cdr;}");
+};
+
+/* --
+    (defun new (class &rest arguments)
+        (let ((temp (object.create class)))
+            (prog1 temp
+                (class.apply temp arguments))))
+-- */
+
+/* --
+    (defun new (class &rest arguments)
+        (let ((temp ((elt object create) class)))
+            (prog1 temp
+                ((elt class apply) arguments))))
+-- */
 
 /* -- 
     (defun map (func sequence)
@@ -4152,9 +4202,9 @@ basconnreverse.rest =
 /* --
     (defun nreversein (before sequence after)
         (if (null sequence) nil
-            (if (null after) sequence
-                (progn
-                    (setf (cdr sequence) before)
+            (progn 
+                (setf (cdr sequence) before)
+                (if (null after) sequence
                     (nreversein sequence after (cdr after))))))
 -- */
 
@@ -4193,46 +4243,13 @@ basconnreversein.rest =
                             basconcdr,
                             basconnreversein_after))))));
 
-// basconnreversein.args = makelist(
-//     basconnreversein_sequence,
-//     basconnreversein_before);
-
-// basconnreversein.rest = 
-//     makelist(
-//         makelist( // (if (null sequence) nil ...
-//             synif,
-//             makelist(
-//                 basnull,
-//                 basconnreversein_sequence),
-//             nil,
-//             makelist( // (let ((after (cdr sequence))) ... 
-//                 maclet,
-//                 makelist(
-//                     makelist(
-//                         basconnreversein_after,
-//                         makelist(
-//                             basconcdr,
-//                             basconnreversein_sequence))),
-//                 makelist( // (setf (cdr sequence) before)
-//                     synsetf,
-//                     makelist(
-//                         basconcdr,
-//                         basconnreversein_sequence),
-//                     basconnreversein_before),
-//                 makelist( // (if (null after) sequence ...
-//                     synif,
-//                     makelist(
-//                         basnull,
-//                         basconnreversein_after),
-//                     basconnreversein_sequence,
-//                     makelist( // (nreversein after sequence)
-//                         basconnreversein,
-//                         basconnreversein_after,
-//                         basconnreversein_sequence)))));
-
 // ** test code
 
-// var source;
+var source;
+
+// console.log(basconcar.expandarg() + "");
+// console.log(basconcdr.expandarg() + "");
+// console.log(basconcons.expandarg() + "");
 
 // source = makelist(
 //     basconnreverse,
