@@ -1675,12 +1675,8 @@ UserFunctionClass.prototype.onevaluate = function (){
     return formula.evaluatearg();
 };
 
-UserFunctionClass.prototype.onexpandarg = function (){
+UserFunctionClass.prototype.onexpandarg = function (){ // ** should write here 
     return new Expanded("function(){}");
-    // return new Expanded(
-    //     "function(" + this.args.toArray().map(getvaluename).join(",") + ")" + 
-    //         "{" + new ConsClass(synblock_func,
-    //                             ConsClass.toCons(this.rest)).expandarg() + "}");
 };
 
 // macro class
@@ -2553,8 +2549,8 @@ synquote.onevaluate = function (some){
 // define basic macro functions
 
 var macprog1 = new PrimitiveMacroClass();
-var macwhen = new PrimitiveMacroClass();
-var macunless = new PrimitiveMacroClass();
+// var macwhen = new PrimitiveMacroClass();
+// var macunless = new PrimitiveMacroClass();
 var maclambda = new PrimitiveMacroClass();
 var macdefun = new PrimitiveMacroClass();
 var macmacro = new PrimitiveMacroClass();
@@ -2569,8 +2565,8 @@ var macdefvar = new PrimitiveMacroClass();
 var macdeflvar = new PrimitiveMacroClass();
 
 inp.scope.intern(makestring("prog1")).setfunc(macprog1);
-inp.scope.intern(makestring("when")).setfunc(macwhen);
-inp.scope.intern(makestring("unless")).setfunc(macunless);
+// inp.scope.intern(makestring("when")).setfunc(macwhen);
+// inp.scope.intern(makestring("unless")).setfunc(macunless);
 inp.scope.intern(makestring("lambda")).setfunc(maclambda);
 inp.scope.intern(makestring("defun")).setfunc(macdefun);
 inp.scope.intern(makestring("macro")).setfunc(macmacro);
@@ -2585,8 +2581,8 @@ inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
 inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
 
 macprog1.label = "<#primtive macro prog1>";
-macwhen.label = "<#primtive macro when>";
-macunless.label = "<#primtive macro unless>";
+// macwhen.label = "<#primtive macro when>";
+// macunless.label = "<#primtive macro unless>";
 maclambda.label = "<#primtive macro lambda>";
 macdefun.label = "<#primtive macro defun>";
 macmacro.label = "<#primtive macro macro>";
@@ -2691,35 +2687,35 @@ macdeflvar.onevaluate = function (sym, value){
     //                          new ConsClass(value)));
 };
 
-macwhen.onevaluate = function (cond){
-    return makelist(
-        synif,
-        cond,
-        makecons(synprogn,
-                 ConsClass.toCons(slice(arguments, 1))),
-        nil);
-    // return new ConsClass(synif,
-    //                      new ConsClass(cond,
-    //                                    new ConsClass(
-    //                                        new ConsClass(synprogn, 
-    //                                                      ConsClass.toCons(slice(arguments, 1))),
-    //                                        new ConsClass(nil))));
-};
+// macwhen.onevaluate = function (cond){
+//     return makelist(
+//         synif,
+//         cond,
+//         makecons(synprogn,
+//                  ConsClass.toCons(slice(arguments, 1))),
+//         nil);
+//     // return new ConsClass(synif,
+//     //                      new ConsClass(cond,
+//     //                                    new ConsClass(
+//     //                                        new ConsClass(synprogn, 
+//     //                                                      ConsClass.toCons(slice(arguments, 1))),
+//     //                                        new ConsClass(nil))));
+// };
 
-macunless.onevaluate = function (cond){
-    return makelist(
-        synif,
-        cond,
-        nil,
-        makecons(synprogn,
-                 ConsClass.toCons(slice(arguments, 1))));
-    // return new ConsClass(synif,
-    //                      new ConsClass(cond,
-    //                                    new ConsClass(nil,
-    //                                                  new ConsClass(
-    //                                                      new ConsClass(synprogn,
-    //                                                                    ConsClass.toCons(slice(arguments, 1)))))));
-};
+// macunless.onevaluate = function (cond){
+//     return makelist(
+//         synif,
+//         cond,
+//         nil,
+//         makecons(synprogn,
+//                  ConsClass.toCons(slice(arguments, 1))));
+//     // return new ConsClass(synif,
+//     //                      new ConsClass(cond,
+//     //                                    new ConsClass(nil,
+//     //                                                  new ConsClass(
+//     //                                                      new ConsClass(synprogn,
+//     //                                                                    ConsClass.toCons(slice(arguments, 1)))))));
+// };
 
 maclambda.onevaluate = function (args){
     return new UserFunctionClass(args, ConsClass.toCons(slice(arguments, 1)));
@@ -3336,10 +3332,32 @@ var macor = new UserMacroClass();
 var macor_rest = inp.scope.intern(makestring("&rest"));
 var macor_args = inp.scope.intern(makestring("args"));
 
+var macwhen = new UserMacroClass();
+var macwhen_cond = inp.scope.intern(makestring("cond"));
+var macwhen_rest = inp.scope.intern(makestring("&rest"));
+var macwhen_args = inp.scope.intern(makestring("args"));
+
+var macunless = new UserMacroClass();
+var macunless_cond = inp.scope.intern(makestring("cond"));
+var macunless_rest = inp.scope.intern(makestring("&rest"));
+var macunless_args = inp.scope.intern(makestring("args"));
+
+var maccond = new UserMacroClass();
+var maccond_rest = inp.scope.intern(makestring("&rest"));
+var maccond_args = inp.scope.intern(makestring("args"));
+
+var maccase = new UserMacroClass();
+var maccase_rest = inp.scope.intern(makestring("&rest"));
+var maccase_args = inp.scope.intern(makestring("args"));
+
 basnull.label = "<#primitive basic null>";
 basnot.label = "<#primitive basic not>";
 macand.label = "<#primitive macro and>";
 macor.label = "<#primitive macro or>";
+macwhen.label = "<#primitive macro when>";
+macunless.label = "<#primitive macro unless>";
+maccond.label = "<#primitive macro cond>";
+maccase.label = "<#primitive macro case>";
 
 inp.scope.intern(makestring("null")).setfunc(basnull);
 inp.scope.intern(makestring("not")).setfunc(basnot);
@@ -3455,6 +3473,48 @@ macor.rest =
                             basconcdr,
                             macor_args)))
             )));
+
+/* -- 
+    (defmacro when (cond &rest args)
+        (list synif cond (list progn args) nil)))
+-- */
+
+macwhen.args = makelist(
+    macwhen_cond,
+    macwhen_rest,
+    macwhen_args);
+
+macwhen.rest = 
+    makelist(
+        makelist(
+            baslist,
+            synif,
+            macwhen_cond,
+            makecons(
+                synprogn,
+                macwhen_args),
+            nil));
+
+/* --
+    (defmacro unless (cond &rest args)
+        (list synif cond nil (list progn args)))
+-- */
+
+macunless.args = makelist(
+    macunless_cond,
+    macunless_rest,
+    macunless_args);
+
+macunless.rest = 
+    makelist(
+        makelist(
+            baslist,
+            synif,
+            macunless_cond,
+            nil,
+            makecons(
+                synprogn,
+                macunless_args)));
 
 // define basic cons methods
 // with user function class
