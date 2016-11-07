@@ -1570,80 +1570,6 @@ SpecialFunctionClass.prototype =
 
 SpecialFunctionClass.label =  "<#special function class>";
 
-// optimize function class
-//     <- function class
-
-function OptimizeFunctionClass (){}
-
-OptimizeFunctionClass.prototype = 
-    Object.create(FunctionClass.prototype);
-
-OptimizeFunctionClass.prototype.label = "<#optimize function class>";
-
-function isoptimizable (some){
-    return some instanceof Expanded == false ||
-        some instanceof SymbolFamilyClass == false || // ** should check again
-        some.isconstant() == false;
-}
-
-function isoptimizableall (sequence){
-    var index;
-    for (index = 0; index < sequence.length; index++)
-        if (isoptimizable(sequence[index]) == false)
-            return false;
-    return true;
-}
-
-// reduce optimize function class
-//     <- optimize function class
-
-function ReduceOptimizeFunctionClass (func, evaluatedefault, expanddefault){
-    this.func = func || null;
-    this.evaluatedefault = evaluatedefault || null;
-    this.expanddefault = expanddefault || null;
-}
-
-ReduceOptimizeFunctionClass.prototype = 
-    Object.create(OptimizeFunctionClass.prototype);
-
-ReduceOptimizeFunctionClass.prototype.evaluate = 
-    beforeevaluatearg(OptimizeFunctionClass.prototype.evaluate);
-
-ReduceOptimizeFunctionClass.prototype.expand = 
-    beforeevaluatearg(OptimizeFunctionClass.prototype.expand);
-
-ReduceOptimizeFunctionClass.prototype.onevaluate = function (){
-    if (arguments.length == 0) return this.evaluatedefault;
-    if (arguments.length == 1) return arguments[0];
-    var sum, index;
-    for (sum = arguments[0], index = 1; index < arguments.length; index++)
-        sum = this.func.evaluate(sum, arguments[index]);
-    return sum;
-};
-
-ReduceOptimizeFunctionClass.prototype.onexpand = function (){
-    if (arguments.length == 0) return this.expanddefault;
-    if (arguments.length == 1) return arguments[0];
-    var sequence, index;
-    for (sequence = [arguments[0]], index = 1; index < arguments.length; index++)
-        if (isoptimizable(sequence[sequence.length -1]) == false ||
-            isoptimizable(arguments[index]) == false)
-            sequence.push(arguments[index]);
-        else sequence[sequence.length -1] = 
-            sequence[sequence.length -1] = 
-            this.func.evaluate(
-                sequence[sequence.length -1],
-                arguments[index]);
-    var sum, indexc;
-    for (sum = "", indexc = 0; indexc < sequence.length; indexc++)
-        sum += (indexc ? "+" : "") +  sequence[indexc];
-    return new Expanded(sum);
-};
-
-ReduceOptimizeFunctionClass.prototype.expandarg = function (){
-    return new Expanded("function(){Array.prototype.slice.call(arguments).reduce(" + this.func.expandarg() + ");}");
-};
-
 // primitive function class
 //     <- function class
 
@@ -1661,12 +1587,6 @@ PrimitiveFunctionClass.prototype.expand =
     beforeexpandarg(
         beforegetreference(
             FunctionClass.prototype.expand));
-
-// PrimitiveFunctionClass.prototype.evaluate = 
-//     beforeevaluatearg(FunctionClass.prototype.evaluate);
-
-// PrimitiveFunctionClass.prototype.expand = 
-//     beforeexpandarg(FunctionClass.prototype.expand);
 
 PrimitiveFunctionClass.prototype.label = "<#primitive function class>";
 
@@ -1756,10 +1676,11 @@ UserFunctionClass.prototype.onevaluate = function (){
 };
 
 UserFunctionClass.prototype.onexpandarg = function (){
-    return new Expanded(
-        "function(" + this.args.toArray().map(getvaluename).join(",") + ")" + 
-            "{" + new ConsClass(synblock_func,
-                                ConsClass.toCons(this.rest)).expandarg() + "}");
+    return new Expanded("function(){}");
+    // return new Expanded(
+    //     "function(" + this.args.toArray().map(getvaluename).join(",") + ")" + 
+    //         "{" + new ConsClass(synblock_func,
+    //                             ConsClass.toCons(this.rest)).expandarg() + "}");
 };
 
 // macro class
@@ -2523,23 +2444,23 @@ synblock.onexpand = function (){
     return temp;
 };
 
-synblock_func.onevaluate = function (){
-    inp.nest();
-    var temp = synprogn_func.evaluate.apply(synprogn_func, arguments);
-    inp.exit();
-    return temp;
-};
+// synblock_func.onevaluate = function (){
+//     inp.nest();
+//     var temp = synprogn_func.evaluate.apply(synprogn_func, arguments);
+//     inp.exit();
+//     return temp;
+// };
 
-synblock_func.onexpand = function (){ // ** should think again
-    inp.nest();
-    var temp = synprogn_func.expand.apply(synprogn_func, arguments);
-    var variables = [].concat.apply([], inp.scope.obarrays.map(list));
-    inp.exit();
-    return new Expanded(
-        (variables.length == 0 ? "" :
-         ("var " + variables.map(getvaluename).join(",") + ";")) +
-            temp);
-};
+// synblock_func.onexpand = function (){ // ** should think again
+//     inp.nest();
+//     var temp = synprogn_func.expand.apply(synprogn_func, arguments);
+//     var variables = [].concat.apply([], inp.scope.obarrays.map(list));
+//     inp.exit();
+//     return new Expanded(
+//         (variables.length == 0 ? "" :
+//          ("var " + variables.map(getvaluename).join(",") + ";")) +
+//             temp);
+// };
 
 synprogn.onevaluate = function (){
     var res, index;
@@ -2555,26 +2476,26 @@ synprogn.onexpand = function (){
     return new Expanded("(" + sum + ")");
 };
 
-synprogn_func.onevaluate = 
-    synprogn.onevaluate;
+// synprogn_func.onevaluate = 
+//     synprogn.onevaluate;
 
-synprogn_func.onexpand = function (){
-    var sum, index;
-    for (sum = "", index = 0; index < (arguments.length -1); index++)
-        sum += arguments[index].expandarg().unpack() + ";";
-    sum += "return " + arguments[index].expandarg().unpack() + ";";
-    return new Expanded(sum);
-};
+// synprogn_func.onexpand = function (){
+//     var sum, index;
+//     for (sum = "", index = 0; index < (arguments.length -1); index++)
+//         sum += arguments[index].expandarg().unpack() + ";";
+//     sum += "return " + arguments[index].expandarg().unpack() + ";";
+//     return new Expanded(sum);
+// };
 
-synprogn_source.onevaluate = 
-    synprogn.onevaluate;
+// synprogn_source.onevaluate = 
+//     synprogn.onevaluate;
 
-synprogn_source.onexpand = function (){
-    var sum, index;
-    for (sum = "", index = 0; index < arguments.length; index++)
-        sum += arguments[index].expandarg().unpack() + ";";
-    return new Expanded(sum);
-};
+// synprogn_source.onexpand = function (){
+//     var sum, index;
+//     for (sum = "", index = 0; index < arguments.length; index++)
+//         sum += arguments[index].expandarg().unpack() + ";";
+//     return new Expanded(sum);
+// };
 
 synand.onevaluate = function (){
     var res, index;
@@ -2609,15 +2530,6 @@ synnot.onexpand = function (some){
 };
 
 synsetf.onevaluate = function (formula, value){
-    // return formula.evaluatearg().set(value.evaluatearg());
-    // var valued = value.evaluatearg();
-    // var formulaed = formula.evaluatearg();
-    // return formulaed.set(valued);
-    // var valued = value.evaluatearg();
-    // var formulaed = formula.evaluatearg();
-    // if (formulaed instanceof ReferenceClass == false)
-    //     throw new Error("(" + formulaed + " = "  + valued + ") formula is not reference instance.");
-    // return formulaed.set(valued);
     var valued = getreference(value.evaluatearg());
     var formulaed = formula.evaluatearg();
     if (formulaed instanceof ReferenceClass == false)
@@ -2635,7 +2547,6 @@ synsetf.onexpand = function (formula, value){
 };
 
 synquote.onevaluate = function (some){
-    // return new QuoteClass(some);
     return some;
 };
 
@@ -2811,8 +2722,6 @@ macunless.onevaluate = function (cond){
 };
 
 maclambda.onevaluate = function (args){
-    // return new UserFunctionClass(null, args, slice(arguments, 1));
-    // return new UserFunctionClass(null, args, ConsClass.toCons(slice(arguments, 1)));
     return new UserFunctionClass(args, ConsClass.toCons(slice(arguments, 1)));
 };
 
@@ -2827,8 +2736,6 @@ macdefun.onevaluate = function (name){
 };
 
 macmacro.onevaluate = function (args){
-    // return new UserMacroClass(null, args, slice(arguments, 1));
-    // return new UserMacroClass(null, args, ConsClass.toCons(slice(arguments, 1)));
     return new UserMacroClass(args, ConsClass.toCons(slice(arguments, 1)));
 };
 
@@ -2859,24 +2766,7 @@ maclet.onevaluate = function (bounds){
                              ConsClass.toCons(slice(arguments, 1))));
 };
 
-macflet.onevaluate = function (bounds /* binds */){ // ** must update here
-    // var ncons, bindsi, bind;
-    // for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();){
-    //     bind = bindsi.next();
-    //     ncons = new ConsClass(
-    //         new ConsClass(synsetf,
-    //                       new ConsClass(
-    //                           new ConsClass(bassymbolfunction,
-    //                                         new ConsClass(
-    //                                             new QuoteClass(bind.car))),
-    //                           new ConsClass(
-    //                               new ConsClass(maclambda, bind.cdr)))), ncons);}
-    // ncons = ncons.reverse();
-    // return new ConsClass(synblock,
-    //                      new ConsClass(ncons,
-    //                                    new ConsClass(
-    //                                        new ConsClass(synprogn, 
-    //                                                      ConsClass.toCons(slice(arguments, 1))))));
+macflet.onevaluate = function (bounds){
     var bound, formula;
     for (bound = makecons(synprogn); bounds != nil; bounds = bounds.cdr)
         bound = makecons(
@@ -2891,24 +2781,7 @@ macflet.onevaluate = function (bounds /* binds */){ // ** must update here
                              ConsClass.toCons(slice(arguments, 1))));
 };
 
-macmlet.onevaluate = function (bounds /* binds */){ // ** must update here.
-    // var ncons, bindsi, bind;
-    // for (ncons = new ConsClass(synprogn), bindsi = binds.iter(); bindsi.isalive();){
-    //     bind = bindsi.next();
-    //     ncons = new ConsClass(
-    //         new ConsClass(synsetf,
-    //                       new ConsClass(
-    //                           new ConsClass(bassymbolfunction,
-    //                                         new ConsClass(
-    //                                             new QuoteClass(bind.car))),
-    //                           new ConsClass(
-    //                               new ConsClass(macmacro, bind.cdr)))), ncons);}
-    // ncons = ncons.reverse();
-    // return new ConsClass(synblock,
-    //                      new ConsClass(ncons,
-    //                                    new ConsClass(
-    //                                        new ConsClass(synprogn, 
-    //                                                      ConsClass.toCons(slice(arguments, 1))))));
+macmlet.onevaluate = function (bounds){
     var bound, formula;
     for (bound = makecons(synprogn); bounds != nil; bounds = bounds.cdr)
         bound = makecons(
@@ -2947,7 +2820,6 @@ var basnreverse = new PrimitiveFunctionClass();
 var basslice = new PrimitiveFunctionClass();
 var basnth = new PrimitiveFunctionClass();
 var baslength = new PrimitiveFunctionClass();
-// var basnull = new PrimitiveFunctionClass();
 var basreadchar = new PrimitiveFunctionClass();
 var basreadline = new PrimitiveFunctionClass();
 var bassymbolname = new PrimitiveFunctionClass();
@@ -2982,7 +2854,6 @@ inp.scope.intern(makestring("nreverse")).setfunc(basnreverse);
 inp.scope.intern(makestring("slice")).setfunc(basslice);
 inp.scope.intern(makestring("nth")).setfunc(basnth);
 inp.scope.intern(makestring("length")).setfunc(baslength);
-// inp.scope.intern(makestring("null")).setfunc(basnull);
 inp.scope.intern(makestring("read-char")).setfunc(basreadchar);
 inp.scope.intern(makestring("read")).setfunc(rdread);
 inp.scope.intern(makestring("symbol-name")).setfunc(bassymbolname);
@@ -3017,7 +2888,6 @@ basnreverse.label = "<#primitive nreverse>";
 basslice.label = "<#primitive slice>";
 basnth.label = "<#primitive nth>";
 baslength.label = "<#primitive length>";
-// basnull.label = "<#primitive null>";
 basreadchar.label = "<#primitive readchar>";
 basreadline.label = "<#primitive readline>";
 bassymbolname.label = "<#primitive symbolname>";
@@ -3257,14 +3127,6 @@ baslength.onexpand = function (sequence){
     return new Expanded(sequence + ".length");
 };
 
-// basnull.onevaluate = function (sequence){
-//     return sequence == nil ? t : nil;
-// };
-
-// basnull.onexpand = function (sequence){
-//     return new Expanded("(" + sequence + "==null?true:null)");
-// };
-
 basreadchar.onevaluate = function (stream){
     return stream.get();
 };
@@ -3305,76 +3167,6 @@ basapply.onevaluate = function (func, sequence){
 basapply.onexpand = function (func, sequence){
     return new Expanded(func + "(" + sequence.toArray().join(",") + ")");
 };
-
-// // define optimize function 
-
-// var optconcat = new OptimizeFunctionClass();
-//  var optadd = new OptimizeFunctionClass();
-// var optsub = new OptimizeFunctionClass();
-// var optmul = new OptimizeFunctionClass();
-// var optdiv = new OptimizeFunctionClass();
-// var optmod = new OptimizeFunctionClass();
-
-// inp.scope.intern(makestring("concat")).setfunc(optconcat);
-// inp.scope.intern(makestring("+")).setfunc(optadd);
-// inp.scope.intern(makestring("-")).setfunc(optsub);
-// inp.scope.intern(makestring("*")).setfunc(optmul);
-// inp.scope.intern(makestring("/")).setfunc(optdiv);
-// inp.scope.intern(makestring("%")).setfunc(optmod);
-
-// optconcat.onevaluate = 
-//     beforeevaluatearg(basconcat.onevaluate);
-
-// optconcat.onexpand = function (){
-//     if (isoptimizableall(arguments))
-//         return basconcat.expand.apply(basconcat, arguments);
-//     return basconcat.evaluate.apply(basconcat, arguments).constant();
-// };
-
-// optadd.onevaluate = 
-//     beforeevaluatearg(basadd.onevaluate);
-
-// optadd.onexpand = function (){
-//     if (isoptimizableall(arguments))
-//         return basconcat.expand.apply(basadd, arguments);
-//     return basconcat.evaluate.apply(basadd, arguments).constant();
-// };
-
-// optsub.onevaluate = 
-//     beforeevaluatearg(bassub.onevaluate);
-
-// optsub.onexpand = function (){
-//     if (isoptimizableall(arguments))
-//         return basconcat.expand.apply(bassub, arguments);
-//     return basconcat.evaluate.apply(bassub, arguments).constant();
-// };
-
-// optmul.onevaluate = 
-//     beforeevaluatearg(basmul.onevaluate);
-
-// optmul.onexpand = function (){
-//     if (isoptimizableall(arguments))
-//         return basconcat.expand.apply(basmul, arguments);
-//     return basconcat.evaluate.apply(basmul, arguments).constant();
-// };
-
-// optdiv.onevaluate = 
-//     beforeevaluatearg(basdiv.onevaluate);
-
-// optdiv.onexpand = function (){
-//     if (isoptimizableall(arguments))
-//         return basconcat.expand.apply(basdiv, arguments);
-//     return basconcat.evaluate.apply(basdiv, arguments).constant();
-// };
-
-// optmod.onevaluate = 
-//     beforeevaluatearg(basmod.onevaluate);
-
-// optmod.onexpand = function (){
-//     if (isoptimizableall(arguments))
-//         return basconcat.expand.apply(basmod, arguments);
-//     return basconcat.evaluate.apply(basmod, arguments).constant();
-// };
 
 // define debug function
 
@@ -4313,25 +4105,25 @@ var source;
 //     console.log(source.evaluatearg() + "");
 // })();
 
-// source = makelist(
-//     basconappend,
-//     makelist(
-//         baslist,
-//         makeint(1)),
-//     makelist(
-//         baslist,
-//         makeint(2)),
-//     makelist(
-//         baslist,
-//         makeint(3)),
-//     makelist(
-//         baslist,
-//         makeint(4)));
+source = makelist(
+    basconappend,
+    makelist(
+        baslist,
+        makeint(1)),
+    makelist(
+        baslist,
+        makeint(2)),
+    makelist(
+        baslist,
+        makeint(3)),
+    makelist(
+        baslist,
+        makeint(4)));
 
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + ""); // error 
-// })();
+strace.unwindstrace(function (){
+    // console.log(source + "");
+    console.log(source.evaluatearg() + ""); // ** error
+})();
 
 // source = makelist(
 //     basconnth,
