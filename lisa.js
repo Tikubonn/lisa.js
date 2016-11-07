@@ -3333,9 +3333,12 @@ var macor_rest = inp.scope.intern(makestring("&rest"));
 var macor_args = inp.scope.intern(makestring("args"));
 
 var macwhen = new UserMacroClass();
-var macwhen_cond = inp.scope.intern(makestring("cond"));
-var macwhen_rest = inp.scope.intern(makestring("&rest"));
-var macwhen_args = inp.scope.intern(makestring("args"));
+var macwhen_cond = makeintern("cond");
+var macwhen_rest = makeintern("&rest");
+var macwhen_args = makeintern("args");
+// var macwhen_cond = inp.scope.intern(makestring("cond"));
+// var macwhen_rest = inp.scope.intern(makestring("&rest"));
+// var macwhen_args = inp.scope.intern(makestring("args"));
 
 var macunless = new UserMacroClass();
 var macunless_cond = inp.scope.intern(makestring("cond"));
@@ -3490,7 +3493,8 @@ macwhen.rest =
             baslist,
             synif,
             macwhen_cond,
-            makecons(
+            makelist(
+                basconcons,
                 synprogn,
                 macwhen_args),
             nil));
@@ -3510,11 +3514,21 @@ macunless.rest =
         makelist(
             baslist,
             synif,
-            macunless_cond,
+            macwhen_cond,
             nil,
-            makecons(
+            makelist(
+                basconcons,
                 synprogn,
-                macunless_args)));
+                macwhen_args)));
+
+/* --
+    (defmacro cond (&rest conds)
+        (if (null conds) nil
+            (list if 
+                (caar conds)
+                (cdar conds)
+                (cons cond (cdr conds)))))
+-- */
 
 // define basic cons methods
 // with user function class
@@ -3577,7 +3591,19 @@ var basconnreversein_after = inp.scope.intern(makestring("after"));
 
 var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
-var basconcdr = new PrimitiveFunctionClass();
+var basconcdr = new UserFunctionClass();
+
+var basconcaar = new UserFunctionClass();
+var basconcaar_cons = makeintern("cons");
+
+var basconcdar = new UserFunctionClass();
+var basconcdar_cons = makeintern("cons");
+
+var basconcadr = new UserFunctionClass();
+var basconcadr_cons = makeintern("cons");
+
+var basconcddr = new UserFunctionClass();
+var basconcddr_cons = makeintern("cons");
 
 basconmap.label = "<#primitive cons map>";
 basconfilter.label = "<#primitive cons filter>";
@@ -3595,6 +3621,10 @@ basconnreversein.label = "<#primitive cons nreversein>";
 basconcons.label = "<#primitive cons cons>";
 basconcar.label = "<#primitive cons car>";
 basconcdr.label = "<#primitive cons cdr>";
+basconcaar.label = "<#primitive cons caar>";
+basconcadr.label = "<#primitive cons cadr>";
+basconcdar.label = "<#primitive cons cdar>";
+basconcddr.label = "<#primitive cons cddr>";
 
 basconcons.onevaluate = function (car, cdr){
     // return new ConsClass(car, cdr);
@@ -3610,31 +3640,69 @@ basconcdr.onevaluate = function (cons){
     return new ConsCdrReferenceClass(cons);
 };
 
-basconcons.onexpandarg = function (){
-    return new Expanded("function(a,b){return new Cons(a,b);}");
-};
-
-basconcar.onexpandarg = function (){
-    return new Expanded("function(a){if (a instanceof Cons == false) throw new Error(a + \" is not cons instance.\"); return a.car;}");
-};
-
-basconcdr.onexpandarg = function (){
-    return new Expanded("function(a){if (a instanceof Cons == false) throw new Error(a + \" is not cons instance.\"); return a.cdr;}");
-};
-
 /* --
-    (defun new (class &rest arguments)
-        (let ((temp (object.create class)))
-            (prog1 temp
-                (class.apply temp arguments))))
+    (defun caar (cons)
+        (car (car cons)))
 -- */
 
+basconcaar.args = 
+    makelist(basconcaar_cons);
+
+basconcaar.rest = 
+    makelist(
+        makelist(
+            basconcar,
+            makelist(
+                basconcar,
+                basconcaar_cons)));
+
 /* --
-    (defun new (class &rest arguments)
-        (let ((temp ((elt object create) class)))
-            (prog1 temp
-                ((elt class apply) arguments))))
+    (defun cadr (cons)
+        (car (cdr cons)))
 -- */
+
+basconcadr.args = 
+    makelist(basconcadr_cons);
+
+basconcadr.rest = 
+    makelist(
+        makelist(
+            basconcdr,
+            makelist(
+                basconcar,
+                basconcadr_cons)));
+
+/* --
+    (defun cdar (cons)
+        (cdr (car cons)))
+-- */
+
+basconcdar.args = 
+    makelist(basconcdar_cons);
+
+basconcdar.rest = 
+    makelist(
+        makelist(
+            basconcar,
+            makelist(
+                basconcdr,
+                basconcdar_cons)));
+
+/* --
+    (defun cddr (cons)
+        (cdr (cdr cons)))
+-- */
+
+basconcddr.args = 
+    makelist(basconcddr_cons);
+
+basconcddr.rest = 
+    makelist(
+        makelist(
+            basconcdr,
+            makelist(
+                basconcdr,
+                basconcddr_cons)));
 
 /* -- 
     (defun map (func sequence)
@@ -4099,10 +4167,26 @@ basconnreversein.rest =
 
 var source;
 
-// console.log(basconcar.expandarg() + "");
-// console.log(basconcdr.expandarg() + "");
-// console.log(basconcons.expandarg() + "");
+// source = makelist(
+//     synprogn,
+//     makelist(debprint, makelist(macunless, nil, makestring("then"))),
+//     makelist(debprint, makelist(macunless, t, makestring("then"))));
 
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+// })();
+
+// source = makelist(
+//     synprogn,
+//     makelist(debprint, makelist(macwhen, nil, makestring("then"))),
+//     makelist(debprint, makelist(macwhen, t, makestring("then"))));
+
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + "");
+// })();
+    
 // source = makelist(
 //     basconnreverse,
 //     makelist(
@@ -4165,25 +4249,25 @@ var source;
 //     console.log(source.evaluatearg() + "");
 // })();
 
-source = makelist(
-    basconappend,
-    makelist(
-        baslist,
-        makeint(1)),
-    makelist(
-        baslist,
-        makeint(2)),
-    makelist(
-        baslist,
-        makeint(3)),
-    makelist(
-        baslist,
-        makeint(4)));
+// source = makelist(
+//     basconappend,
+//     makelist(
+//         baslist,
+//         makeint(1)),
+//     makelist(
+//         baslist,
+//         makeint(2)),
+//     makelist(
+//         baslist,
+//         makeint(3)),
+//     makelist(
+//         baslist,
+//         makeint(4)));
 
-strace.unwindstrace(function (){
-    // console.log(source + "");
-    console.log(source.evaluatearg() + ""); // ** error
-})();
+// strace.unwindstrace(function (){
+//     // console.log(source + "");
+//     console.log(source.evaluatearg() + ""); // ** error
+// })();
 
 // source = makelist(
 //     basconnth,
