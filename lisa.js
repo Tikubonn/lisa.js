@@ -2280,7 +2280,7 @@ synprogn.onevaluate = function (){
 };
 
 synsetf.onevaluate = function (formula, value){
-    strace.push("setf <" + formula + "> is <" + value + ">");
+    strace.push("setf  <- " + formula + " = " + value + "");
     var valued = getreference(value.evaluatearg());
     var formulaed = formula.evaluatearg();
     return formulaed.set(valued);
@@ -3661,25 +3661,25 @@ var source;
 //     console.log(source.evaluatearg() + "");
 // })();
 
-source = makelist(
-    basconappend,
-    makelist(
-        basconlist,
-        makeint(1)),
-    makelist(
-        basconlist,
-        makeint(2)),
-    makelist(
-        basconlist,
-        makeint(3)),
-    makelist(
-        basconlist,
-        makeint(4)));
+// source = makelist(
+//     basconappend,
+//     makelist(
+//         basconlist,
+//         makeint(1)),
+//     makelist(
+//         basconlist,
+//         makeint(2)),
+//     makelist(
+//         basconlist,
+//         makeint(3)),
+//     makelist(
+//         basconlist,
+//         makeint(4)));
 
-strace.unwindstrace(function (){
-    console.log("" + source + "");
-    console.log("" + source.evaluatearg() + ""); // ** error
-})();
+// strace.unwindstrace(function (){
+//     console.log("" + source + "");
+//     console.log("" + source.evaluatearg() + ""); // ** error
+// })();
 
 // source = makelist(
 //     basconnth,
