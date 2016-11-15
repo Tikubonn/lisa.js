@@ -648,6 +648,10 @@ ConsReferenceClass.prototype.getcdr = function (){
     return this.get().getcdr();
 };
 
+function makeconsreference (cons){
+    return new ConsReferenceClass(cons);
+};
+
 // cons car reference class
 //     <- cons reference class
 
@@ -1675,10 +1679,6 @@ UserFunctionClass.prototype.onevaluate = function (){
     return formula.evaluatearg();
 };
 
-UserFunctionClass.prototype.onexpandarg = function (){ // ** should write here 
-    return new Expanded("function(){}");
-};
-
 // macro class
 //     <- atom class
 
@@ -2380,10 +2380,7 @@ inp.readerscope.dig("@").dig("@").setcurrent(rdreadnative);
 
 var synif = new SpecialFunctionClass();
 var synblock = new SpecialFunctionClass();
-var synblock_func = new SpecialFunctionClass();
 var synprogn = new SpecialFunctionClass();
-var synprogn_func = new SpecialFunctionClass();
-var synprogn_source = new SpecialFunctionClass();
 var synand = new SpecialFunctionClass();
 var synor = new SpecialFunctionClass();
 var synnot = new SpecialFunctionClass();
@@ -2403,10 +2400,7 @@ inp.scope.intern(makestring("quote")).setfunc(synquote);
 
 synif.label = "<#syntax if>";
 synblock.label = "<#syntax block>";
-synblock_func.label = "<#syntax block func>";
 synprogn.label = "<#syntax progn>";
-synprogn_func.label = "<#syntax progn func>";
-synprogn_source.label = "<#syntax progn source>";
 synand.label = "<#syntax and>";
 synor.label = "<#syntax or>";
 synnot.label = "<#syntax not>";
@@ -2440,24 +2434,6 @@ synblock.onexpand = function (){
     return temp;
 };
 
-// synblock_func.onevaluate = function (){
-//     inp.nest();
-//     var temp = synprogn_func.evaluate.apply(synprogn_func, arguments);
-//     inp.exit();
-//     return temp;
-// };
-
-// synblock_func.onexpand = function (){ // ** should think again
-//     inp.nest();
-//     var temp = synprogn_func.expand.apply(synprogn_func, arguments);
-//     var variables = [].concat.apply([], inp.scope.obarrays.map(list));
-//     inp.exit();
-//     return new Expanded(
-//         (variables.length == 0 ? "" :
-//          ("var " + variables.map(getvaluename).join(",") + ";")) +
-//             temp);
-// };
-
 synprogn.onevaluate = function (){
     var res, index;
     for (res = nil, index = 0; index < arguments.length; index++)
@@ -2471,27 +2447,6 @@ synprogn.onexpand = function (){
         sum += (index ? "," : "") + arguments[index].expandarg().unpack();
     return new Expanded("(" + sum + ")");
 };
-
-// synprogn_func.onevaluate = 
-//     synprogn.onevaluate;
-
-// synprogn_func.onexpand = function (){
-//     var sum, index;
-//     for (sum = "", index = 0; index < (arguments.length -1); index++)
-//         sum += arguments[index].expandarg().unpack() + ";";
-//     sum += "return " + arguments[index].expandarg().unpack() + ";";
-//     return new Expanded(sum);
-// };
-
-// synprogn_source.onevaluate = 
-//     synprogn.onevaluate;
-
-// synprogn_source.onexpand = function (){
-//     var sum, index;
-//     for (sum = "", index = 0; index < arguments.length; index++)
-//         sum += arguments[index].expandarg().unpack() + ";";
-//     return new Expanded(sum);
-// };
 
 synand.onevaluate = function (){
     var res, index;
@@ -2549,8 +2504,6 @@ synquote.onevaluate = function (some){
 // define basic macro functions
 
 var macprog1 = new PrimitiveMacroClass();
-// var macwhen = new PrimitiveMacroClass();
-// var macunless = new PrimitiveMacroClass();
 var maclambda = new PrimitiveMacroClass();
 var macdefun = new PrimitiveMacroClass();
 var macmacro = new PrimitiveMacroClass();
@@ -2565,8 +2518,6 @@ var macdefvar = new PrimitiveMacroClass();
 var macdeflvar = new PrimitiveMacroClass();
 
 inp.scope.intern(makestring("prog1")).setfunc(macprog1);
-// inp.scope.intern(makestring("when")).setfunc(macwhen);
-// inp.scope.intern(makestring("unless")).setfunc(macunless);
 inp.scope.intern(makestring("lambda")).setfunc(maclambda);
 inp.scope.intern(makestring("defun")).setfunc(macdefun);
 inp.scope.intern(makestring("macro")).setfunc(macmacro);
@@ -2581,8 +2532,6 @@ inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
 inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
 
 macprog1.label = "<#primtive macro prog1>";
-// macwhen.label = "<#primtive macro when>";
-// macunless.label = "<#primtive macro unless>";
 maclambda.label = "<#primtive macro lambda>";
 macdefun.label = "<#primtive macro defun>";
 macmacro.label = "<#primtive macro macro>";
@@ -3215,7 +3164,8 @@ basconcddr.label = "<#primitive cons cddr>";
 basconlist.label = "<#primitive cons list>";
 
 basconcons.onevaluate = function (car, cdr){
-    return new ConsClass(car, cdr);
+    return new ConsReferenceClass(
+        new ConsClass(car, cdr));
 };
 
 basconcar.onevaluate = function (cons){
@@ -3769,19 +3719,19 @@ var source;
 
 source = makelist(
     synprogn,
-    makelist(macwhen, t, t));
+    makelist(macwhen, t, nil));
 
 strace.unwindstrace(function (){
-    // console.log(source + "");
+    console.log(source + "");
     console.log(source.evaluatearg() + "");
 })();
 
 source = makelist(
     synprogn,
-    makelist(macunless, nil, t));
+    makelist(macunless, t, nil));
 
 strace.unwindstrace(function (){
-    // console.log(source + "");
+    console.log(source + "");
     console.log(source.evaluatearg() + "");
 })();
     
