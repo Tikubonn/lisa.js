@@ -474,31 +474,28 @@ ReferenceClass.prototype.toString = function (){
 };
 
 ReferenceClass.prototype.get = function (){
-    throw new Error("get was not defined.");
+    throw new Error("get has not defined yet.");
 };
 
 ReferenceClass.prototype.set = function (){
-    throw new Error("set was not defined.");
+    throw new Error("set has not defined yet.");
 };
 
 ReferenceClass.prototype.onevaluatearg = function (){
     return this.get().evaluatearg();
 };
 
+ReferenceClass.prototype.onexpandarg = function (){
+    throw new Error("onexpandarg has not defined yet.");
+};
+
 ReferenceClass.prototype.onevaluate = null;
 ReferenceClass.prototype.onexpand = null;
-ReferenceClass.prototype.onexpandarg = null;
 
 function getreference (reference){
     return reference instanceof ReferenceClass ?
         reference.get() : 
         reference;
-};
-
-function setreference (reference, value){
-    if (reference instanceof ReferenceClass == false)
-        throw new Error("reference is not reference instance.");
-    return reference.set(value);
 };
 
 function beforegetreference (func){
@@ -621,19 +618,6 @@ ConsCdrReferenceClass.prototype.set = function (value){
 function makeconscdrreference (cons){
     return new ConsCdrReferenceClass(cons);
 };
-
-// nil reference class
-//     <- reference class
-
-function NilReferenceClass (){}
-
-NilReferenceClass.prototype = 
-    Object.create(ReferenceClass.prototype);
-
-NilReferenceClass.prototype.get = function (){return nil;};
-NilReferenceClass.prototype.set = function (){throw new Error("nil reference could not assign.");};
-
-var nilf = new NilReferenceClass();
 
 // symbol reference class
 //      <- reference class
