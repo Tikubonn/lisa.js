@@ -2383,6 +2383,8 @@ var synblock = new SpecialFunctionClass();
 var synprogn = new SpecialFunctionClass();
 var synsetf = new SpecialFunctionClass();
 var synquote = new SpecialFunctionClass();
+var synlambda = new SpecialFunctionClass();
+var synmacro = new SpecialFunctionClass();
 
 inp.scope.intern(makestring("if")).setfunc(synif);
 inp.scope.intern(makestring("block")).setfunc(synblock);
@@ -2395,6 +2397,8 @@ synblock.label = "<#syntax block>";
 synprogn.label = "<#syntax progn>";
 synsetf.label = "<#syntax setf>";
 synquote.label = "<#syntax quote>";
+synlambda.label = "<#syntax lambda>";
+synmacro.label = "<#syntax macro>";
 
 synif.onevaluate = function (cond, truecase, falsecase){
     if (cond.evaluatearg() != nil)
@@ -2455,15 +2459,21 @@ synsetf.onexpand = function (formula, value){
 };
 
 synquote.onevaluate = function (some){
-    return some;
+    return some.clone();
+};
+
+synlambda.onevaluate = function (args){
+    return new UserFunctionClass(args, ConsClass.toCons(slice(arguments, 1)));
+};
+
+synmacro.onevaluate = function (args){
+    return new UserMacroClass(args, ConsClass.toCons(slice(arguments, 1)));
 };
 
 // define basic macro functions
 
 var macprog1 = new PrimitiveMacroClass();
-var maclambda = new PrimitiveMacroClass();
 var macdefun = new PrimitiveMacroClass();
-var macmacro = new PrimitiveMacroClass();
 var macdefmacro = new PrimitiveMacroClass();
 var macsetq = new PrimitiveMacroClass();
 var macincf = new PrimitiveMacroClass();
@@ -2475,9 +2485,7 @@ var macdefvar = new PrimitiveMacroClass();
 var macdeflvar = new PrimitiveMacroClass();
 
 inp.scope.intern(makestring("prog1")).setfunc(macprog1);
-inp.scope.intern(makestring("lambda")).setfunc(maclambda);
 inp.scope.intern(makestring("defun")).setfunc(macdefun);
-inp.scope.intern(makestring("macro")).setfunc(macmacro);
 inp.scope.intern(makestring("defmacro")).setfunc(macdefmacro);
 inp.scope.intern(makestring("setq")).setfunc(macsetq);
 inp.scope.intern(makestring("incf")).setfunc(macincf);
@@ -2489,9 +2497,7 @@ inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
 inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
 
 macprog1.label = "<#primtive macro prog1>";
-maclambda.label = "<#primtive macro lambda>";
 macdefun.label = "<#primtive macro defun>";
-macmacro.label = "<#primtive macro macro>";
 macdefmacro.label = "<#primtive macro defmacro>";
 macsetq.label = "<#primtive macro setq>";
 macincf.label = "<#primtive macro incf>";
@@ -2563,22 +2569,14 @@ macdeflvar.onevaluate = function (sym, value){
         value);
 };
 
-maclambda.onevaluate = function (args){
-    return new UserFunctionClass(args, ConsClass.toCons(slice(arguments, 1)));
-};
-
 macdefun.onevaluate = function (name){
     return new ConsClass(synsetf,
                          new ConsClass(
                              new QuoteClass(
                                  new SymbolFunctionReferenceClass(name)),
                              new ConsClass(
-                                 new ConsClass(maclambda,
+                                 new ConsClass(synlambda,
                                                ConsClass.toCons(slice(arguments, 1))))));
-};
-
-macmacro.onevaluate = function (args){
-    return new UserMacroClass(args, ConsClass.toCons(slice(arguments, 1)));
 };
 
 macdefmacro.onevaluate = function (name){
@@ -2587,7 +2585,7 @@ macdefmacro.onevaluate = function (name){
                          new QuoteClass(
                              new SymbolFunctionReferenceClass(name)),
                          new ConsClass(
-                             new ConsClass(macmacro,
+                             new ConsClass(synmacro,
                                            ConsClass.toCons(slice(arguments, 1))))));
 };
 
@@ -2617,7 +2615,7 @@ macflet.onevaluate = function (bounds){
                 makelist(
                     bassymbolfunction, 
                     makelist(synquote, bounds.car.car)),
-                makecons(maclambda, bounds.car.cdr)), bound);
+                makecons(synlambda, bounds.car.cdr)), bound);
     return makecons(synblock,
                     makecons(bound.reverse(),
                              ConsClass.toCons(slice(arguments, 1))));
@@ -2632,7 +2630,7 @@ macmlet.onevaluate = function (bounds){
                 makelist(
                     bassymbolfunction, 
                     makelist(synquote, bounds.car.car)),
-                makecons(macmacro, bounds.car.cdr)), bound);
+                makecons(synmacro, bounds.car.cdr)), bound);
     return makecons(synblock,
                     makecons(bound.reverse(),
                              ConsClass.toCons(slice(arguments, 1))));
@@ -2659,10 +2657,14 @@ basglobal.onevaluate = function (sym){
 var bassymbolfunction = new PrimitiveFunctionClass();
 var bassymbolvalue = new PrimitiveFunctionClass();
 var bassymbolname = new PrimitiveFunctionClass();
+var bassymbolintern = new PrimitiveFunctionClass();
+var bassymbolmake = new PrimitiveFunctionClass();
 
 bassymbolfunction.label = "<#primitive symbol-function>";
 bassymbolvalue.label = "<#primitive symbol-value>";
 bassymbolname.label = "<#primitive symbol-name>";
+bassymbolintern.label = "<#primitive symbol-intern>";
+bassymbolmake.label = "<#primtive symbol-make>";
 
 bassymbolfunction.onevaluate = function (sym){
     return new SymbolFunctionReferenceClass(sym);
@@ -2674,6 +2676,14 @@ bassymbolvalue.onevaluate = function (sym){
 
 bassymbolname.onevaluate = function (sym){
     return sym.name;
+};
+
+bassymbolintern.onevaluate = function (name){
+    return new InternSymbolClass(name);
+};
+
+bassymbolmake.onevaluate = function (name){
+    return new VariableSymbolClass(name);
 };
 
 // define temp method
@@ -2806,6 +2816,128 @@ basfnfuncall.onevaluate = function (func){
 basfnapply.onevaluate = function (func, args){
     return func.evaluate.apply(func, args.toArray());
 };
+
+// define basic cons methods
+
+var basconcons = new PrimitiveFunctionClass();
+var basconcar = new PrimitiveFunctionClass();
+var basconcdr = new UserFunctionClass();
+
+var basconlist = new UserFunctionClass();
+var basconlist_rest  = makeintern("&rest");
+var basconlist_sequence = makeintern("sequence");
+
+var basconcaar = new UserFunctionClass();
+var basconcaar_cons = makeintern("cons");
+
+var basconcdar = new UserFunctionClass();
+var basconcdar_cons = makeintern("cons");
+
+var basconcadr = new UserFunctionClass();
+var basconcadr_cons = makeintern("cons");
+
+var basconcddr = new UserFunctionClass();
+var basconcddr_cons = makeintern("cons");
+
+basconcons.label = "<#primitive cons cons>";
+basconcar.label = "<#primitive cons car>";
+basconcdr.label = "<#primitive cons cdr>";
+basconcaar.label = "<#primitive cons caar>";
+basconcadr.label = "<#primitive cons cadr>";
+basconcdar.label = "<#primitive cons cdar>";
+basconcddr.label = "<#primitive cons cddr>";
+basconlist.label = "<#primitive cons list>";
+
+basconcons.onevaluate = function (car, cdr){
+    return new ConsReferenceClass(
+        new ConsClass(car, cdr));
+};
+
+basconcar.onevaluate = function (cons){
+    return new ConsCarReferenceClass(cons);
+};
+
+basconcdr.onevaluate = function (cons){
+    return new ConsCdrReferenceClass(cons);
+};
+
+/* --
+    (defun list (&rest sequence)
+        sequence)
+-- */
+
+basconlist.args =
+    makelist(
+        basconlist_rest,
+        basconlist_sequence);
+
+basconlist.rest =
+    makelist(
+        basconlist_sequence);
+
+/* --
+    (defun caar (cons)
+        (car (car cons)))
+-- */
+
+basconcaar.args = 
+    makelist(basconcaar_cons);
+
+basconcaar.rest = 
+    makelist(
+        makelist(
+            basconcar,
+            makelist(
+                basconcar,
+                basconcaar_cons)));
+
+/* --
+    (defun cadr (cons)
+        (car (cdr cons)))
+-- */
+
+basconcadr.args = 
+    makelist(basconcadr_cons);
+
+basconcadr.rest = 
+    makelist(
+        makelist(
+            basconcdr,
+            makelist(
+                basconcar,
+                basconcadr_cons)));
+
+/* --
+    (defun cdar (cons)
+        (cdr (car cons)))
+-- */
+
+basconcdar.args = 
+    makelist(basconcdar_cons);
+
+basconcdar.rest = 
+    makelist(
+        makelist(
+            basconcar,
+            makelist(
+                basconcdr,
+                basconcdar_cons)));
+
+/* --
+    (defun cddr (cons)
+        (cdr (cdr cons)))
+-- */
+
+basconcddr.args = 
+    makelist(basconcddr_cons);
+
+basconcddr.rest = 
+    makelist(
+        makelist(
+            basconcdr,
+            makelist(
+                basconcdr,
+                basconcddr_cons)));
 
 // define basic macros
 // with user macro class
@@ -2982,12 +3114,14 @@ macwhen.args = makelist(
     macwhen_rest,
     macwhen_args);
 
-macwhen.rest = 
+macwhen.rest =
     makelist(
         makelist(
             basconlist,
             synif,
-            macwhen_cond,
+            makelist(
+                basconlist,
+                macwhen_cond),
             makelist(
                 basconcons,
                 synprogn,
@@ -3004,17 +3138,19 @@ macunless.args = makelist(
     macunless_rest,
     macunless_args);
 
-macunless.rest = 
+macunless.rest =
     makelist(
         makelist(
             basconlist,
             synif,
-            macwhen_cond,
+            makelist(
+                basconlist,
+                macunless_cond),
             nil,
             makelist(
                 basconcons,
                 synprogn,
-                macwhen_args)));
+                macunless_args)));
 
 /* --
     (defmacro cond (&rest conds)
@@ -3084,26 +3220,6 @@ var basconnreversein_sequence = inp.scope.intern(makestring("sequence"));
 var basconnreversein_before = inp.scope.intern(makestring("before"));
 var basconnreversein_after = inp.scope.intern(makestring("after"));
 
-var basconcons = new PrimitiveFunctionClass();
-var basconcar = new PrimitiveFunctionClass();
-var basconcdr = new UserFunctionClass();
-
-var basconlist = new UserFunctionClass();
-var basconlist_rest  = makeintern("&rest");
-var basconlist_sequence = makeintern("sequence");
-
-var basconcaar = new UserFunctionClass();
-var basconcaar_cons = makeintern("cons");
-
-var basconcdar = new UserFunctionClass();
-var basconcdar_cons = makeintern("cons");
-
-var basconcadr = new UserFunctionClass();
-var basconcadr_cons = makeintern("cons");
-
-var basconcddr = new UserFunctionClass();
-var basconcddr_cons = makeintern("cons");
-
 basconmap.label = "<#primitive cons map>";
 basconfilter.label = "<#primitive cons filter>";
 basconreduce.label = "<#primitive cons reduce>";
@@ -3117,105 +3233,6 @@ basconpositionif.label = "<#primitive cons positionif>";
 basconcopy.label = "<#primitive cons copy>";
 basconnreverse.label = "<#primitive cons nreverse>";
 basconnreversein.label = "<#primitive cons nreversein>";
-basconcons.label = "<#primitive cons cons>";
-basconcar.label = "<#primitive cons car>";
-basconcdr.label = "<#primitive cons cdr>";
-basconcaar.label = "<#primitive cons caar>";
-basconcadr.label = "<#primitive cons cadr>";
-basconcdar.label = "<#primitive cons cdar>";
-basconcddr.label = "<#primitive cons cddr>";
-basconlist.label = "<#primitive cons list>";
-
-basconcons.onevaluate = function (car, cdr){
-    return new ConsReferenceClass(
-        new ConsClass(car, cdr));
-};
-
-basconcar.onevaluate = function (cons){
-    return new ConsCarReferenceClass(cons);
-};
-
-basconcdr.onevaluate = function (cons){
-    return new ConsCdrReferenceClass(cons);
-};
-
-/* --
-    (defun list (&rest sequence)
-        sequence)
--- */
-
-basconlist.args =
-    makelist(
-        basconlist_rest,
-        basconlist_sequence);
-
-basconlist.rest =
-    makelist(
-        basconlist_sequence);
-
-/* --
-    (defun caar (cons)
-        (car (car cons)))
--- */
-
-basconcaar.args = 
-    makelist(basconcaar_cons);
-
-basconcaar.rest = 
-    makelist(
-        makelist(
-            basconcar,
-            makelist(
-                basconcar,
-                basconcaar_cons)));
-
-/* --
-    (defun cadr (cons)
-        (car (cdr cons)))
--- */
-
-basconcadr.args = 
-    makelist(basconcadr_cons);
-
-basconcadr.rest = 
-    makelist(
-        makelist(
-            basconcdr,
-            makelist(
-                basconcar,
-                basconcadr_cons)));
-
-/* --
-    (defun cdar (cons)
-        (cdr (car cons)))
--- */
-
-basconcdar.args = 
-    makelist(basconcdar_cons);
-
-basconcdar.rest = 
-    makelist(
-        makelist(
-            basconcar,
-            makelist(
-                basconcdr,
-                basconcdar_cons)));
-
-/* --
-    (defun cddr (cons)
-        (cdr (cdr cons)))
--- */
-
-basconcddr.args = 
-    makelist(basconcddr_cons);
-
-basconcddr.rest = 
-    makelist(
-        makelist(
-            basconcdr,
-            makelist(
-                basconcdr,
-                basconcddr_cons)));
 
 /* -- 
     (defun map (func sequence)
