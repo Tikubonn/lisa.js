@@ -623,14 +623,6 @@ function makeconscdrreference (cons){
 //      <- reference class
 
 function SymbolReferenceClass (value){
-
-    // ** check the reference value.
-
-    if (value instanceof SymbolFamilyClass == false)
-        throw new Error("in the symbol reference, " + value + " is not symbol instance.");
-
-    // ** set the members.
-
     this.value = value;
 };
 
@@ -693,26 +685,6 @@ NumberClass.prototype.clone = function (){
     return new NumberClass(this.value);
 };
 
-NumberClass.prototype.add = function (num){
-    throw new Error("number.class.add was not defined.");
-};
-
-NumberClass.prototype.sub = function (num){
-    throw new Error("number.class.sub was not defined.");
-};
-
-NumberClass.prototype.mul = function (num){
-    throw new Error("number.class.mul was not defined.");
-};
-
-NumberClass.prototype.div = function (num){
-    throw new Error("number.class.div was not defined.");
-};
-
-NumberClass.prototype.mod = function (num){
-    throw new Error("number.class.mod was not defined.");
-};
-
 // float class
 //     <- float class
 
@@ -727,34 +699,6 @@ FloatClass.prototype.clone = function (){
     return new FloatClass(this.value);
 };
 
-FloatClass.prototype.add = function (num){
-    if (num instanceof NumberClass == false)
-        throw new Error("num " + num + " is not number class.");
-    return new FloatClass(this.value + num.value);
-};
-
-FloatClass.prototype.sub = function (num){
-    if (num instanceof NumberClass == false)
-        throw new Error("num " + num + " is not number class.");
-    return new FloatClass(this.value - num.value);
-};
-
-FloatClass.prototype.mul = function (num){
-    if (num instanceof NumberClass == false)
-        throw new Error("num " + num + " is not number class.");
-    return new FloatClass(this.value * num.value);
-};
-
-FloatClass.prototype.div = function (num){
-    if (num instanceof NumberClass == false)
-        throw new Error("num " + num + " is not number class.");
-    return new FloatClass(this.value / num.value);
-};
-
-FloatClass.prototype.mod = function (num){
-    throw new Error("float instance " + this + " could not do mod.");
-};
-
 // int class
 //     <- number class
 
@@ -766,52 +710,11 @@ IntClass.prototype =
     Object.create(NumberClass.prototype);
 
 IntClass.prototype.toString = function (){
-    // return "(" + this.value.toString() + "|0)";
     return this.value.toString();
 };
 
 IntClass.prototype.clone = function (){
     return new IntClass(this.value);
-};
-
-IntClass.prototype.add = function (num){
-    if (num instanceof NumberClass == false)
-        throw new Error("num " + num + " is not number class");
-    return num instanceof IntClass ?
-        new IntClass(this.value + num.value):
-        num.add(this);
-};
-
-IntClass.prototype.sub = function (num){
-    if (num instanceof NumberClass == false)
-        throw new Error("num " + num + " is not number class");
-    return num instanceof IntClass ?
-        new IntClass(this.value - num.value): 
-        num.sub(this);
-};
-
-IntClass.prototype.mul = function (num){
-    if (num instanceof NumberClass == false)
-        throw new Error("num " + num + " is not number class");
-    return num instanceof IntClass ?
-        new IntClass(this.value * num.value): 
-        num.mul(this);
-};
-
-IntClass.prototype.div = function (num){
-    if (num instanceof NumberClass == false)
-        throw new Error("num " + num + " is not number class");
-    return num instanceof IntClass ?
-        new IntClass(this.value / num.value): 
-        num.div(this);
-};
-
-IntClass.prototype.mod = function (num){
-    if (num instanceof NumberClass == false)
-        throw new Error("num " + num + " is not number class");
-    return num instanceof IntClass ?
-        new IntClass(this.value % num.value): 
-        num.mod(this);
 };
 
 function makeint (num){
