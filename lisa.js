@@ -2381,29 +2381,18 @@ inp.readerscope.dig("@").dig("@").setcurrent(rdreadnative);
 var synif = new SpecialFunctionClass();
 var synblock = new SpecialFunctionClass();
 var synprogn = new SpecialFunctionClass();
-var synand = new SpecialFunctionClass();
-var synor = new SpecialFunctionClass();
-var synnot = new SpecialFunctionClass();
 var synsetf = new SpecialFunctionClass();
-var synlocal = new SpecialFunctionClass();
-var synglobal = new SpecialFunctionClass();
 var synquote = new SpecialFunctionClass();
 
 inp.scope.intern(makestring("if")).setfunc(synif);
 inp.scope.intern(makestring("block")).setfunc(synblock);
 inp.scope.intern(makestring("progn")).setfunc(synprogn);
-inp.scope.intern(makestring("and")).setfunc(synand);
-inp.scope.intern(makestring("or")).setfunc(synor);
-inp.scope.intern(makestring("not")).setfunc(synnot);
 inp.scope.intern(makestring("setf")).setfunc(synsetf);
 inp.scope.intern(makestring("quote")).setfunc(synquote);
 
 synif.label = "<#syntax if>";
 synblock.label = "<#syntax block>";
 synprogn.label = "<#syntax progn>";
-synand.label = "<#syntax and>";
-synor.label = "<#syntax or>";
-synnot.label = "<#syntax not>";
 synsetf.label = "<#syntax setf>";
 synquote.label = "<#syntax quote>";
 
@@ -2446,38 +2435,6 @@ synprogn.onexpand = function (){
     for (sum = "", index = 0; index < arguments.length; index++)
         sum += (index ? "," : "") + arguments[index].expandarg().unpack();
     return new Expanded("(" + sum + ")");
-};
-
-synand.onevaluate = function (){
-    var res, index;
-    for (res = t, index = 0; index < arguments.length; index++){
-        if ((res  = arguments[index].evaluatearg()) == nil)
-            return nil;}
-    return res;
-};
-
-synand.onexpand = function (){
-    return new Expanded("(" + slice(arguments).map(expandarg).map(unpack).join("&&") + ")");
-};
-
-synor.onevaluate = function (){
-    var res, index;
-    for (res = nil, index = 0; index < arguments.length; index++)
-        if ((res = arguments[index].evaluatearg()))
-            return res;
-    return nil;
-};
-
-synor.onexpand = function (){
-    return new Expanded("(" + slice(arguments).map(expandarg).map(unpack).join("||") + ")");
-};
-
-synnot.onevaluate = function (some){
-    return some.evaluatearg().status() ? nil : t;
-};
-
-synnot.onexpand = function (some){
-    return new Expanded("(!" + some.expandarg().unpack() + ")");
 };
 
 synsetf.onevaluate = function (formula, value){
@@ -2896,6 +2853,12 @@ maccase.label = "<#primitive macro case>";
 
 inp.scope.intern(makestring("null")).setfunc(basnull);
 inp.scope.intern(makestring("not")).setfunc(basnot);
+inp.scope.intern(makestring("and")).setfunc(macand);
+inp.scope.intern(makestring("or")).setfunc(macor);
+inp.scope.intern(makestring("when")).setfunc(macwhen);
+inp.scope.intern(makestring("unless")).setfunc(macunless);
+inp.scope.intern(makestring("cond")).setfunc(maccond);
+inp.scope.intern(makestring("case")).setfunc(maccase);
 
 /* -- 
     (if some nil t)
@@ -3659,15 +3622,6 @@ basconnreverse.rest =
             makelist(
                 basconcdr,
                 basconnreverse_sequence)));
-
-/* -- 
-    (defun nreversein (sequence before)
-        (if (null sequence) nil
-            (let ((after (cdr sequence)))
-                (setf (cdr sequence) before)
-                (if (null after) sequence
-                    (nreversein after sequence)))))
--- */
 
 /* --
     (defun nreversein (before sequence after)
