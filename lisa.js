@@ -1345,58 +1345,6 @@ function QuoteFamilyClass (value){
 QuoteFamilyClass.prototype = 
     Object.create(AtomClass.prototype);
 
-// quote class
-//     <- quote family class
-
-function QuoteClass (value){
-    this.value = value;
-};
-
-QuoteClass.prototype = 
-    Object.create(QuoteFamilyClass.prototype);
-
-QuoteClass.prototype.toString = function (){
-    return "/*--quote--*/" + this.value.toString();
-};
-
-QuoteClass.prototype.onevaluate = function (){
-    return this.value.evaluate(this.value, arguments);
-};
-
-QuoteClass.prototype.onexpand = function (){
-    return this.value.expand(this.value, arguments);
-};
-
-QuoteClass.prototype.onevaluatearg = function (){
-    return this.value;
-};
-
-QuoteClass.prototype.onexpandarg = function (){
-    return this.value.expanddata();
-};
-
-function makequote  (some){
-    return new QuoteClass(some);
-};
-
-// quote back class
-//     <- quote class
-
-function QuoteBackClass (value){
-    this.value = value.clone();
-};
-
-QuoteBackClass.prototype =
-    Object.create(QuoteClass.prototype);
-
-QuoteBackClass.prototype.toString = function (){
-    return "/*--quoteback--*/" + this.value.toString();
-};
-
-function makequoteback (some){
-    return new QuoteBackClass(some);
-};
-
 // unquote class
 //     <- quote family class
 
@@ -2141,6 +2089,7 @@ var rdreadopenbrace = new PrimitiveFunctionClass();
 var rdreadclosebrace = new PrimitiveFunctionClass();
 var rdreadclosebrace_unique = new Unique();
 var rdreadquote = new PrimitiveFunctionClass();
+var rdreadquoteback = new PrimitiveFunctionClass();
 var rdreadunquote = new PrimitiveFunctionClass();
 var rdreadunquoteat = new PrimitiveFunctionClass();
 var rdreadchar = new PrimitiveFunctionClass();
@@ -2182,8 +2131,7 @@ rdreadintern.onevaluate = function (stream){
     if (name.length() == 0)
         return nil;
     inp.scoperoot.intern(name);
-    // return new InternSymbolClass(name);
-    return inp.interneds.add(name);
+    return new InternSymbolClass(name);
 };
 
 rdreadminus.onevaluate = function (stream){
@@ -2225,7 +2173,11 @@ rdreadclosebrace.onevaluate = function (stream){
 };
 
 rdreadquote.onevaluate = function (stream){
-    return new QuoteClass(rdread.evaluate(stream));
+    return makelist(synquote, rdread.evaluate(stream));
+};
+
+rdreadquoteback.onevaluate = function (stream){
+    return makelist(synquoteback, rdread.evaluate(stream));
 };
 
 rdreadunquote.onevaluate = function (stream){
@@ -2252,6 +2204,7 @@ rdreadnative.onevaluate = function (stream){
 
 inp.readerscope.setcurrent(rdreadintern);
 inp.readerscope.dig("'").setcurrent(rdreadquote);
+inp.readerscope.dig("`").setcurrent(rdreadquoteback);
 inp.readerscope.dig(",").setcurrent(rdreadunquote);
 inp.readerscope.dig(",").dig("@").setcurrent(rdreadunquoteat);
 inp.readerscope.dig("-").setcurrent(rdreadminus);
@@ -2279,6 +2232,7 @@ var synblock = new SpecialFunctionClass();
 var synprogn = new SpecialFunctionClass();
 var synsetf = new SpecialFunctionClass();
 var synquote = new SpecialFunctionClass();
+var synquoteback = new SpecialFunctionClass();
 var synlambda = new SpecialFunctionClass();
 var synmacro = new SpecialFunctionClass();
 
@@ -2287,12 +2241,14 @@ inp.scope.intern(makestring("block")).setfunc(synblock);
 inp.scope.intern(makestring("progn")).setfunc(synprogn);
 inp.scope.intern(makestring("setf")).setfunc(synsetf);
 inp.scope.intern(makestring("quote")).setfunc(synquote);
+inp.scope.intern(makestring("quoteb")).setfunc(synquoteback);
 
 synif.label = "<#syntax if>";
 synblock.label = "<#syntax block>";
 synprogn.label = "<#syntax progn>";
 synsetf.label = "<#syntax setf>";
 synquote.label = "<#syntax quote>";
+synquoteback.label = "<#syntax quoteback>";
 synlambda.label = "<#syntax lambda>";
 synmacro.label = "<#syntax macro>";
 
@@ -2331,6 +2287,10 @@ synsetf.onevaluate = function (formula, value){
 };
 
 synquote.onevaluate = function (some){
+    return some;
+};
+
+synquoteback.onevaluate = function (some){
     return some.clone();
 };
 
@@ -2693,6 +2653,7 @@ basfnapply.onevaluate = function (func, args){
 
 var basdebprint = new PrimitiveFunctionClass();
 var basdebstrace = new PrimitiveFunctionClass();
+var basdebstracedb = new PrimitiveFunctionClass();
 
 basdebprint.label = "<#debug print>";
 basdebstrace.label = "<#debug strace>";
@@ -2704,6 +2665,11 @@ basdebprint.onevaluate = function (some){
 
 basdebstrace.onevaluate = function (){
     strace.print();
+    return nil;
+};
+
+basdebstracedb.onevaluate = function (){
+    stracedb.print();
     return nil;
 };
 
@@ -3572,28 +3538,27 @@ basconnreversein.rest =
 
 var source;
 
-source = makelist(
-    maclet,
-    makelist(
-        makelist(
-            makeintern("name"),
-            makelist(
-                bassymbolmake,
-                makestring("namesym")))),
-    makelist(
-        basdebprint,
-        makequoteback(
-            makelist(
-                makeint(1),
-                makeint(2),
-                makeint(3),
-                makeunquote(
-                    makeintern("name"))))));
+// source = makelist(
+//     maclet,
+//     makelist(
+//         makelist(
+//             makeintern("name"),
+//             makelist(
+//                 bassymbolmake,
+//                 makestring("namesym")))),
+//     makelist(
+//         synquoteback,
+//         makelist(
+//             makeint(1),
+//             makeint(2),
+//             makeint(3),
+//             makeunquote(
+//                 makeintern("name")))));
 
-strace.unwindstrace(function (){
-    console.log("" + source + "");
-    console.log("" + source.evaluatearg() + "");
-})();
+// strace.unwindstrace(function (){
+//     console.log("" + source + "");
+//     console.log("" + source.evaluatearg() + "");
+// })();
 
 // source = makelist(
 //     maclet,
@@ -3696,25 +3661,25 @@ strace.unwindstrace(function (){
 //     console.log(source.evaluatearg() + "");
 // })();
 
-// source = makelist(
-//     basconappend,
-//     makelist(
-//         basconlist,
-//         makeint(1)),
-//     makelist(
-//         basconlist,
-//         makeint(2)),
-//     makelist(
-//         basconlist,
-//         makeint(3)),
-//     makelist(
-//         basconlist,
-//         makeint(4)));
+source = makelist(
+    basconappend,
+    makelist(
+        basconlist,
+        makeint(1)),
+    makelist(
+        basconlist,
+        makeint(2)),
+    makelist(
+        basconlist,
+        makeint(3)),
+    makelist(
+        basconlist,
+        makeint(4)));
 
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + ""); // ** error
-// })();
+strace.unwindstrace(function (){
+    console.log("" + source + "");
+    console.log("" + source.evaluatearg() + ""); // ** error
+})();
 
 // source = makelist(
 //     basconnth,
