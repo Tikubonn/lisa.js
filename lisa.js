@@ -1656,10 +1656,10 @@ UserFunctionClass.prototype.onevaluate = function (){
                 makecons(macdeflvar,
                          makecons(consa.car,
                                   makecons(
-                                      makecons(baslist, consb)))),
+                                      makecons(synquote, consb)))),
                 bound);
     };
-    
+
     // reverse binding arguments.
 
     bound = bound.reverse();
@@ -1693,7 +1693,7 @@ MacroClass.prototype.evaluate =
             CallableClass.prototype.evaluate));
 
 MacroClass.prototype.expand = 
-    afterexpandarg(CallableClass.prototype.evaluate);
+    afterexpandarg(MacroClass.prototype.evaluate);
 
 // primitive macro class
 //     <- macro class
@@ -2619,13 +2619,6 @@ macincf.onevaluate = function (formula){
             basadd,
             formula,
             makeint(1)));
-    // return new ConsClass(synsetf,
-    //                      new ConsClass(formula,
-    //                                    new ConsClass(
-    //                                        new ConsClass(basadd, 
-    //                                                      new ConsClass(formula,
-    //                                                                    new ConsClass(
-    //                                                                        new IntClass(1)))))));
 };
 
 macdecf.onevaluate = function (formula){
@@ -2636,13 +2629,6 @@ macdecf.onevaluate = function (formula){
             bassub,
             formula,
             makeint(1)));
-    // return new ConsClass(synsetf,
-    //                      new ConsClass(formula,
-    //                                    new ConsClass(
-    //                                        new ConsClass(bassub,
-    //                                                      new ConsClass(formula,
-    //                                                                    new ConsClass(
-    //                                                                        new IntClass(1)))))));
 };
 
 macdefvar.onevaluate = function (sym, value){
@@ -2656,14 +2642,6 @@ macdefvar.onevaluate = function (sym, value){
                     synquote,
                     sym))),
         value);
-    // return new ConsClass(synsetf,
-    //                      new ConsClass(
-    //                          new ConsClass(bassymbolvalue,
-    //                                        new ConsClass(
-    //                                            new ConsClass(basglobal,
-    //                                                          new ConsClass(
-    //                                                              new QuoteClass(sym))))),
-    //                          new ConsClass(value)));
 }
 
 macdeflvar.onevaluate = function (sym, value){
@@ -2677,45 +2655,7 @@ macdeflvar.onevaluate = function (sym, value){
                     synquote, 
                     sym))),
         value);
-    // return new ConsClass(synsetf,
-    //                      new ConsClass(
-    //                          new ConsClass(bassymbolvalue,
-    //                                        new ConsClass(
-    //                                            new ConsClass(baslocal,
-    //                                                          new ConsClass(
-    //                                                              new QuoteClass(sym))))),
-    //                          new ConsClass(value)));
 };
-
-// macwhen.onevaluate = function (cond){
-//     return makelist(
-//         synif,
-//         cond,
-//         makecons(synprogn,
-//                  ConsClass.toCons(slice(arguments, 1))),
-//         nil);
-//     // return new ConsClass(synif,
-//     //                      new ConsClass(cond,
-//     //                                    new ConsClass(
-//     //                                        new ConsClass(synprogn, 
-//     //                                                      ConsClass.toCons(slice(arguments, 1))),
-//     //                                        new ConsClass(nil))));
-// };
-
-// macunless.onevaluate = function (cond){
-//     return makelist(
-//         synif,
-//         cond,
-//         nil,
-//         makecons(synprogn,
-//                  ConsClass.toCons(slice(arguments, 1))));
-//     // return new ConsClass(synif,
-//     //                      new ConsClass(cond,
-//     //                                    new ConsClass(nil,
-//     //                                                  new ConsClass(
-//     //                                                      new ConsClass(synprogn,
-//     //                                                                    ConsClass.toCons(slice(arguments, 1)))))));
-// };
 
 maclambda.onevaluate = function (args){
     return new UserFunctionClass(args, ConsClass.toCons(slice(arguments, 1)));
@@ -2792,402 +2732,48 @@ macmlet.onevaluate = function (bounds){
                              ConsClass.toCons(slice(arguments, 1))));
 };
 
-// define basic functions
+// define basic scope methods
 
-var basadd = new PrimitiveFunctionClass();
-var bassub = new PrimitiveFunctionClass();
-var basmul = new PrimitiveFunctionClass();
-var basdiv = new PrimitiveFunctionClass();
-var basmod = new PrimitiveFunctionClass();
-var basconcat = new PrimitiveFunctionClass();
-var baslist = new PrimitiveFunctionClass();
-var bascar = new PrimitiveFunctionClass();
-var bascdr = new PrimitiveFunctionClass();
-var bascons = new PrimitiveFunctionClass();
-var basevery = new PrimitiveFunctionClass();
-var basmap = new PrimitiveFunctionClass();
-var basfilter = new PrimitiveFunctionClass();
-var basreduce = new PrimitiveFunctionClass();
-var basfindif = new PrimitiveFunctionClass();
-var baspositionif = new PrimitiveFunctionClass();
-var bascopy = new PrimitiveFunctionClass();
-var basreverse = new PrimitiveFunctionClass();
-var basnreverse = new PrimitiveFunctionClass();
-var basslice = new PrimitiveFunctionClass();
-var basnth = new PrimitiveFunctionClass();
-var baslength = new PrimitiveFunctionClass();
-var basreadchar = new PrimitiveFunctionClass();
-var basreadline = new PrimitiveFunctionClass();
-var bassymbolname = new PrimitiveFunctionClass();
-var bassymbolvalue = new PrimitiveFunctionClass();
-var bassymbolfunction = new PrimitiveFunctionClass();
-var basintern = new PrimitiveFunctionClass();
-var basmakesymbol = new PrimitiveFunctionClass();
-var basfuncall = new PrimitiveFunctionClass();
-var basapply = new PrimitiveFunctionClass();
-var basglobal = new PrimitiveFunctionClass();
 var baslocal = new PrimitiveFunctionClass();
+var basglobal = new PrimitiveFunctionClass();
 
-inp.scope.intern(makestring("concat")).setfunc(basconcat);
-inp.scope.intern(makestring("+")).setfunc(basadd);
-inp.scope.intern(makestring("-")).setfunc(bassub);
-inp.scope.intern(makestring("*")).setfunc(basmul);
-inp.scope.intern(makestring("/")).setfunc(basdiv);
-inp.scope.intern(makestring("%")).setfunc(basmod);
-inp.scope.intern(makestring("car")).setfunc(bascar);
-inp.scope.intern(makestring("cdr")).setfunc(bascdr);
-inp.scope.intern(makestring("list")).setfunc(baslist);
-inp.scope.intern(makestring("cons")).setfunc(bascons);
-inp.scope.intern(makestring("every")).setfunc(basevery);
-inp.scope.intern(makestring("map")).setfunc(basmap);
-inp.scope.intern(makestring("filter")).setfunc(basfilter);
-inp.scope.intern(makestring("reduce")).setfunc(basreduce);
-inp.scope.intern(makestring("find-if")).setfunc(basfindif);
-inp.scope.intern(makestring("position-if")).setfunc(baspositionif);
-inp.scope.intern(makestring("copy")).setfunc(bascopy);
-inp.scope.intern(makestring("reverse")).setfunc(basreverse);
-inp.scope.intern(makestring("nreverse")).setfunc(basnreverse);
-inp.scope.intern(makestring("slice")).setfunc(basslice);
-inp.scope.intern(makestring("nth")).setfunc(basnth);
-inp.scope.intern(makestring("length")).setfunc(baslength);
-inp.scope.intern(makestring("read-char")).setfunc(basreadchar);
-inp.scope.intern(makestring("read")).setfunc(rdread);
-inp.scope.intern(makestring("symbol-name")).setfunc(bassymbolname);
-inp.scope.intern(makestring("symbol-value")).setfunc(bassymbolvalue);
-inp.scope.intern(makestring("symbol-function")).setfunc(bassymbolfunction);
-inp.scope.intern(makestring("intern")).setfunc(basintern);
-inp.scope.intern(makestring("make-symbol")).setfunc(basmakesymbol);
-inp.scope.intern(makestring("funcall")).setfunc(basfuncall);
-inp.scope.intern(makestring("apply")).setfunc(basapply);
-inp.scope.intern(makestring("global")).setfunc(basglobal);
-inp.scope.intern(makestring("local")).setfunc(baslocal);
-
-basadd.label = "<#primitive +>";
-bassub.label = "<#primitive ->";
-basmul.label = "<#primitive *>";
-basdiv.label = "<#primitive />";
-basmod.label = "<#primitive %>";
-basconcat.label = "<#primitive concat>";
-baslist.label = "<#primitive list>";
-bascar.label = "<#primitive car>";
-bascdr.label = "<#primitive cdr>";
-bascons.label = "<#primitive cons>";
-basevery.label = "<#primitive every>";
-basmap.label = "<#primitive map>";
-basfilter.label = "<#primitive filter>";
-basreduce.label = "<#primitive reduce>";
-basfindif.label = "<#primitive findif>";
-baspositionif.label = "<#primitive positionif>";
-bascopy.label = "<#primitive copy>";
-basreverse.label = "<#primitive reverse>";
-basnreverse.label = "<#primitive nreverse>";
-basslice.label = "<#primitive slice>";
-basnth.label = "<#primitive nth>";
-baslength.label = "<#primitive length>";
-basreadchar.label = "<#primitive readchar>";
-basreadline.label = "<#primitive readline>";
-bassymbolname.label = "<#primitive symbolname>";
-bassymbolvalue.label = "<#primitive symbolvalue>";
-bassymbolfunction.label = "<#primitive symbolfunction>";
-basintern.label = "<#primitive intern>";
-basmakesymbol.label = "<#primitive makesymbol>";
-basfuncall.label = "<#primitive funcall>";
-basapply.label = "<#primitive apply>";
-basglobal.label = "<#primitive global>";
 baslocal.label = "<#primitive local>";
-
-basglobal.onevaluate = function (sym){
-    if (sym instanceof InternSymbolClass)
-        return inp.scoperoot.intern(sym.name);
-    return sym;
-};
+basglobal.label = "<#primitive global>";
 
 baslocal.onevaluate = function (sym){
-    if (sym instanceof InternSymbolClass)
-        return inp.scope.internf(sym.name);
-    return sym;
+    return inp.scope.internf(sym.name);
 };
 
-basadd.onevaluate = function (){
-    return slice(arguments).reduce(function (a,b){
-        if (a instanceof NumberClass == false) throw new Error("" + a + " a is not number class."); 
-        if (b instanceof NumberClass == false) throw new Error("" + b + " b is not number class.");
-        return a.add(b);});
+basglobal.onevaluate = function (sym){
+    return inp.scoperoot.internf(sym.name);
 };
 
-bassub.onevaluate = function (){
-    return slice(arguments).reduce(function (a,b){
-        if (a instanceof NumberClass == false) throw new Error("" + a + " a is not number class."); 
-        if (b instanceof NumberClass == false) throw new Error("" + b + " b is not number class."); 
-        return a.sub(b);});
-};
+// define basic symbol methods
 
-basmul.onevaluate = function (){
-    return slice(arguments).reduce(function (a,b){
-        if (a instanceof NumberClass == false) throw new Error("" + a + " a is not number class."); 
-        if (b instanceof NumberClass == false) throw new Error("" + b + " b is not number class."); 
-        return a.mul(b);});
-};
+var bassymbolfunction = new PrimitiveFunctionClass();
+var bassymbolvalue = new PrimitiveFunctionClass();
+var bassymbolname = new PrimitiveFunctionClass();
 
-basdiv.onevaluate = function (){
-    return slice(arguments).reduce(function (a,b){
-        if (a instanceof NumberClass == false) throw new Error("" + a + " a is not number class."); 
-        if (b instanceof NumberClass == false) throw new Error("" + b + " b is not number class."); 
-        return a.div(b);});
-};
+bassymbolfunction.label = "<#primitive symbol-function>";
+bassymbolvalue.label = "<#primitive symbol-value>";
+bassymbolname.label = "<#primitive symbol-name>";
 
-basmod.onevaluate = function (){
-    return slice(arguments).reduce(function (a,b){
-        if (a instanceof NumberClass == false) throw new Error("" + a + " a is not number class."); 
-        if (b instanceof NumberClass == false) throw new Error("" + b + " b is not number class."); 
-        return a.mod(b);});
-};
-
-basadd.onexpand = function (){
-    return new Expanded("(" + slice(arguments).join("+") + ")");
-};
-
-bassub.onexpand = function (){
-    return new Expanded("(" + slice(arguments).join("-") + ")");
-};
-
-basmul.onexpand = function (){
-    return new Expanded("(" + slice(arguments).join("*") + ")");
-};
-
-basdiv.onexpand = function (){
-    return new Expanded("(" + slice(arguments).join("/") + ")");
-};
-
-basmod.onexpmod = function (){
-    return new Expanded("(" + slice(arguments).join("%") + ")");
-};
-
-basadd.onexpandarg = function (){
-    return new Expanded("function(){Array.prototype.slice(arguments).reduce(function(a,b){return a+b;})");
-};
-
-bassub.onexpandarg = function (){
-    return new Expanded("function(){Array.prototype.slice(arguments).reduce(function(a,b){return a-b;})");
-};
-
-basmul.onexpandarg = function (){
-    return new Expanded("function(){Array.prototype.slice(arguments).reduce(function(a,b){return a*b;})");
-};
-
-basdiv.onexpandarg = function (){
-    return new Expanded("function(){Array.prototype.slice(arguments).reduce(function(a,b){return a/b;})");
-};
-
-basmod.onexpandarg = function (){
-    return new Expanded("function(){Array.prototype.slice(arguments).reduce(function(a,b){return a%b;})");
-};
-
-basconcat.onevaluate = function (){
-    // var sum, index;
-    // for (sum = [], index = 0; index < arguments.length; index++)
-    //     sum = sum.concat(arguments[index].value);
-    // return new StringClass(sum);
-    return new StringClass(Array.prototype.concat.apply([], slice(arguments).map(value)));
-};
-
-basconcat.onexpand = function (){
-    // var sum, index;
-    // for (sum = "", index = 0; index < arguments.length; index++)
-    //     sum += (index ? "+" : "") + arguments[index].unpack();
-    // return new Expanded("(" + sum + ")");
-    return new Expanded("(" + slice(arguments).map(expandarg).map(unpack).join("+") + ")");
-};
-
-bascar.onevaluate = function (cons){
-    return cons.car;
-};
-
-bascar.onexpand = function (cons){ // ** must update here!
-    return new Expanded(cons + "[0]");
-};
-
-bascdr.onevaluate = function (cons){
-    return cons.cdr;
-};
-
-bascdr.onexpand = function (cons){ // ** must update here!
-    return new Expanded(cons + ".slice(1)");
-};
-
-bascons.onevaluate = function (car, cdr){
-    return new ConsClass(car, cdr);
-};
-
-bascons.onexpand = function (car, cdr){ // ** must update here!
-    return new Expanded("[" + car + "].concat(" + cdr + ")");
-};
-
-baslist.onevaluate = function (){
-    return new ConsClass.toCons(slice(arguments));
-};
-
-baslist.onexpand = function (){
-    return new ConsClass.toCons(slice(arguments)).expanddata(); // ** should check again
-};
-
-basevery.onevaluate = function (func, sequence){
-    return sequence.every(func);
-};
-
-basmap.onevaluate = function (func, sequence){
-    return sequence.map(func);
-};
-
-basmap.onexpand = function (func, sequence){
-    return new Expanded(sequence + ".map(" + func + ")");
-};
-
-basfilter.onevaluate = function (func, sequence){
-    return sequence.filter(func);
-};
-
-basfilter.onexpand = function (func, sequence){
-    return new Expanded(sequence + ".filter(" + func + ")");
-};
-
-basreduce.onevaluate = function (func, sequence){
-    return sequence.reduce(func);
-};
-
-basreduce.onexpand = function (func, sequence){
-    return new Expanded(sequence + ".reduce(" + func + ")");
-};
-
-basfindif.onevaluate = function (func, sequence){
-    return sequence.findif(func);
-};
-
-basfindif.onexpand = function (func, sequence){
-    throw "find-if is not defined yet.";
-};
-
-baspositionif.onevaluate = function (func, sequence){
-    return sequence.positionif(func);
-};
-
-baspositionif.onexpand = function (func, sequence){
-    throw "position-if is not defined yet.";
-};
-
-basslice.onevaluate = function (beginning, end,  sequence){
-    return sequence.slice(beginning, end);
-};
-
-basslice.onexpand = function (beginning, end, sequence){
-    return new Expanded(sequence + ".slice(" + beginning + "," + end + ")");
-};
-
-basnth.onevaluate = function (index, sequence){
-    return sequence.nth(index.value);
-};
-
-basnth.onexpand = function (index, sequence){
-    throw "nth is not defined yet.";
-};
-
-bascopy.onevaluate = function (sequence){
-    return sequence.copy();
-};
-
-bascopy.onexpand = function (sequence){
-    return new Expanded(sequence + ".slice()");
-};
-
-basreverse.onevaluate = function (sequence){
-    return sequence.copy().reverse();
-};
-
-basreverse.onexpand = function (sequence){
-    return new Expanded(sequence + ".slice().reverse()");
-};
-
-basnreverse.onevaluate = function (sequence){
-    return sequence.reverse();
-};
-
-basnreverse.onexpand = function(sequence){
-    return new Expanded(sequence + ".reverse()");
-};
-
-baslength.onevaluate = function (sequence){
-    return new IntClass(sequence.length());
-};
-
-baslength.onexpand = function (sequence){
-    return new Expanded(sequence + ".length");
-};
-
-basreadchar.onevaluate = function (stream){
-    return stream.get();
-};
-
-bassymbolname.onevaluate = function (sym){
-    return sym.name.copy();
+bassymbolfunction.onevaluate = function (sym){
+    return new SymbolFunctionReferenceClass(sym);
 };
 
 bassymbolvalue.onevaluate = function (sym){
     return new SymbolValueReferenceClass(sym);
 };
 
-bassymbolfunction.onevaluate = function (sym){
-    return new SymbolFunctionReferenceClass(sym);
+bassymbolname.onevaluate = function (sym){
+    return sym.name;
 };
 
-basintern.onevaluate = function (name){
-    inp.scope.intern(name);
-    return new InternSymbolClass(name);
-};
+// define temp method
 
-basmakesymbol.onevaluate = function (name){
-    return new VariableSymbolClass(name);
-};
-
-basfuncall.onevaluate = function (func){
-    return func.evaluate.apply(func, slice(arguments, 1));
-};
-
-basfuncall.onexpand = function (func){
-    return new Expanded(func + "(" + slice(arguments, 1).join(",") + ")");
-};
-
-basapply.onevaluate = function (func, sequence){
-    return func.evaluate.apply(func, sequence.toArray());
-};
-
-basapply.onexpand = function (func, sequence){
-    return new Expanded(func + "(" + sequence.toArray().join(",") + ")");
-};
-
-// define debug function
-
-var debprint = new PrimitiveFunctionClass();
-
-inp.scope.intern(new StringClass(slice("print").map(atoc))).setfunc(debprint);
-
-debprint.onevaluate = function (some){
-    console.log(some.toString());
-    return some;
-};
-
-debprint.onexpand = function (some){
-    var sym = new VariableSymbolClass();
-    return makecons(maclet,
-                makecons(
-                    makecons(
-                        makecons(sym,
-                             makecons(some))),
-                    makecons(
-                        makecons(
-                            new Expanded("console.log"),
-                            makecons(sym)),
-                        makecons(sym)))).expandarg();
-};
+var basadd = new PrimitiveFunctionClass();
+var bassub = new PrimitiveFunctionClass();
 
 // define basic number methods
 
@@ -3319,39 +2905,36 @@ basfnapply.onevaluate = function (func, args){
 // with user macro class
 
 var basnull = new UserFunctionClass();
-var basnull_some = inp.scope.intern(makestring("some"));
+var basnull_some = makeintern("some");
 
 var basnot = new UserFunctionClass();
-var basnot_some = inp.scope.intern(makestring("some"));
+var basnot_some = makeintern("some");
 
 var macand = new UserMacroClass();
-var macand_rest = inp.scope.intern(makestring("&rest"));
-var macand_args = inp.scope.intern(makestring("args"));
+var macand_rest = makeintern("&rest");
+var macand_args = makeintern("args");
 
 var macor = new UserMacroClass();
-var macor_rest = inp.scope.intern(makestring("&rest"));
-var macor_args = inp.scope.intern(makestring("args"));
+var macor_rest = makeintern("&rest");
+var macor_args = makeintern("args");
 
 var macwhen = new UserMacroClass();
 var macwhen_cond = makeintern("cond");
 var macwhen_rest = makeintern("&rest");
 var macwhen_args = makeintern("args");
-// var macwhen_cond = inp.scope.intern(makestring("cond"));
-// var macwhen_rest = inp.scope.intern(makestring("&rest"));
-// var macwhen_args = inp.scope.intern(makestring("args"));
 
 var macunless = new UserMacroClass();
-var macunless_cond = inp.scope.intern(makestring("cond"));
-var macunless_rest = inp.scope.intern(makestring("&rest"));
-var macunless_args = inp.scope.intern(makestring("args"));
+var macunless_cond = makeintern("cond");
+var macunless_rest = makeintern("&rest");
+var macunless_args = makeintern("args");
 
 var maccond = new UserMacroClass();
-var maccond_rest = inp.scope.intern(makestring("&rest"));
-var maccond_args = inp.scope.intern(makestring("args"));
+var maccond_rest = makeintern("&rest");
+var maccond_args = makeintern("args");
 
 var maccase = new UserMacroClass();
-var maccase_rest = inp.scope.intern(makestring("&rest"));
-var maccase_args = inp.scope.intern(makestring("args"));
+var maccase_rest = makeintern("&rest");
+var maccase_args = makeintern("args");
 
 basnull.label = "<#primitive basic null>";
 basnot.label = "<#primitive basic not>";
@@ -3419,7 +3002,7 @@ macand.rest =
                 basconcar,
                 macand_args),
             makelist( // (list 'if (car args) (cons 'and (cdr args) '())
-                baslist,
+                basconlist,
                 synif,
                 makelist(
                     basconcar,
@@ -3461,7 +3044,7 @@ macor.rest =
                     basconcar,
                     macor_args),
                 makelist( // (list if (car args) (car args) (cons 'or (cdr args))
-                    baslist,
+                    basconlist,
                     synif,
                     makelist(
                         basconcar,
@@ -3490,7 +3073,7 @@ macwhen.args = makelist(
 macwhen.rest = 
     makelist(
         makelist(
-            baslist,
+            basconlist,
             synif,
             macwhen_cond,
             makelist(
@@ -3512,7 +3095,7 @@ macunless.args = makelist(
 macunless.rest = 
     makelist(
         makelist(
-            baslist,
+            basconlist,
             synif,
             macwhen_cond,
             nil,
@@ -3593,6 +3176,10 @@ var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
 var basconcdr = new UserFunctionClass();
 
+var basconlist = new UserFunctionClass();
+var basconlist_rest  = makeintern("&rest");
+var basconlist_sequence = makeintern("sequence");
+
 var basconcaar = new UserFunctionClass();
 var basconcaar_cons = makeintern("cons");
 
@@ -3625,11 +3212,10 @@ basconcaar.label = "<#primitive cons caar>";
 basconcadr.label = "<#primitive cons cadr>";
 basconcdar.label = "<#primitive cons cdar>";
 basconcddr.label = "<#primitive cons cddr>";
+basconlist.label = "<#primitive cons list>";
 
 basconcons.onevaluate = function (car, cdr){
-    // return new ConsClass(car, cdr);
-    return new ConsReferenceClass(
-        new ConsClass(car, cdr));
+    return new ConsClass(car, cdr);
 };
 
 basconcar.onevaluate = function (cons){
@@ -3639,6 +3225,20 @@ basconcar.onevaluate = function (cons){
 basconcdr.onevaluate = function (cons){
     return new ConsCdrReferenceClass(cons);
 };
+
+/* --
+    (defun list (&rest sequence)
+        sequence)
+-- */
+
+basconlist.args =
+    makelist(
+        basconlist_rest,
+        basconlist_sequence);
+
+basconlist.rest =
+    makelist(
+        basconlist_sequence);
 
 /* --
     (defun caar (cons)
@@ -3720,7 +3320,7 @@ basconmap.rest =
         makelist( // (if (null sequence) nil ...
             synif,
             makelist(
-                basnull,
+		basnull,
                 basconmap_sequence),
             nil,
             makelist( // (cons (funcall func (car sequence)) ...
@@ -4038,7 +3638,7 @@ basconpositionifin.args = makelist(
 basconpositionifin.rest = 
     makelist(
         makelist( // (if (null sequence) nil ...
-            synif,
+	    synif,
             makelist(
                 basnull,
                 basconpositionifin_sequence),
@@ -4167,30 +3767,28 @@ basconnreversein.rest =
 
 var source;
 
-// source = makelist(
-//     synprogn,
-//     makelist(debprint, makelist(macunless, nil, makestring("then"))),
-//     makelist(debprint, makelist(macunless, t, makestring("then"))));
+source = makelist(
+    synprogn,
+    makelist(macwhen, t, t));
 
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-// })();
+strace.unwindstrace(function (){
+    // console.log(source + "");
+    console.log(source.evaluatearg() + "");
+})();
 
-// source = makelist(
-//     synprogn,
-//     makelist(debprint, makelist(macwhen, nil, makestring("then"))),
-//     makelist(debprint, makelist(macwhen, t, makestring("then"))));
+source = makelist(
+    synprogn,
+    makelist(macunless, nil, t));
 
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-// })();
+strace.unwindstrace(function (){
+    // console.log(source + "");
+    console.log(source.evaluatearg() + "");
+})();
     
 // source = makelist(
 //     basconnreverse,
 //     makelist(
-//         baslist,
+//         basconlist,
 //         makeint(1),
 //         makeint(2),
 //         makeint(3)));
@@ -4203,7 +3801,7 @@ var source;
 // source = makelist(
 //     basconcopy,
 //     makelist(
-//         baslist,
+//         basconlist,
 //         makeint(1),
 //         makeint(2),
 //         makeint(3)));
@@ -4221,7 +3819,7 @@ var source;
 //             makeintern("a")),
 //         makeintern("a")),
 //     makelist(
-//         baslist,
+//         basconlist,
 //         nil,
 //         nil,
 //         makestring("non nil")));
@@ -4239,7 +3837,7 @@ var source;
 //             makeintern("a")),
 //         makeintern("a")),
 //     makelist(
-//         baslist,
+//         basconlist,
 //         nil,
 //         nil,
 //         makestring("non nil")));
@@ -4252,16 +3850,16 @@ var source;
 // source = makelist(
 //     basconappend,
 //     makelist(
-//         baslist,
+//         basconlist,
 //         makeint(1)),
 //     makelist(
-//         baslist,
+//         basconlist,
 //         makeint(2)),
 //     makelist(
-//         baslist,
+//         basconlist,
 //         makeint(3)),
 //     makelist(
-//         baslist,
+//         basconlist,
 //         makeint(4)));
 
 // strace.unwindstrace(function (){
@@ -4273,7 +3871,7 @@ var source;
 //     basconnth,
 //     makeint(1),
 //     makelist(
-//         baslist,
+//         basconlist,
 //         makeint(1),
 //         makeint(2),
 //         makeint(3)));
@@ -4287,7 +3885,7 @@ var source;
 //     makelist(
 //         basconlength,
 //         makelist(
-//             baslist,
+//             basconlist,
 //             makeint(1),
 //             makeint(2),
 //             makeint(3)));
@@ -4302,7 +3900,7 @@ var source;
 //         basconreduce,
 //         basadd,
 //         makelist(
-//             baslist,
+//             basconlist,
 //             makeint(1),
 //             makeint(10),
 //             makeint(100)));
@@ -4321,7 +3919,7 @@ var source;
 //                 makeintern("a")),
 //             makeintern("a")),
 //         makelist(
-//             baslist,
+//             basconlist,
 //             nil,
 //             makeint(1),
 //             nil,
@@ -4346,7 +3944,7 @@ var source;
 //                 makeintern("a"),
 //                 makeint(10))),
 //         makelist(
-//             baslist,
+//             basconlist,
 //             makeint(1),
 //             makeint(2),
 //             makeint(3)));
