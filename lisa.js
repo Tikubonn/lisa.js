@@ -17,12 +17,19 @@ function Strace (){
     this.strace = [];
 };
 
-Strace.prototype.push = function (func){
-    this.strace.push(func + "");
+Strace.prototype.push = function (message){
+    this.strace.push(message);
+    return this.strace.length -1;
 };
 
-Strace.prototype.pop = function (func){
-    this.strace.pop();
+Strace.prototype.pop = function (index){
+    while (this.strace.length > index)
+        this.strace.pop();
+    return this.strace.length;
+};
+
+Strace.prototype.clear = function (){
+    this.strace = [];
 };
 
 Strace.prototype.willstrace = function (){
@@ -31,9 +38,10 @@ Strace.prototype.willstrace = function (){
     var temp;
     var self = this;
     return function willstrace_closure (){
-        self.push(message + this);
+        var index;
+        index = self.push(message + this);
         temp = func.apply(this, arguments);
-        self.pop();
+        self.pop(index);
         return temp;
     };
 };
@@ -59,6 +67,7 @@ Strace.prototype.print = function (){
 };
 
 var strace = new Strace();
+var stracedb = new Strace();
 
 // unique class
 //     <- native, function class
@@ -451,89 +460,6 @@ BooleanClass.prototype.status = function (){
 };
 
 var t = new BooleanClass(true);
-// var f = new BooleanClass(false);
-
-// iteratable class
-//     <- atom class
-
-function IteratorClass (){}
-
-IteratorClass.prototype = 
-    Object.create(AtomClass.prototype);
-
-IteratorClass.prototype.isdie = function (){throw new Error("isdie was not defined.");};
-IteratorClass.prototype.isalive = function (){throw new Error("isalive was not defined.");};
-IteratorClass.prototype.next = function (){throw new Error("next was not defined.");};
-IteratorClass.prototype.count = function (){throw new Error("count was not defined.");};
-
-// array iteration class
-//     <- iteration class
-
-function ArrayIterationClass (array){
-    this.array = array;
-    this.index = 0;
-}
-
-// cons iterator class
-//     <- iterator class
-
-function ConsIteratorClass (cons){
-    this.index = 0;
-    this.value = cons;
-}
-
-ConsIteratorClass.prototype = 
-    Object.create(IteratorClass.prototype);
-
-ConsIteratorClass.prototype.isdie = function (){
-    return this.isalive() == false;
-};
-
-ConsIteratorClass.prototype.isalive = function (){
-    return this.value.status();
-};
-
-ConsIteratorClass.prototype.next = function (){
-    if (this.isdie()) return null;
-    var temp = this.value.car;
-    this.value = this.value.cdr;
-    this.index++;
-    return temp;
-};
-
-ConsIteratorClass.prototype.count = function (){
-    return this.index;
-};
-
-// array iterator class
-//     <- iterator class
-
-function ArrayIteratorClass (array){
-    this.index = 0;
-    this.value = array;
-}
-
-ArrayIteratorClass.prototype = 
-    Object.create(IteratorClass.prototype);
-
-ArrayIteratorClass.prototype.isdie = function (){
-    return this.isalive() == false;
-};
-
-ArrayIteratorClass.prototype.isalive = function (){
-    return this.index < this.value.length();
-};
-
-ArrayIteratorClass.prototype.next = function (){
-    if (this.isdie()) return null;
-    var temp = this.value.nth(this.index);
-    this.index++;
-    return temp;
-};
-
-ArrayIteratorClass.prototype.count = function (){
-    return this.index;
-};
 
 // reference class
 //     <- atom class
@@ -1020,10 +946,6 @@ ArrayClass.prototype.toPlain = function (){
     return this.value.join(",");
 };
 
-ArrayClass.prototype.iter = function (){
-    return new ArrayIteratorClass(this);
-};
-
 ArrayClass.prototype.every = function (func){
     this.value.every(func.willevaluate); return nil;
 };
@@ -1223,10 +1145,6 @@ ConsClass.prototype.toArray = function (){
     return sequence;
 };
 
-ConsClass.prototype.iter = function (){
-    return new ConsIteratorClass(this);
-};
-
 ConsClass.prototype.every = function (func){
     var cons;
     for (cons = this; cons != nil; cons = cons.cdr)
@@ -1417,38 +1335,6 @@ NilClass.prototype.reverse = function (){
 
 var nil = new NilClass();
 
-// // cons stack class
-// //     <- cons class
-
-// function ConsStackClass (car, cdr){
-//     this.car = car || nil;
-//     this.cdr = cdr || nil;
-// }
-
-// ConsStackClass.prototype = 
-//     Object.create(ConsClass.prototype);
-
-// ConsStackClass.prototype.push = function (element){
-//     var ncons = new ConsClass(element);
-//     if (this.car == nil){
-//         this.car = ncons;
-//         this.cdr = ncons;
-//     }
-//     else this.cdr.cdr = ncons;
-//     return element;
-// };
-
-// ConsStackClass.prototype.pop = function (){
-//     if (this.car == nil) return nil;
-//     var element = this.car.car;
-//     this.car = this.car.cdr;
-//     return element;
-// };
-
-// ConsStackClass.prototype.iter = function (){
-//     return this.car.iter();
-// };
-
 // quote family class 
 //     <- atom class
 
@@ -1482,15 +1368,33 @@ QuoteClass.prototype.onexpand = function (){
 };
 
 QuoteClass.prototype.onevaluatearg = function (){
-    return this.value.clone();
+    return this.value;
 };
 
 QuoteClass.prototype.onexpandarg = function (){
-    return this.value.clone().expanddata();
+    return this.value.expanddata();
 };
 
 function makequote  (some){
     return new QuoteClass(some);
+};
+
+// quote back class
+//     <- quote class
+
+function QuoteBackClass (value){
+    this.value = value.clone();
+};
+
+QuoteBackClass.prototype =
+    Object.create(QuoteClass.prototype);
+
+QuoteBackClass.prototype.toString = function (){
+    return "/*--quoteback--*/" + this.value.toString();
+};
+
+function makequoteback (some){
+    return new QuoteBackClass(some);
 };
 
 // unquote class
@@ -1660,7 +1564,7 @@ UserFunctionClass.prototype.onevaluate = function (){
                 makecons(macdeflvar,
                          makecons(consa.car,
                                   makecons(
-                                      makecons(synquote, consb)))),
+                                      makecons(basconlist, consb)))),
                 bound);
     };
 
@@ -1673,9 +1577,13 @@ UserFunctionClass.prototype.onevaluate = function (){
     formula = makecons(synblock,
                     makecons(bound, this.rest));
 
-    // evaluate formula.
+    var message;    
+    message = ("user function <- " + formula + "");
+    strace.push(message);
+    stracedb.push(message);
 
-    strace.push("user define <- " + formula + "");
+    // evaluate formula.
+    
     return formula.evaluatearg();
 };
 
@@ -1714,8 +1622,11 @@ function UserMacroClass (args, rest){
 UserMacroClass.prototype = 
     Object.create(MacroClass.prototype);
 
-UserMacroClass.prototype.onevaluate = 
-    UserFunctionClass.prototype.onevaluate;
+UserMacroClass.prototype.onevaluate = function (){
+    var expand = UserFunctionClass.prototype.onevaluate.apply(this, arguments);
+    stracedb.push("user macro <- " + expand + "");
+    return expand;
+};
 
 // symbol family class
 //     <- atom class
@@ -2024,13 +1935,13 @@ Obarray.prototype.intern = function (name){
     return new InternSymbolClass(name);
 };
 
-Obarray.prototype.list = function (){ // ** for degug
-    var sequence, names, index;
-    for (sequence = [], names = Object.keys(this.obarray), 
-         index = 0; index < names.length; index++)
-        sequence.push(this.obarray[names[index]]);
-    return sequence;
-};
+// Obarray.prototype.list = function (){ // ** for degug
+//     var sequence, names, index;
+//     for (sequence = [], names = Object.keys(this.obarray), 
+//          index = 0; index < names.length; index++)
+//         sequence.push(this.obarray[names[index]]);
+//     return sequence;
+// };
 
 // obarrays class
 //     <- native, function class
@@ -2040,18 +1951,18 @@ function Obarrays (parent){
     this.parent = parent || null;
 };
 
-Obarrays.prototype.length = function (){ // ** for debug
-    var count, current;
-    for (count = 0, current = this; current; current = current.parent, count++);
-    return count;
-};
+// Obarrays.prototype.length = function (){ // ** for debug
+//     var count, current;
+//     for (count = 0, current = this; current; current = current.parent, count++);
+//     return count;
+// };
 
-Obarrays.prototype.list = function (){ // ** for debug
-    var sequence, current;
-    for (sequence = [], current = this; current; current = current.parent)
-        sequence = sequence.concat(current.obarray.list());
-    return sequence;
-};
+// Obarrays.prototype.list = function (){ // ** for debug
+//     var sequence, current;
+//     for (sequence = [], current = this; current; current = current.parent)
+//         sequence = sequence.concat(current.obarray.list());
+//     return sequence;
+// };
 
 Obarrays.prototype.find = function (name){
     var current, found;
@@ -2095,19 +2006,19 @@ function Obscope (parent){
     this.parent = parent || null;
 };
 
-Obscope.prototype.length = function (){ // ** for debug
-    var count, current;
-    for (count = 0, current = this; current; current = current.parent)
-        count += current.obarray.length();
-    return count;
-};
+// Obscope.prototype.length = function (){ // ** for debug
+//     var count, current;
+//     for (count = 0, current = this; current; current = current.parent)
+//         count += current.obarray.length();
+//     return count;
+// };
 
-Obscope.prototype.list = function (){ // ** for debug
-    var sequence, current;
-    for (sequence = [], current = this; current; current = current.parent)
-        sequence = sequence.concat(current.listin());
-    return sequence;
-};
+// Obscope.prototype.list = function (){ // ** for debug
+//     var sequence, current;
+//     for (sequence = [], current = this; current; current = current.parent)
+//         sequence = sequence.concat(current.listin());
+//     return sequence;
+// };
 
 Obscope.prototype.find = function (name){
     var found, current;
@@ -2401,9 +2312,9 @@ synlambda.label = "<#syntax lambda>";
 synmacro.label = "<#syntax macro>";
 
 synif.onevaluate = function (cond, truecase, falsecase){
-    if (cond.evaluatearg() != nil)
-        return truecase.evaluatearg();
-    return falsecase.evaluatearg();
+    if (getreference(cond.evaluatearg()) != nil)
+        return getreference(truecase.evaluatearg());
+    return getreference(falsecase.evaluatearg());
 };
 
 synif.onexpand = function (cond, truecase, falsecase){
@@ -2420,13 +2331,6 @@ synblock.onevaluate = function (){
     return temp;
 };
 
-synblock.onexpand = function (){
-    inp.nestin();
-    var temp = synprogn.expand.apply(synprogn, arguments);
-    inp.exitin();
-    return temp;
-};
-
 synprogn.onevaluate = function (){
     var res, index;
     for (res = nil, index = 0; index < arguments.length; index++)
@@ -2434,28 +2338,11 @@ synprogn.onevaluate = function (){
     return res;
 };
 
-synprogn.onexpand = function (){
-    var sum, index;
-    for (sum = "", index = 0; index < arguments.length; index++)
-        sum += (index ? "," : "") + arguments[index].expandarg().unpack();
-    return new Expanded("(" + sum + ")");
-};
-
 synsetf.onevaluate = function (formula, value){
+    strace.push("setf <" + formula + "> is <" + value + ">");
     var valued = getreference(value.evaluatearg());
     var formulaed = formula.evaluatearg();
-    if (formulaed instanceof ReferenceClass == false)
-        throw new Error("(" + formulaed + " = "  + valued + ") formula is not reference instance.");
     return formulaed.set(valued);
-};
-
-synsetf.onexpand = function (formula, value){
-    var formulad = formula.evaluatearg();
-    var valued = value.evaluatearg();
-    formulad.set(valued);
-    return new Expanded(
-        formulad.expandarg() + "=" +
-            valued.expandarg());
 };
 
 synquote.onevaluate = function (some){
@@ -2817,15 +2704,30 @@ basfnapply.onevaluate = function (func, args){
     return func.evaluate.apply(func, args.toArray());
 };
 
+// define basic debug methods
+
+var basdebprint = new PrimitiveFunctionClass();
+var basdebstrace = new PrimitiveFunctionClass();
+
+basdebprint.label = "<#debug print>";
+basdebstrace.label = "<#debug strace>";
+
+basdebprint.onevaluate = function (some){
+    console.log(some + "");
+    return some;
+};
+
+basdebstrace.onevaluate = function (){
+    strace.print();
+    return nil;
+};
+
 // define basic cons methods
 
 var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
-var basconcdr = new UserFunctionClass();
-
-var basconlist = new UserFunctionClass();
-var basconlist_rest  = makeintern("&rest");
-var basconlist_sequence = makeintern("sequence");
+var basconcdr = new PrimitiveFunctionClass();
+var basconlist = new PrimitiveFunctionClass();
 
 var basconcaar = new UserFunctionClass();
 var basconcaar_cons = makeintern("cons");
@@ -2848,6 +2750,15 @@ basconcdar.label = "<#primitive cons cdar>";
 basconcddr.label = "<#primitive cons cddr>";
 basconlist.label = "<#primitive cons list>";
 
+inp.scope.intern(makestring("cons")).setfunc(basconcons);
+inp.scope.intern(makestring("car")).setfunc(basconcar);
+inp.scope.intern(makestring("cdr")).setfunc(basconcdr);
+inp.scope.intern(makestring("caar")).setfunc(basconcaar);
+inp.scope.intern(makestring("cadr")).setfunc(basconcadr);
+inp.scope.intern(makestring("cdar")).setfunc(basconcdar);
+inp.scope.intern(makestring("cddr")).setfunc(basconcddr);
+inp.scope.intern(makestring("list")).setfunc(basconlist);
+
 basconcons.onevaluate = function (car, cdr){
     return new ConsReferenceClass(
         new ConsClass(car, cdr));
@@ -2861,19 +2772,10 @@ basconcdr.onevaluate = function (cons){
     return new ConsCdrReferenceClass(cons);
 };
 
-/* --
-    (defun list (&rest sequence)
-        sequence)
--- */
-
-basconlist.args =
-    makelist(
-        basconlist_rest,
-        basconlist_sequence);
-
-basconlist.rest =
-    makelist(
-        basconlist_sequence);
+basconlist.onevaluate = function (){
+    return new ConsReferenceClass(
+        ConsClass.toCons(arguments));
+};
 
 /* --
     (defun caar (cons)
@@ -2890,6 +2792,7 @@ basconcaar.rest =
             makelist(
                 basconcar,
                 basconcaar_cons)));
+
 
 /* --
     (defun cadr (cons)
@@ -3106,7 +3009,7 @@ macor.rest =
 
 /* -- 
     (defmacro when (cond &rest args)
-        (list synif cond (list progn args) nil)))
+        (list synif cond (cons progn args) nil)))
 -- */
 
 macwhen.args = makelist(
@@ -3119,9 +3022,7 @@ macwhen.rest =
         makelist(
             basconlist,
             synif,
-            makelist(
-                basconlist,
-                macwhen_cond),
+            macwhen_cond,
             makelist(
                 basconcons,
                 synprogn,
@@ -3143,9 +3044,7 @@ macunless.rest =
         makelist(
             basconlist,
             synif,
-            makelist(
-                basconlist,
-                macunless_cond),
+            macunless_cond,
             nil,
             makelist(
                 basconcons,
@@ -3689,22 +3588,66 @@ basconnreversein.rest =
 var source;
 
 source = makelist(
-    synprogn,
-    makelist(macwhen, t, nil));
+    maclet,
+    makelist(
+        makelist(
+            makeintern("name"),
+            makelist(
+                bassymbolmake,
+                makestring("namesym")))),
+    makelist(
+        basdebprint,
+        makequoteback(
+            makelist(
+                makeint(1),
+                makeint(2),
+                makeint(3),
+                makeunquote(
+                    makeintern("name"))))));
 
 strace.unwindstrace(function (){
-    console.log(source + "");
-    console.log(source.evaluatearg() + "");
+    console.log("" + source + "");
+    console.log("" + source.evaluatearg() + "");
 })();
 
-source = makelist(
-    synprogn,
-    makelist(macunless, t, nil));
+// source = makelist(
+//     maclet,
+//     makelist(
+//         makelist(
+//             makeintern("name"),
+//             makelist(
+//                 bassymbolmake,
+//                 makestring("namesym")))),
+//     makelist(
+//         synsetf,
+//         makelist(
+//             bassymbolvalue,
+//             makeintern("name")),
+//         makestring("moco")),
+//     makelist(
+//         basdebprint,
+//         makelist(
+//             bassymbolvalue,
+//             makeintern("name"))));
 
-strace.unwindstrace(function (){
-    console.log(source + "");
-    console.log(source.evaluatearg() + "");
-})();
+// strace.unwindstrace(function (){
+//     console.log("" + source + "");
+//     console.log("" + source.evaluatearg() + "");
+// })();
+
+// source = makelist(macwhen, t, t);
+
+// strace.unwindstrace(function (){
+//     console.log("" + source + "");
+//     console.log("" + source.evaluatearg() + "");
+// })();
+
+// source = makelist(macunless, nil, t);
+
+// strace.unwindstrace(function (){
+//     console.log("" + source + "");
+//     console.log("" + source.evaluatearg() + "");
+// })();
     
 // source = makelist(
 //     basconnreverse,
