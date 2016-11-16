@@ -391,6 +391,10 @@ AtomClass.prototype.toString = function (){
     return this.value.toString();
 };
 
+AtomClass.prototype.toLisp = function (){
+    return this.toString();
+};
+
 AtomClass.prototype.valueOf = function (){
     return this.toString();
 };
@@ -445,21 +449,19 @@ function afterclone (func){
     };
 }
 
-// boolean class
+// true class
 //     <- atom class
 
-function BooleanClass (value){
-    this.value = value;
-}
+function TrueClass (){}
 
-BooleanClass.prototype = 
+TrueClass.prototype = 
     Object.create(AtomClass.prototype);
 
-BooleanClass.prototype.status = function (){
-    return this.value;
-};
+TrueClass.prototype.toString = function (){ return "true"; };
+TrueClass.prototype.toLisp = function (){ return "t"; };
+TrueClass.prototype.status = function (){ return true; };
 
-var t = new BooleanClass(true);
+var t = new TrueClass();
 
 // reference class
 //     <- atom class
@@ -676,7 +678,7 @@ SymbolFunctionReferenceClass.prototype.onexpandarg = function (){
 
 function NumberClass (number){
     this.value = number;
-}
+};
 
 NumberClass.prototype =
     Object.create(AtomClass.prototype);
@@ -699,6 +701,10 @@ FloatClass.prototype.clone = function (){
     return new FloatClass(this.value);
 };
 
+function makefloat (num) {
+    return new FloatClass(num);
+};
+
 // int class
 //     <- number class
 
@@ -708,10 +714,6 @@ function IntClass (number){
 
 IntClass.prototype = 
     Object.create(NumberClass.prototype);
-
-IntClass.prototype.toString = function (){
-    return this.value.toString();
-};
 
 IntClass.prototype.clone = function (){
     return new IntClass(this.value);
@@ -1153,8 +1155,8 @@ NilClass.prototype =
 NilClass.prototype.car = nil;
 NilClass.prototype.cdr = nil;
 
-NilClass.prototype.getcar = function (){return new NilReferenceClass();};
-NilClass.prototype.getcdr = function (){return new NilReferenceClass();};
+NilClass.prototype.getcar = function (){return nil;};
+NilClass.prototype.getcdr = function (){return nil;};
 NilClass.prototype.setcar = function (){throw new Error("nil cannot setcar.");};
 NilClass.prototype.setcdr = function (){throw new Error("nil cannot setcdr.");};
 
@@ -1394,13 +1396,22 @@ UserFunctionClass.prototype.onevaluate = function (){
 
     if (consa.car == makeintern("&rest")){
         consa = consa.cdr;
-        bound = 
+        bound =
             makecons(
-                makecons(macdeflvar,
-                         makecons(consa.car,
-                                  makecons(
-                                      makecons(basconlist, consb)))),
+                makelist(
+                    macdeflvar,
+                    consa.car,
+                    makelist(
+                        synquote,
+                        consb)),
                 bound);
+        // bound = 
+        //     makecons(
+        //         makecons(macdeflvar,
+        //                  makecons(consa.car,
+        //                           makecons(
+        //                               makecons(basconlist, consb)))),
+        //         bound);
     };
 
     // reverse binding arguments.
@@ -2631,7 +2642,6 @@ basconcaar.rest =
                 basconcar,
                 basconcaar_cons)));
 
-
 /* --
     (defun cadr (cons)
         (car (cdr cons)))
@@ -2681,36 +2691,28 @@ basconcddr.rest =
                 basconcddr_cons)));
 
 // define basic macros
-// with user macro class
 
 var basnull = new UserFunctionClass();
 var basnull_some = makeintern("some");
-
 var basnot = new UserFunctionClass();
 var basnot_some = makeintern("some");
-
 var macand = new UserMacroClass();
 var macand_rest = makeintern("&rest");
 var macand_args = makeintern("args");
-
 var macor = new UserMacroClass();
 var macor_rest = makeintern("&rest");
 var macor_args = makeintern("args");
-
 var macwhen = new UserMacroClass();
 var macwhen_cond = makeintern("cond");
 var macwhen_rest = makeintern("&rest");
 var macwhen_args = makeintern("args");
-
 var macunless = new UserMacroClass();
 var macunless_cond = makeintern("cond");
 var macunless_rest = makeintern("&rest");
 var macunless_args = makeintern("args");
-
 var maccond = new UserMacroClass();
 var maccond_rest = makeintern("&rest");
 var maccond_args = makeintern("args");
-
 var maccase = new UserMacroClass();
 var maccase_rest = makeintern("&rest");
 var maccase_args = makeintern("args");
@@ -2842,8 +2844,7 @@ macor.rest =
                         macor,
                         makelist(
                             basconcdr,
-                            macor_args)))
-            )));
+                            macor_args))))));
 
 /* -- 
     (defmacro when (cond &rest args)
@@ -2898,64 +2899,79 @@ macunless.rest =
                 (cons cond (cdr conds)))))
 -- */
 
+maccond.args = makelist(
+    maccond_rest,
+    maccond_args);
+
+maccond.rest =
+    makelist(
+        makelist( // (if (null args) nil ...
+            synif,
+            makelist(
+                basnull,
+                maccond_args),
+            nil,
+            makelist( // (list if (caar args) (cdar args) ...
+                basconlist,
+                synif,
+                makelist(
+                    basconcaar,
+                    maccond_args),
+                makelist(
+                    basconcdar,
+                    maccond_args),
+                makelist( // (list cond ,@(cdr args))
+                    basconcons,
+                    maccond,
+                    makelist(
+                        basconcdr,
+                        maccond_args)))));
+
 // define basic cons methods
 // with user function class
 
 var basconmap = new UserFunctionClass();
-var basconmap_func = inp.scope.intern(makestring("func"));
-var basconmap_sequence = inp.scope.intern(makestring("sequence"));
-
+var basconmap_func = makeintern("func");
+var basconmap_sequence = makeintern("sequence");
 var basconfilter = new UserFunctionClass();
-var basconfilter_func = inp.scope.intern(makestring("func"));
-var basconfilter_sequence = inp.scope.intern(makestring("sequence"));
-
+var basconfilter_func = makeintern("func");
+var basconfilter_sequence = makeintern("sequence");
 var basconreduce = new UserFunctionClass();
-var basconreduce_func = inp.scope.intern(makestring("func"));
-var basconreduce_sequence = inp.scope.intern(makestring("sequence"));
-
+var basconreduce_func = makeintern("func");
+var basconreduce_sequence = makeintern("sequence");
 var basconreducein = new UserFunctionClass();
-var basconreducein_func = inp.scope.intern(makestring("func"));
-var basconreducein_sum = inp.scope.intern(makestring("sum"));
-var basconreducein_sequence = inp.scope.intern(makestring("sequence"));
-
+var basconreducein_func = makeintern("func");
+var basconreducein_sum = makeintern("sum");
+var basconreducein_sequence = makeintern("sequence");
 var basconlength = new UserFunctionClass();
-var basconlength_sequence = inp.scope.intern(makestring("sequence"));
-
+var basconlength_sequence = makeintern("sequence");
 var basconnth = new UserFunctionClass();
-var basconnth_index = inp.scope.intern(makestring("index"));
-var basconnth_sequence = inp.scope.intern(makestring("sequence"));
-
+var basconnth_index = makeintern("index");
+var basconnth_sequence = makeintern("sequence");
 var basconappend2 = new UserFunctionClass();
-var basconappend2_sequence = inp.scope.intern(makestring("sequence"));
-var basconappend2_sequencec = inp.scope.intern(makestring("sequencec"));
-
+var basconappend2_sequence = makeintern("sequence");
+var basconappend2_sequencec = makeintern("sequencec");
 var basconappend = new UserFunctionClass();
-var basconappend_rest = inp.scope.intern(makestring("&rest"));
-var basconappend_args = inp.scope.intern(makestring("args"));
-
+var basconappend_rest = makeintern("&rest");
+var basconappend_args = makeintern("args");
 var basconfindif = new UserFunctionClass();
-var basconfindif_func = inp.scope.intern(makestring("func"));
-var basconfindif_sequence = inp.scope.intern(makestring("sequence"));
-
+var basconfindif_func = makeintern("func");
+var basconfindif_sequence = makeintern("sequence");
 var basconpositionif = new UserFunctionClass();
-var basconpositionif_func = inp.scope.intern(makestring("func"));
-var basconpositionif_sequence = inp.scope.intern(makestring("sequence"));
-
+var basconpositionif_func = makeintern("func");
+var basconpositionif_sequence = makeintern("sequence");
 var basconpositionifin = new UserFunctionClass();
-var basconpositionifin_func = inp.scope.intern(makestring("func"));
-var basconpositionifin_sequence = inp.scope.intern(makestring("sequence"));
-var basconpositionifin_count = inp.scope.intern(makestring("count"));
-
+var basconpositionifin_func = makeintern("func");
+var basconpositionifin_sequence = makeintern("sequence");
+var basconpositionifin_count = makeintern("count");
 var basconcopy = new UserFunctionClass();
-var basconcopy_sequence = inp.scope.intern(makestring("sequence"));
-
+var basconcopy_sequence = makeintern("sequence");
 var basconnreverse = new UserFunctionClass();
-var basconnreverse_sequence = inp.scope.intern(makestring("sequence"));
-
+var basconnreverse_sequence = makeintern("sequence");
 var basconnreversein = new UserFunctionClass();
-var basconnreversein_sequence = inp.scope.intern(makestring("sequence"));
-var basconnreversein_before = inp.scope.intern(makestring("before"));
-var basconnreversein_after = inp.scope.intern(makestring("after"));
+var basconnreversein_sequence = makeintern("sequence");
+var basconnreversein_before = makeintern("before");
+var basconnreversein_after = makeintern("after");
 
 basconmap.label = "<#primitive cons map>";
 basconfilter.label = "<#primitive cons filter>";
@@ -3423,7 +3439,20 @@ basconnreversein.rest =
 
 // ** test code
 
-var source;
+// var source;
+
+// source =
+//     makelist(
+//         maccond,
+//         makelist(nil, makeint(1)),
+//         makelist(nil, makeint(2)),
+//         makelist(t, makeint(3)));
+
+// strace.unwindstrace(function (){
+//     console.log("" + source + "");
+//     console.log("" + source.evaluatearg() + "");
+//     stracedb.print();
+// })();
 
 // source = makelist(
 //     maclet,
