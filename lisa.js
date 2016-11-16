@@ -419,35 +419,41 @@ AtomClass.prototype.clone = function (){
     return this;
 };
 
-function value (some){
-    if (some instanceof AtomClass == false) 
-        throw new Error("" + some + " is not atom class."); 
-    return some.value;
-}
+function value (atom){
+    if (atom instanceof AtomClass == false) 
+        throw new Error("" + atom + " is not atom class."); 
+    return atom.value;
+};
 
-function tostring (some){
-    if (some instanceof AtomClass == false)
-        throw new Error("" + some + " is not atom class."); 
-    return some.toString();
-}
+function tostring (atom){
+    if (atom instanceof AtomClass == false)
+        throw new Error("" + atom + " is not atom class."); 
+    return atom.toString();
+};
 
-function clone (some){
-    if (some instanceof AtomClass == false)
-        throw new Error("" + some + " is not atom class.");
-    return some.clone();
-}
+function tolisp (atom){
+    if (atom instanceof AtomClass == false)
+        throw new Error("" + atom + " is not atom class.");
+    return atom.toLisp();
+};
+
+function clone (atom){
+    if (atom instanceof AtomClass == false)
+        throw new Error("" + atom + " is not atom class.");
+    return atom.clone();
+};
 
 function beforeclone (func){
     return function beforeclone_closure (){
         return func.apply(func, slice(arguments).map(clone));
     };
-}
+};
 
 function afterclone (func){
     return function afterclone_closure (){
         return func.apply(func, arguments).clone();
     };
-}
+};
 
 // true class
 //     <- atom class
@@ -737,6 +743,10 @@ CharClass.prototype.toString = function (){
     return String.fromCharCode(this.value);
 };
 
+CharClass.prototype.toLisp = function (){
+    return "?" + String.fromCharCode(this.value);
+};
+
 CharClass.prototype.clone = function (){
     return new CharClass(this.value);
 };
@@ -990,17 +1000,21 @@ ConsClass.prototype.onexpanddata = function (){
 };
 
 ConsClass.prototype.toPlain = function (){
-    return this.toArray().join(",");
+    return this.toArray().map(tostring).join(",");
 };
 
 ConsClass.prototype.toString = function (){
-    return "[" + this.toArray().join(",") + "]";
+    return "[" + this.toArray().map(tostring).join(",") + "]";
+};
+
+ConsClass.prototype.toLisp = function (){
+    return "(" + this.toArray().map(tolisp).join(" ") + ")";
 };
 
 ConsClass.toCons = function (sequence){
     var cons, index;
     for (cons = nil, index = 0; index < sequence.length; index++)
-        cons = new ConsClass(sequence[index], cons);
+        cons = makecons(sequence[index], cons);
     return cons.reverse();
 };
 
@@ -1034,78 +1048,6 @@ ConsClass.prototype.toArray = function (){
     return sequence;
 };
 
-ConsClass.prototype.every = function (func){
-    var cons;
-    for (cons = this; cons != nil; cons = cons.cdr)
-        func.evaluate(cons.car);
-    return nil;
-};
-
-ConsClass.prototype.map = function (func){
-    var ncons, cons;
-    for (ncons = nil, cons = this; cons != nil; cons = cons.cdr)
-        ncons = new ConsClass(func.evaluate(cons.car), ncons);
-    return ncons.reverse();
-};
-
-ConsClass.prototype.filter = function (func){
-    var ncons, cons;
-    for (ncons = nil, cons = this; cons != nil; cons = cons.cdr)
-        if (func.evaluate(cons.car))
-            ncons = new ConsClass(cons.car, ncons);
-    return ncons.reverse();
-};
-
-ConsClass.prototype.reduce = function (func){
-    if (this.length() == 0) return nil;
-    if (this.length() == 1) return this.car;
-    var sum, cons;
-    for (sum = cons.car, cons = this; cons != nil; cons = cons.cdr)
-        sum = func.evaluate(sum, cons.car);
-    return sum;
-};
-
-ConsClass.prototype.findif = function (func){
-    var  cons;
-    for (cons = this; cons != nil; cons = cons.cdr)
-        if (func.evaluate(cons.car))
-            return cons.car;
-    return nil;
-};
-
-ConsClass.prototype.positionif = function (func){
-    var count, cons;
-    for (count = 0, cons = this; cons != nil; cons = cons.cdr, count++)
-        if (func.evaluate(cons.car))
-            return count;
-    return null;
-};
-
-ConsClass.prototype.nth = function (index){
-    var cons;
-    for (cons = this; cons != nil && index; cons = cons.cdr);
-    return new ConsReferenceClass(cons);
-};
-
-ConsClass.prototype.last = function (){
-    var cons;
-    for (cons = this; cons != nil && cons.cdr != nil; cons = cons.cdr);
-    return cons.car;
-};
-
-ConsClass.prototype.length = function (){
-    var count, cons;
-    for (cons = this; cons != nil; cons = cons.cdr) count++;
-    return count;
-};
-
-ConsClass.prototype.reversesafe = function (){
-    var ncons, cons;
-    for (ncons = nil, cons = this; cons != nil; cons = cons.cdr)
-        ncons = new ConsClass(cons.car, ncons);
-    return ncons;
-};
-
 ConsClass.prototype.reverse = function (){
     var cons, consa, consb;
     for (cons = this, consb = nil; cons != nil;){
@@ -1115,13 +1057,6 @@ ConsClass.prototype.reverse = function (){
         cons = consa;
     };
     return consb;
-};
-
-ConsClass.prototype.copy = function (){
-    var ncons, cons;
-    for (ncons = nil, cons = this; cons; cons = cons.cdr)
-        ncons = new ConsClass(cons.car, ncons);
-    return ncons.reverse();
 };
 
 ConsClass.prototype.islinear = function (){
@@ -1174,53 +1109,9 @@ NilClass.prototype.onevaluate =
 NilClass.prototype.onexpand = 
     NilClass.prototype.onexpandarg;
 
-NilClass.prototype.status = function (){
-    return false;
-};
-
-NilClass.prototype.toString = function (){
-    return "null";
-};
-
-NilClass.prototype.toArray = function (){
-    return [];
-};
-
-NilClass.prototype.every = function (func){
-    return nil;
-};
-
-NilClass.prototype.map = function (func){
-    return nil;
-};
-
-NilClass.prototype.filter = function (func){
-    return nil;
-};
-
-NilClass.prototype.reduce = function (func){
-    return nil;
-};
-
-NilClass.prototype.findif = function (func){
-    return nil;
-};
-
-NilClass.prototype.positionif = function (func){
-    return nil;
-};
-
-NilClass.prototype.nth = function (index){
-    return nil;
-};
-
-NilClass.prototype.length = function (){
-    return 0;
-};
-
-NilClass.prototype.reverse = function (){
-    return this;
-};
+NilClass.prototype.status = function (){ return false; };
+NilClass.prototype.toLisp = function (){ return "nil"; };
+NilClass.prototype.toString = function (){ return "null"; };
 
 var nil = new NilClass();
 
@@ -3439,20 +3330,20 @@ basconnreversein.rest =
 
 // ** test code
 
-// var source;
+var source;
 
-// source =
-//     makelist(
-//         maccond,
-//         makelist(nil, makeint(1)),
-//         makelist(nil, makeint(2)),
-//         makelist(t, makeint(3)));
+source =
+    makelist(
+        maccond,
+        makelist(nil, makeint(1)),
+        makelist(nil, makeint(2)),
+        makelist(t, makeint(3)));
 
-// strace.unwindstrace(function (){
-//     console.log("" + source + "");
-//     console.log("" + source.evaluatearg() + "");
-//     stracedb.print();
-// })();
+strace.unwindstrace(function (){
+    console.log("" + source + "");
+    console.log("" + source.evaluatearg() + "");
+    stracedb.print();
+})();
 
 // source = makelist(
 //     maclet,
