@@ -3,13 +3,13 @@
 
 function slice (sequence, beginning, end){
     return Array.prototype.slice.call(sequence, beginning, end);
-}
+};
 
 // get object keys
 
 function keys (some){
     return Object.keys(some);
-}
+};
 
 // strace
 
@@ -657,6 +657,11 @@ SymbolValueReferenceClass.prototype =
     Object.create(SymbolReferenceClass.prototype);
 
 SymbolValueReferenceClass.prototype.get = function (){
+
+    var message = "symbol value reference <- " + this.toLisp() + "";
+    strace.push(message);
+    stracedb.push(message);
+    
     return this.value.getvalue();
 };
 
@@ -883,13 +888,6 @@ function StringClass (value){
 
 StringClass.prototype = 
     Object.create(ClassArrayClass.prototype);
-
-StringClass.prototype.onevaluate = null;
-StringClass.prototype.onexpand = null;
-
-StringClass.prototype.onevaluatearg = function (){
-    return this;
-};
 
 StringClass.prototype.toString = function (){
     return '"' + this.value.join("") + '"';
@@ -1331,9 +1329,78 @@ UserMacroClass.prototype =
     Object.create(MacroClass.prototype);
 
 UserMacroClass.prototype.onevaluate = function (){
-    var expand = UserFunctionClass.prototype.onevaluate.apply(this, arguments);
-    stracedb.push("user macro <- " + expand.toLisp() + "");
-    return expand;
+
+    var formula;
+    var bound, consa, consb;
+    bound = makecons(synprogn);
+    consa = this.args;
+    consb = ConsClass.toCons(arguments);
+
+    for (; consa != nil && consb != nil; 
+         consa = consa.cdr, consb = consb.cdr){
+        if (consa.car == makeintern("&rest")) break;
+        if (consa.car == makeintern("&optional")) break;
+        bound = 
+            makecons(
+                makecons(macdeflvar,
+                         makecons(consa.car,
+                                  makecons(
+                                      makelist(
+                                          synquote,
+                                          consb.car)))),
+                bound);
+    };
+ 
+    if (consa.car == makeintern("&optional")){
+        consa = consa.cdr;
+        for (; consa != nil && consb != nil;
+             consa = consa.cdr, consb = consb.cdr){
+            if (consa.car == makeintern("&rest")) break;
+            bound =
+                makecons(
+                    makecons(macdeflvar,
+                             (consb == nil) ?
+                             (consa.car instanceof ConsClass == false) ?
+                             (makecons(consa.car, makecons(nil))):
+                             (makecons(consa.car.car, makecons(consa.car.cdr.car))):
+                             (consa.car instanceof ConsClass == false) ?
+                             (makecons(consa.car, makecons(makelist(synquote, consb.car)))):
+                             (makecons(consa.car.car, makecons(makelist(synquote, consb.car))))),
+                    bound);
+        }};
+    
+    if (consa.car == makeintern("&rest")){
+        consa = consa.cdr;
+        bound =
+            makecons(
+                makelist(
+                    macdeflvar,
+                    consa.car,
+                    makelist(
+                        synquote,
+                        consb)),
+                bound);
+    };
+
+    bound = bound.reverse();
+    
+    formula = makecons(synblock,
+                    makecons(bound, this.rest));
+
+    var message;
+
+    message =  "user function <- " + formula.toLisp();
+    strace.push(message);
+    stracedb.push(message);
+
+    var expantion;
+    expantion = formula.evaluatearg();
+
+    message = "macro expantion <- " + expantion.toLisp();
+    strace.push(message);
+    stracedb.push(message);
+
+    return expantion;
 };
 
 // symbol family class
@@ -2006,8 +2073,7 @@ synprogn.onevaluate = function (){
 
 synsetf.onevaluate = function (formula, value){
 
-    var message;
-    message = "set formula = " + formula.toLisp() + " = " + value.toLisp() + "";
+    var message = "set formula = " + formula.toLisp() + " = " + value.toLisp() + "";
     strace.push(message);
     stracedb.push(message);
 
@@ -2017,8 +2083,8 @@ synsetf.onevaluate = function (formula, value){
 };
 
 synquote.onevaluate = function (some){
-
-    var message = "quote " + some + "";
+    
+    var message = "unquote " + some.toLisp() + "";
     strace.push(message);
     stracedb.push(message);
     
@@ -2027,7 +2093,7 @@ synquote.onevaluate = function (some){
 
 synquoteback.onevaluate = function (some){
 
-    var message  = "unquoteback " + some + " = " + some.clone() + "";
+    var message  = "unquoteback " + some.toLisp() + " = " + some.clone().toLisp() + "";
     strace.push(message);
     stracedb.push(message);
     
@@ -2045,30 +2111,24 @@ synmacro.onevaluate = function (args){
 // define basic macro functions
 
 var macprog1 = new PrimitiveMacroClass();
-var macsetq = new PrimitiveMacroClass();
 var macincf = new PrimitiveMacroClass();
 var macdecf = new PrimitiveMacroClass();
-var maclet = new PrimitiveMacroClass();
 var macflet = new PrimitiveMacroClass();
 var macmlet = new PrimitiveMacroClass();
 var macdefvar = new PrimitiveMacroClass();
 var macdeflvar = new PrimitiveMacroClass();
 
 inp.scope.intern(makestring("prog1")).setfunc(macprog1);
-inp.scope.intern(makestring("setq")).setfunc(macsetq);
 inp.scope.intern(makestring("incf")).setfunc(macincf);
 inp.scope.intern(makestring("decf")).setfunc(macdecf);
-inp.scope.intern(makestring("let")).setfunc(maclet);
 inp.scope.intern(makestring("flet")).setfunc(macflet);
 inp.scope.intern(makestring("mlet")).setfunc(macmlet);
 inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
 inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
 
 macprog1.label = "$prog1";
-macsetq.label = "$setq";
 macincf.label = "$incf";
 macdecf.label = "$decf";
-maclet.label = "$let";
 macflet.label = "$flet";
 macmlet.label = "$mlet";
 macdefvar.label = "$defvar";
@@ -2133,24 +2193,6 @@ macdeflvar.onevaluate = function (sym, value){
                     synquote, 
                     sym))),
         value);
-};
-
-macsetq.onevaluate = function (sym, value){
-    return new ConsClass(synsetf,
-                         new ConsClass(
-                             new QuoteClass(
-                                 new SymbolValueReferenceClass(sym)),
-                             new ConsClass(value)));
-};
-
-maclet.onevaluate = function (bounds){
-    var bound, formula;
-    for (bound = makecons(synprogn); bounds != nil; bounds = bounds.cdr)
-        bound = makecons(makecons(macdeflvar, bounds.car), bound);
-    return makecons(synblock,
-                    makecons(bound.reverse(),
-                             arguments.length == 0 ? nil :
-                             ConsClass.toCons(slice(arguments, 1))));
 };
 
 macflet.onevaluate = function (bounds){
@@ -2370,24 +2412,25 @@ basfnapply.onevaluate = function (func, args){
 
 // define basic debug methods
 
-var basdebprint = new PrimitiveFunctionClass();
-var basdebstrace = new PrimitiveFunctionClass();
-var basdebstracedb = new PrimitiveFunctionClass();
+var basprint = new PrimitiveFunctionClass();
+var basstrace = new PrimitiveFunctionClass();
+var basstracedb = new PrimitiveFunctionClass();
 
-basdebprint.label = "$print";
-basdebstrace.label = "$strace";
+basprint.label = "$print";
+basstrace.label = "$strace";
+basstracedb.label = "$stracedb";
 
-basdebprint.onevaluate = function (some){
-    console.log(some + "");
+basprint.onevaluate = function (some){
+    console.log(some.toLisp());
     return some;
 };
 
-basdebstrace.onevaluate = function (){
+basstrace.onevaluate = function (){
     strace.print();
     return nil;
 };
 
-basdebstracedb.onevaluate = function (){
+basstracedb.onevaluate = function (){
     stracedb.print();
     return nil;
 };
@@ -2406,6 +2449,7 @@ baseq2.onevaluate = function (a,b){
 
 // define basic cons methods
 
+var basconconsp = new PrimitiveFunctionClass();
 var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
 var basconcdr = new PrimitiveFunctionClass();
@@ -2436,6 +2480,10 @@ inp.scope.intern(makestring("cadr")).setfunc(basconcadr);
 inp.scope.intern(makestring("cdar")).setfunc(basconcdar);
 inp.scope.intern(makestring("cddr")).setfunc(basconcddr);
 inp.scope.intern(makestring("list")).setfunc(basconlist);
+
+basconconsp.onevaluate = function (cons){
+    return cons instanceof ConsClass ? t : nil;
+};
 
 basconcons.onevaluate = function (car, cdr){
     return new ConsReferenceClass(
@@ -2557,6 +2605,13 @@ var macdefmacro_args = makeintern("args");
 var macsetq = new UserMacroClass();
 var macsetq_sym = makeintern("sym");
 var macsetq_value = makeintern("value");
+var maclet = new UserMacroClass();
+var maclet_rest = makeintern("&rest");
+var maclet_args = makeintern("args");
+var macletin = new UserMacroClass();
+var macletin_binds = makeintern("binds");
+var macletin_rest = makeintern("&rest");
+var macletin_args = makeintern("args");
 
 basnull.label = "$null";
 basnot.label = "$not";
@@ -2569,6 +2624,8 @@ maccase.label = "$case";
 macdefun.label = "$defun";
 macdefmacro.label = "$defmacro";
 macsetq.label = "$setq";
+maclet.label = "$let";
+maclet.label = "$letin";
 
 inp.scope.intern(makestring("null")).setfunc(basnull);
 inp.scope.intern(makestring("not")).setfunc(basnot);
@@ -2580,6 +2637,8 @@ inp.scope.intern(makestring("cond")).setfunc(maccond);
 inp.scope.intern(makestring("case")).setfunc(maccase);
 inp.scope.intern(makestring("defun")).setfunc(macdefun);
 inp.scope.intern(makestring("defmacro")).setfunc(macdefmacro);
+inp.scope.intern(makestring("setq")).setfunc(macsetq);
+inp.scope.intern(makestring("let")).setfunc(maclet);
 
 /* -- 
     (if some nil t)
@@ -2905,11 +2964,109 @@ macsetq.rest =
                 makelist(
                     bassymbolvalue,
                     makelist(
-                        synquoteback,
+                        synquote,
                         makeunquote(
                             macsetq_sym))),
                 makeunquote(
                     macsetq_value))));
+
+/* --
+    (defmacro let (&rest args)
+        (list block (cons letin args)))
+-- */
+
+maclet.args = makelist(
+    maclet_rest,
+    maclet_args);
+
+maclet.rest =
+    makelist(
+        makelist( // (list block (list cons letin args))
+            basconlist,
+            synblock,
+            makelist(
+                basconcons,
+                macletin,
+                maclet_args)));
+
+/* --
+    (defmacro letin (binds &rest args)
+        (if (null binds) args
+            (list progn
+                (cons deflvar (car binds))
+                (cons letin (cons (cdr binds) args)))))
+-- */
+
+macletin.args = makelist(
+    macletin_binds,
+    macletin_rest,
+    macletin_args);
+
+macletin.rest = // ** this has bug
+    makelist(
+
+        // (if (null binds) ...
+        
+        makelist(
+            synif,
+            makelist(
+                basnull,
+                macletin_binds),
+
+            // (cons progn args)
+            
+            makelist(
+                basconcons,
+                synprogn,
+                macletin_args),
+
+            // (list progn ...
+
+            makelist(
+                basconlist,
+                synprogn,
+                
+                // (if (consp (car binds)) ... 
+                
+                makelist(
+                    synif,
+                    makelist(
+                        basconconsp,
+                        makelist(
+                            basconcar,
+                            macletin_binds)),
+
+                    // (cons deflvar (car binds))
+                    
+                    makelist(
+                        basconcons,
+                        macdeflvar,
+                        makelist(
+                            basconcar,
+                            macletin_binds)),
+
+                    // (list deflvar (car binds) nil)
+                    
+                    makelist(
+                        basconlist,
+                        macdeflvar,
+                        makelist(
+                            basconcar,
+                            macletin_binds),
+                        nil)),
+
+                // (cons letin (cons (cdr binds) args))
+                
+                makelist(
+                    basconcons,
+                    macletin,
+                    makelist(
+                        basconcons,
+                        makelist(
+                            basconcdr,
+                            macletin_binds),
+                        macletin_args))
+            )));
 
 // define basic cons methods
 
@@ -3429,6 +3586,39 @@ var source;
 //         makelist(
 //             maclet,
 //             makelist(
+//                 makeintern("none"),
+//                 makelist(
+//                     makeintern("name"),
+//                     makestring("moco"))),
+//             makelist(
+//                 basprint,
+//                 makeintern("none")),
+//             makelist(
+//                 basprint,
+//                 makeintern("name"))));
+
+// source =
+//     makelist(
+//         makelist(
+//             maclet,
+//             makelist(
+//                 makelist(
+//                     makeintern("name"),
+//                     nil)),
+//             makelist(
+//                 macsetq,
+//                 makeintern("name"),
+//                 makestring("moco")),
+//             makelist(
+//                 basdebprint,
+//                 makeintern("name")),
+//             nil));
+
+// source =
+//     makelist(
+//         makelist(
+//             maclet,
+//             makelist(
 //                 makelist(
 //                     makeintern("temp"),
 //                     makelist(
@@ -3448,7 +3638,6 @@ var source;
 //             makelist(
 //                 makeunquote(
 //                     makeintern("name")))));
-
 
 // try {
 //     console.log("" + source.toLisp() + "");
