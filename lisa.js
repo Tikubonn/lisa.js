@@ -39,7 +39,7 @@ Strace.prototype.willstrace = function (){
     var self = this;
     return function willstrace_closure (){
         var index;
-        index = self.push(message + this);
+        index = self.push(message + this.toLisp());
         temp = func.apply(this, arguments);
         self.pop(index);
         return temp;
@@ -893,10 +893,14 @@ StringClass.prototype.onevaluatearg = function (){
 
 StringClass.prototype.toString = function (){
     return '"' + this.value.join("") + '"';
-}
+};
 
 StringClass.prototype.toPlain = function (){
     return "" + this.value.join("") + "";
+};
+
+StringClass.prototype.toLisp = function (){
+    return this.toString();
 };
 
 StringClass.prototype.copy = function (){
@@ -989,16 +993,15 @@ ConsClass.prototype.clone = function (){ // ** should update here
     for (ncons = nil, cons = this; cons != nil; cons = cons.cdr){
         if (cons.car instanceof UnQuoteAtClass){
             var consa, consb;
-            for (consa = cons.car.evaluatearg(),
+            for (consa = cons.car.clone(),
                  consb = consa;
                  consb != nil && consb.cdr != nil;
                  consb = consb.cdr);
             consb.cdr = ncons;
-            ncons = consa;
-        }
+            ncons = consa;}
         else if (cons.car instanceof UnQuoteClass)
-            ncons = new ConsClass(cons.car.evaluatearg(), ncons);
-        else ncons = new ConsClass(cons.car, ncons);}
+            ncons = makecons(cons.car.clone(), ncons);
+        else ncons = makecons(cons.car.clone(), ncons);}
     return ncons.reverse();
 };
 
@@ -1097,19 +1100,21 @@ function UnQuoteClass (value){
 UnQuoteClass.prototype = 
     Object.create(QuoteFamilyClass.prototype);
 
-UnQuoteClass.prototype.onevaluate = null;
-UnQuoteClass.prototype.onexpand = null;
+UnQuoteClass.prototype.onexpand = function (){ throw new Error("unquote cannot expand"); };
+UnQuoteClass.prototype.onevaluate = function (){ throw new Error("unquote is cannot evaluate"); };
+UnQuoteClass.prototype.onexpandarg = function (){ throw new Error("unquote cannot expandarg"); };
+UnQuoteClass.prototype.onevaluatearg = function (){ throw new Error("unquote is cannot evaluatearg"); };
 
 UnQuoteClass.prototype.toString  = function (){
     return "/*--unquote--*/" + this.value.toString();
 };
 
-UnQuoteClass.prototype.onevaluatearg = function (){
-    return this.value.evaluatearg();
+UnQuoteClass.prototype.toLisp = function (){
+    return "," + this.value.toString();
 };
 
-UnQuoteClass.prototype.onexpandarg = function (){
-    return this.value.expandarg();
+UnQuoteClass.prototype.clone = function (){
+    return this.value.evaluatearg();
 };
 
 function makeunquote (some){
@@ -1126,8 +1131,17 @@ function UnQuoteAtClass (value){
 UnQuoteAtClass.prototype = 
     Object.create(UnQuoteClass.prototype);
 
+UnQuoteAtClass.prototype.onexpand = function (){ throw new Error("unquoteat cannot expand"); };
+UnQuoteAtClass.prototype.onevaluate = function (){ throw new Error("unquoteat is cannot evaluate"); };
+UnQuoteAtClass.prototype.onexpandarg = function (){ throw new Error("unquoteat cannot expandarg"); };
+UnQuoteAtClass.prototype.onevaluatearg = function (){ throw new Error("unquoteat is cannot evaluatearg"); };
+
 UnQuoteAtClass.prototype.toString = function (){
     return "/*--unquoteat--*/" + this.value.toString();
+};
+
+UnQuoteAtClass.prototype.toLisp = function (){
+    return ",@" + this.value.toString();
 };
 
 function makeunquoteat (some){
@@ -1199,7 +1213,9 @@ function UserFunctionClass (args, rest){
 UserFunctionClass.prototype = 
     Object.create(FunctionClass.prototype);
 
-UserFunctionClass.prototype.label = "<#user function class>";
+UserFunctionClass.prototype.toLisp = function (){
+    return makecons(synlambda, makecons(this.args, this.rest)).toLisp();
+};
 
 UserFunctionClass.prototype.onevaluate = function (){
 
@@ -1593,12 +1609,12 @@ StringStreamClass.prototype.isalive = function (){
 
 StringStreamClass.prototype.look = function (){
     this.shouldin();
-    return this.iseof() ? nilf : this.source.nth(this.index);
+    return this.iseof() ? nil : this.source.nth(this.index);
 };
 
 StringStreamClass.prototype.get = function (){
     this.shouldin();
-    return this.iseof() ? nilf : this.source.nth(this.index++);
+    return this.iseof() ? nil : this.source.nth(this.index++);
 };
 
 StringStreamClass.prototype.put = function (charInstance){
@@ -1627,14 +1643,6 @@ Obarray.prototype.intern = function (name){
     return new InternSymbolClass(name);
 };
 
-// Obarray.prototype.list = function (){ // ** for degug
-//     var sequence, names, index;
-//     for (sequence = [], names = Object.keys(this.obarray), 
-//          index = 0; index < names.length; index++)
-//         sequence.push(this.obarray[names[index]]);
-//     return sequence;
-// };
-
 // obarrays class
 //     <- native, function class
 
@@ -1642,19 +1650,6 @@ function Obarrays (parent){
     this.obarray = new Obarray();
     this.parent = parent || null;
 };
-
-// Obarrays.prototype.length = function (){ // ** for debug
-//     var count, current;
-//     for (count = 0, current = this; current; current = current.parent, count++);
-//     return count;
-// };
-
-// Obarrays.prototype.list = function (){ // ** for debug
-//     var sequence, current;
-//     for (sequence = [], current = this; current; current = current.parent)
-//         sequence = sequence.concat(current.obarray.list());
-//     return sequence;
-// };
 
 Obarrays.prototype.find = function (name){
     var current, found;
@@ -1697,20 +1692,6 @@ function Obscope (parent){
     this.obarrays = new Array();
     this.parent = parent || null;
 };
-
-// Obscope.prototype.length = function (){ // ** for debug
-//     var count, current;
-//     for (count = 0, current = this; current; current = current.parent)
-//         count += current.obarray.length();
-//     return count;
-// };
-
-// Obscope.prototype.list = function (){ // ** for debug
-//     var sequence, current;
-//     for (sequence = [], current = this; current; current = current.parent)
-//         sequence = sequence.concat(current.listin());
-//     return sequence;
-// };
 
 Obscope.prototype.find = function (name){
     var found, current;
@@ -2024,17 +2005,32 @@ synprogn.onevaluate = function (){
 };
 
 synsetf.onevaluate = function (formula, value){
-    strace.push("setf  <- " + formula + " = " + value + "");
+
+    var message;
+    message = "set formula = " + formula.toLisp() + " = " + value.toLisp() + "";
+    strace.push(message);
+    stracedb.push(message);
+
     var valued = getreference(value.evaluatearg());
     var formulaed = formula.evaluatearg();
     return formulaed.set(valued);
 };
 
 synquote.onevaluate = function (some){
+
+    var message = "quote " + some + "";
+    strace.push(message);
+    stracedb.push(message);
+    
     return some;
 };
 
 synquoteback.onevaluate = function (some){
+
+    var message  = "unquoteback " + some + " = " + some.clone() + "";
+    strace.push(message);
+    stracedb.push(message);
+    
     return some.clone();
 };
 
@@ -2049,8 +2045,6 @@ synmacro.onevaluate = function (args){
 // define basic macro functions
 
 var macprog1 = new PrimitiveMacroClass();
-var macdefun = new PrimitiveMacroClass();
-var macdefmacro = new PrimitiveMacroClass();
 var macsetq = new PrimitiveMacroClass();
 var macincf = new PrimitiveMacroClass();
 var macdecf = new PrimitiveMacroClass();
@@ -2061,8 +2055,6 @@ var macdefvar = new PrimitiveMacroClass();
 var macdeflvar = new PrimitiveMacroClass();
 
 inp.scope.intern(makestring("prog1")).setfunc(macprog1);
-inp.scope.intern(makestring("defun")).setfunc(macdefun);
-inp.scope.intern(makestring("defmacro")).setfunc(macdefmacro);
 inp.scope.intern(makestring("setq")).setfunc(macsetq);
 inp.scope.intern(makestring("incf")).setfunc(macincf);
 inp.scope.intern(makestring("decf")).setfunc(macdecf);
@@ -2073,8 +2065,6 @@ inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
 inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
 
 macprog1.label = "$prog1";
-macdefun.label = "$defun";
-macdefmacro.label = "$defmacro";
 macsetq.label = "$setq";
 macincf.label = "$incf";
 macdecf.label = "$decf";
@@ -2145,26 +2135,6 @@ macdeflvar.onevaluate = function (sym, value){
         value);
 };
 
-macdefun.onevaluate = function (name){
-    return new ConsClass(synsetf,
-                         new ConsClass(
-                             new QuoteClass(
-                                 new SymbolFunctionReferenceClass(name)),
-                             new ConsClass(
-                                 new ConsClass(synlambda,
-                                               ConsClass.toCons(slice(arguments, 1))))));
-};
-
-macdefmacro.onevaluate = function (name){
-    return new ConsClass(synsetf,
-                     new ConsClass(
-                         new QuoteClass(
-                             new SymbolFunctionReferenceClass(name)),
-                         new ConsClass(
-                             new ConsClass(synmacro,
-                                           ConsClass.toCons(slice(arguments, 1))))));
-};
-
 macsetq.onevaluate = function (sym, value){
     return new ConsClass(synsetf,
                          new ConsClass(
@@ -2179,6 +2149,7 @@ maclet.onevaluate = function (bounds){
         bound = makecons(makecons(macdeflvar, bounds.car), bound);
     return makecons(synblock,
                     makecons(bound.reverse(),
+                             arguments.length == 0 ? nil :
                              ConsClass.toCons(slice(arguments, 1))));
 };
 
@@ -2221,10 +2192,14 @@ baslocal.label = "$local";
 basglobal.label = "$global";
 
 baslocal.onevaluate = function (sym){
+    if (sym instanceof SymbolFamilyClass == false)
+        throw new Error("" + sym + " is not symbol family instance.");
     return inp.scope.internf(sym.name);
 };
 
 basglobal.onevaluate = function (sym){
+    if (sym instanceof SymbolFamilyClass == false)
+        throw new Error("" + sym + " is not symbol family instance.");
     return inp.scoperoot.internf(sym.name);
 };
 
@@ -2571,6 +2546,17 @@ var maccase = new UserMacroClass();
 var maccase_cond = makeintern("cond");
 var maccase_rest = makeintern("&rest");
 var maccase_args = makeintern("args");
+var macdefun = new UserMacroClass();
+var macdefun_name = makeintern("name");
+var macdefun_rest = makeintern("&rest");
+var macdefun_args = makeintern("args");
+var macdefmacro = new UserMacroClass();
+var macdefmacro_name = makeintern("name");
+var macdefmacro_rest = makeintern("&rest");
+var macdefmacro_args = makeintern("args");
+var macsetq = new UserMacroClass();
+var macsetq_sym = makeintern("sym");
+var macsetq_value = makeintern("value");
 
 basnull.label = "$null";
 basnot.label = "$not";
@@ -2580,6 +2566,9 @@ macwhen.label = "$when";
 macunless.label = "$unless";
 maccond.label = "$cond";
 maccase.label = "$case";
+macdefun.label = "$defun";
+macdefmacro.label = "$defmacro";
+macsetq.label = "$setq";
 
 inp.scope.intern(makestring("null")).setfunc(basnull);
 inp.scope.intern(makestring("not")).setfunc(basnot);
@@ -2589,6 +2578,8 @@ inp.scope.intern(makestring("when")).setfunc(macwhen);
 inp.scope.intern(makestring("unless")).setfunc(macunless);
 inp.scope.intern(makestring("cond")).setfunc(maccond);
 inp.scope.intern(makestring("case")).setfunc(maccase);
+inp.scope.intern(makestring("defun")).setfunc(macdefun);
+inp.scope.intern(makestring("defmacro")).setfunc(macdefmacro);
 
 /* -- 
     (if some nil t)
@@ -2832,9 +2823,95 @@ maccase.rest =
                         makelist(
                             basconcdr,
                             maccase_args))))));
-                    
+
+/* --
+    (defmacro defun (name &rest args)
+        (setf `(symbol-function ,name)
+            (cons lambda args)))
+ -- */
+
+macdefun.args = makelist(
+    macdefun_name,
+    macdefun_rest,
+    macdefun_args);
+
+macdefun.rest =
+    makelist(
+        makelist(
+            synquoteback,
+            makelist(
+                synsetf,
+                makelist(
+                    bassymbolfunction,
+                    makelist(
+                        baslocal,
+                        makelist(
+                            synquoteback,
+                            makeunquote(
+                                macdefun_name)))),
+                makelist(
+                    synlambda,
+                    makeunquoteat(
+                        macdefun_args)))));
+            
+/* --
+    (defmacro defmacro (name &rest args)
+        (setf (symbol-function name)
+            (cons macro args)))
+-- */
+
+macdefmacro.args = makelist(
+    macdefmacro_name,
+    macdefmacro_rest,
+    macdefmacro_args);
+
+macdefmacro.rest =
+    makelist(
+        makelist(
+            synquoteback,
+            makelist(
+                synsetf,
+                makelist(
+                    bassymbolfunction,
+                    makelist(
+                        bassymbolfunction,
+                        makelist(
+                            baslocal,
+                            makelist(
+                                synquoteback,
+                                makeunquote(
+                                    macdefun_name))))),
+                makelist(
+                    synlambda,
+                    makeunquoteat(
+                        macdefun_args)))));
+
+/* --
+    (defmacro setq (sym value)
+        (setf (symbol-value (quoteback (unquote sym)))
+            value))
+-- */
+
+macsetq.args = makelist(
+    macsetq_sym,
+    macsetq_value);
+
+macsetq.rest =
+    makelist(
+        makelist(
+            synquoteback,
+            makelist(
+                synsetf,
+                makelist(
+                    bassymbolvalue,
+                    makelist(
+                        synquoteback,
+                        makeunquote(
+                            macsetq_sym))),
+                makeunquote(
+                    macsetq_value))));
+
 // define basic cons methods
-// with user function class
 
 var basconmap = new UserFunctionClass();
 var basconmap_func = makeintern("func");
@@ -3345,7 +3422,44 @@ basconnreversein.rest =
 
 // ** test code
 
-// var source;
+var source;
+
+// source =
+//     makelist(
+//         makelist(
+//             maclet,
+//             makelist(
+//                 makelist(
+//                     makeintern("temp"),
+//                     makelist(
+//                         synquote,
+//                         makeintern("temp-symbol")))),
+//             nil));
+
+// source =
+//     makelist(
+//         maclet,
+//         makelist(
+//             makelist(
+//                 makeintern("name"),
+//                 makestring("moco"))),
+//         makelist(
+//             synquoteback,
+//             makelist(
+//                 makeunquote(
+//                     makeintern("name")))));
+
+
+// try {
+//     console.log("" + source.toLisp() + "");
+//     console.log("" + source.evaluatearg().toLisp() + "");
+// }
+
+// catch (errorn){
+//     strace.print();
+//     stracedb.print();
+//     throw errorn;
+// }
 
 // source = makelist(
 //     maccase, t,
