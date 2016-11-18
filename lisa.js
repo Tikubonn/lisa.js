@@ -555,6 +555,10 @@ ArrayReferenceClass.prototype.onexpanddata = function (){
 // //     <- reference class
 
 function ConsReferenceClass (cons){
+    
+    if (cons instanceof ConsClass == false)
+        throw new Error("" + cons + " is should cons instance.");
+    
     this.cons = cons || null;
 };
 
@@ -1632,6 +1636,9 @@ StreamClass.prototype =
 StreamClass.direction = {};
 StreamClass.direction.input = (1|0);
 StreamClass.direction.output = (2|0);
+StreamClass.direction.io =
+    StreamClass.direction.input |
+    StreamClass.direction.output;
 
 StreamClass.onevaluate = null;
 StreamClass.onexpand = null;
@@ -2117,73 +2124,6 @@ synmacro.onevaluate = function (args){
     return new UserMacroClass(args, ConsClass.toCons(slice(arguments, 1)));
 };
 
-// define basic macro functions
-
-var macincf = new PrimitiveMacroClass();
-var macdecf = new PrimitiveMacroClass();
-var macflet = new PrimitiveMacroClass();
-var macmlet = new PrimitiveMacroClass();
-
-inp.scope.intern(makestring("incf")).setfunc(macincf);
-inp.scope.intern(makestring("decf")).setfunc(macdecf);
-inp.scope.intern(makestring("flet")).setfunc(macflet);
-inp.scope.intern(makestring("mlet")).setfunc(macmlet);
-
-macincf.label = "$incf";
-macdecf.label = "$decf";
-macflet.label = "$flet";
-macmlet.label = "$mlet";
-
-macincf.onevaluate = function (formula){
-    return makelist(
-        synsetf,
-        formula,
-        makelist(
-            basadd,
-            formula,
-            makeint(1)));
-};
-
-macdecf.onevaluate = function (formula){
-    return makelist(
-        synsetf,
-        formula,
-        makelist(
-            bassub,
-            formula,
-            makeint(1)));
-};
-
-macflet.onevaluate = function (bounds){
-    var bound, formula;
-    for (bound = makecons(synprogn); bounds != nil; bounds = bounds.cdr)
-        bound = makecons(
-            makelist(
-                synsetf, 
-                makelist(
-                    bassymbolfunction, 
-                    makelist(synquote, bounds.car.car)),
-                makecons(synlambda, bounds.car.cdr)), bound);
-    return makecons(synblock,
-                    makecons(bound.reverse(),
-                             ConsClass.toCons(slice(arguments, 1))));
-};
-
-macmlet.onevaluate = function (bounds){
-    var bound, formula;
-    for (bound = makecons(synprogn); bounds != nil; bounds = bounds.cdr)
-        bound = makecons(
-            makelist(
-                synsetf, 
-                makelist(
-                    bassymbolfunction, 
-                    makelist(synquote, bounds.car.car)),
-                makecons(synmacro, bounds.car.cdr)), bound);
-    return makecons(synblock,
-                    makecons(bound.reverse(),
-                             ConsClass.toCons(slice(arguments, 1))));
-};
-
 // define basic scope methods
 
 var baslocal = new PrimitiveFunctionClass();
@@ -2571,6 +2511,20 @@ var macletin = new UserMacroClass();
 var macletin_binds = makeintern("binds");
 var macletin_rest = makeintern("&rest");
 var macletin_args = makeintern("args");
+var macflet = new UserMacroClass();
+var macflet_rest = makeintern("&rest");
+var macflet_args = makeintern("args");
+var macfletin = new UserMacroClass();
+var macfletin_binds = makeintern("binds");
+var macfletin_rest = makeintern("&rest");
+var macfletin_args = makeintern("args");
+var macmlet = new UserMacroClass();
+var macmlet_rest = makeintern("&rest");
+var macmlet_args = makeintern("args");
+var macmletin = new UserMacroClass();
+var macmletin_binds = makeintern("binds");
+var macmletin_rest = makeintern("&rest");
+var macmletin_args = makeintern("args");
 var macdefvar = new UserMacroClass();
 var macdefvar_sym = makeintern("sym");
 var macdefvar_value = makeintern("value");
@@ -2594,7 +2548,11 @@ macdefun.label = "$defun";
 macdefmacro.label = "$defmacro";
 macsetq.label = "$setq";
 maclet.label = "$let";
-maclet.label = "$letin";
+macletin.label = "$letin";
+macflet.label = "$flet";
+macfletin.label = "$fletin";
+macmlet.label = "$mlet";
+macmletin.label = "$mletin";
 macdefvar.label = "$defvar";
 macdeflvar.label = "$deflvar";
 macprog1.label = "$prog1";
@@ -2978,30 +2936,18 @@ macletin.args = makelist(
 
 macletin.rest = // ** this has bug
     makelist(
-
-        // (if (null binds) ...
-        
         makelist(
             synif,
             makelist(
                 basnull,
                 macletin_binds),
-
-            // (cons progn args)
-            
             makelist(
                 basconcons,
                 synprogn,
                 macletin_args),
-
-            // (list progn ...
-
             makelist(
                 basconlist,
                 synprogn,
-                
-                // (if (consp (car binds)) ... 
-                
                 makelist(
                     synif,
                     makelist(
@@ -3009,18 +2955,12 @@ macletin.rest = // ** this has bug
                         makelist(
                             basconcar,
                             macletin_binds)),
-
-                    // (cons deflvar (car binds))
-                    
                     makelist(
                         basconcons,
                         macdeflvar,
                         makelist(
                             basconcar,
                             macletin_binds)),
-
-                    // (list deflvar (car binds) nil)
-                    
                     makelist(
                         basconlist,
                         macdeflvar,
@@ -3028,9 +2968,6 @@ macletin.rest = // ** this has bug
                             basconcar,
                             macletin_binds),
                         nil)),
-
-                // (cons letin (cons (cdr binds) args))
-                
                 makelist(
                     basconcons,
                     macletin,
@@ -3042,6 +2979,157 @@ macletin.rest = // ** this has bug
                         macletin_args))
             )));
 
+/* --
+    (defmacro flet (&rest args)
+        (block (fletin ,@args)))
+ -- */
+
+macflet.args = makelist(
+    macflet_rest,
+    macflet_args);
+
+macflet.rest =
+    makelist(
+        makelist(
+            synquoteback,
+            makelist(
+                synblock,
+                makelist(
+                    macfletin,
+                    makeunquoteat(
+                        macflet_args)))));
+
+/* -- 
+    (defmacro fletin (binds &rest args)
+        (if (null binds) '(progn ,@args)
+            '(progn (setf (symbol-function (local ',(car bind)))
+                (fletin ,(cdr binds) ,@args))))
+-- */
+
+macfletin.args = makelist(
+    macfletin_binds,
+    macfletin_rest,
+    macfletin_args);
+
+macfletin.rest =
+    makelist(
+        makelist( // (if (null binds) ...
+            synif,
+            makelist(
+                basnull,
+                macletin_binds),
+            makelist( // (progn ,@args)
+                synquoteback,
+                makelist(
+                    synprogn,
+                    makeunquoteat(
+                        macletin_args))),
+            makelist(
+                synquoteback,
+                makelist( // (progn ...
+                    synprogn,
+                    makelist( // (setf ...
+                        synsetf,
+                        makelist( // (symbolfunction (local (quote ,(caar binds))))
+                            bassymbolfunction,
+                            makelist(
+                                baslocal,
+                                makelist(
+                                    synquote,
+                                    makeunquote(
+                                        makelist(
+                                            basconcaar,
+                                            macletin_binds))))),
+                        makelist( // (lambda ,@(cdar binds))
+                            synlambda,
+                            makeunquoteat(
+                                makelist(
+                                    basconcdar,
+                                    macletin_binds)))),
+                    makelist( // (letin ,(cdr binds) ,@args)
+                        macletin,
+                        makeunquote(
+                            makelist(
+                                basconcdr,
+                                macletin_binds)),
+                        makeunquoteat(
+                            macletin_args))))));
+
+/* --
+    (defmacro flet (&rest args)
+        (block (fletin ,@args)))
+ -- */
+
+macmlet.args = makelist(
+    macmlet_rest,
+    macmlet_args);
+
+macmlet.rest =
+    makelist(
+        makelist(
+            synquoteback,
+            makelist(
+                synblock,
+                makelist(
+                    macmletin,
+                    makeunquoteat(
+                        macmlet_args)))));
+
+/* -- 
+    (defmacro mletin (binds &rest args)
+        (if (null binds) '(progn ,@args)
+            '(progn (setf (symbol-function (local ',(car bind)) ... )
+                (mletin ,(cdr binds) ,@args))))
+-- */
+
+macmletin.args = makelist(
+    macmletin_binds,
+    macmletin_rest,
+    macmletin_args);
+
+macmletin.rest =
+    makelist(
+        makelist( // (if (null binds) ...
+            synif,
+            makelist(
+                basnull,
+                macletin_binds),
+            makelist( // (progn ,@args)
+                synquoteback,
+                makelist(
+                    synprogn,
+                    makeunquoteat(
+                        macletin_args))),
+            makelist(
+                synquoteback,
+                makelist( // (progn ...
+                    synprogn,
+                    makelist( // (setf ...
+                        synsetf,
+                        makelist( // (symbolfunction (local (quote ,(caar binds))))
+                            bassymbolfunction,
+                            makelist(
+                                baslocal,
+                                makelist(
+                                    synquote,
+                                    makeunquote(
+                                        makelist(
+                                            basconcaar,
+                                            macletin_binds))))),
+                        makelist( // (macro ,@(cdar binds))
+                            synmacro,
+                            makeunquoteat(
+                                makelist(
+                                    basconcdar,
+                                    macletin_binds)))),
+                    makelist( // (letin ,(cdr binds) ,@args)
+                        macletin,
+                        makeunquote(
+                            makelist(
+                                basconcdr,
+                                macletin_binds)),
+                        makeunquoteat(
+                            macletin_args))))));
 /* --
     (defmacro defvar (sym value)
         (setf (symbol-value (global ,sym)) ,value))
@@ -3664,6 +3752,36 @@ basconnreversein.rest =
 // ** test code
 
 var source;
+
+// source =
+//     makelist(
+//         macmlet,
+//         makelist(
+//             makelist(
+//                 makeintern("hello"),
+//                 makelist(),
+//                 makelist(
+//                     synquote,
+//                     makelist(
+//                         basprint,
+//                         makestring("hello"))))),
+//         makelist(
+//             makeintern("hello")),
+//         nil);
+
+// source =
+//     makelist(
+//         macflet,
+//         makelist(
+//             makelist(
+//                 makeintern("hello"),
+//                 makelist(),
+//                 makelist(
+//                     basprint,
+//                     makestring("hello")))),
+//         makelist(
+//             makeintern("hello")),
+//         nil);
 
 // source =
 //     makelist(
