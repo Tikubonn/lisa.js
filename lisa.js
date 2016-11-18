@@ -3665,20 +3665,18 @@ basconnreversein.rest =
 
 var source;
 
-// source = makelist(macprog1, t, nil, nil);
-
 // source =
 //     makelist(
-//         synquoteback,
+//         macprog1,
 //         makelist(
-//             makeunquote(
-//                 makeint(1)),
-//             makeunquoteat(
-//                 makelist(
-//                     basconlist,
-//                     makeint(2),
-//                     makeint(3),
-//                     makeint(4)))));
+//             basprint,
+//             makestring("tikubonn")),
+//         makelist(
+//             basprint,
+//             makestring("moco")),
+//         makelist(
+//             basprint,
+//             makestring("chibi")));
 
 // source =
 //     makelist(
