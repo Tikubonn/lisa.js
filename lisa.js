@@ -1330,7 +1330,6 @@ UserMacroClass.prototype =
 
 UserMacroClass.prototype.onevaluate = function (){
 
-    var formula;
     var bound, consa, consb;
     bound = makecons(synprogn);
     consa = this.args;
@@ -1340,18 +1339,24 @@ UserMacroClass.prototype.onevaluate = function (){
          consa = consa.cdr, consb = consb.cdr){
         if (consa.car == makeintern("&rest")) break;
         if (consa.car == makeintern("&optional")) break;
-        bound = 
-            makecons(
-                makecons(macdeflvar,
-                         makecons(consa.car,
-                                  makecons(
-                                      makelist(
-                                          synquote,
-                                          consb.car)))),
+        bound =
+            makecons( // (cons ... bound)
+                makelist( // (setf (symbolvalue (local (quote consa.car))) consb.car)
+                    synsetf,
+                    makelist(
+                        bassymbolvalue,
+                        makelist(
+                            baslocal,
+                            makelist(
+                                synquote,
+                                consa.car))),
+                    makelist(
+                        synquote,
+                        consb.car)),
                 bound);
     };
  
-    if (consa.car == makeintern("&optional")){
+    if (consa.car == makeintern("&optional")){ // ** should check here
         consa = consa.cdr;
         for (; consa != nil && consb != nil;
              consa = consa.cdr, consb = consb.cdr){
@@ -1374,8 +1379,14 @@ UserMacroClass.prototype.onevaluate = function (){
         bound =
             makecons(
                 makelist(
-                    macdeflvar,
-                    consa.car,
+                    synsetf,
+                    makelist(
+                        bassymbolvalue,
+                        makelist(
+                            baslocal,
+                            makelist(
+                                synquote,
+                                consa.car))),
                     makelist(
                         synquote,
                         consb)),
@@ -1383,23 +1394,21 @@ UserMacroClass.prototype.onevaluate = function (){
     };
 
     bound = bound.reverse();
+
+    var formula =
+            makecons(synblock,
+                     makecons(bound, this.rest));
+
+    var message =  "user function <- " + formula.toLisp();
+    strace.push(message);
+    stracedb.push(message);
+
+    var expantion = formula.evaluatearg();
+
+    var message2 = "macro expantion <- " + expantion.toLisp();
+    strace.push(message2);
+    stracedb.push(message2);
     
-    formula = makecons(synblock,
-                    makecons(bound, this.rest));
-
-    var message;
-
-    message =  "user function <- " + formula.toLisp();
-    strace.push(message);
-    stracedb.push(message);
-
-    var expantion;
-    expantion = formula.evaluatearg();
-
-    message = "macro expantion <- " + expantion.toLisp();
-    strace.push(message);
-    stracedb.push(message);
-
     return expantion;
 };
 
@@ -2115,24 +2124,18 @@ var macincf = new PrimitiveMacroClass();
 var macdecf = new PrimitiveMacroClass();
 var macflet = new PrimitiveMacroClass();
 var macmlet = new PrimitiveMacroClass();
-var macdefvar = new PrimitiveMacroClass();
-var macdeflvar = new PrimitiveMacroClass();
 
 inp.scope.intern(makestring("prog1")).setfunc(macprog1);
 inp.scope.intern(makestring("incf")).setfunc(macincf);
 inp.scope.intern(makestring("decf")).setfunc(macdecf);
 inp.scope.intern(makestring("flet")).setfunc(macflet);
 inp.scope.intern(makestring("mlet")).setfunc(macmlet);
-inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
-inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
 
 macprog1.label = "$prog1";
 macincf.label = "$incf";
 macdecf.label = "$decf";
 macflet.label = "$flet";
 macmlet.label = "$mlet";
-macdefvar.label = "$defvar";
-macdeflvar.label = "$deflvar";
 
 macprog1.onevaluate = function (n){
     var sym = makevar("");
@@ -2167,32 +2170,6 @@ macdecf.onevaluate = function (formula){
             bassub,
             formula,
             makeint(1)));
-};
-
-macdefvar.onevaluate = function (sym, value){
-    return makelist(
-        synsetf,
-        makelist(
-            bassymbolvalue,
-            makelist(
-                basglobal,
-                makelist(
-                    synquote,
-                    sym))),
-        value);
-}
-
-macdeflvar.onevaluate = function (sym, value){
-    return makelist(
-        synsetf,
-        makelist(
-            bassymbolvalue,
-            makelist(
-                baslocal,
-                makelist(
-                    synquote, 
-                    sym))),
-        value);
 };
 
 macflet.onevaluate = function (bounds){
@@ -2612,6 +2589,12 @@ var macletin = new UserMacroClass();
 var macletin_binds = makeintern("binds");
 var macletin_rest = makeintern("&rest");
 var macletin_args = makeintern("args");
+var macdefvar = new UserMacroClass();
+var macdefvar_sym = makeintern("sym");
+var macdefvar_value = makeintern("value");
+var macdeflvar = new UserMacroClass();
+var macdeflvar_sym = makeintern("sym");
+var macdeflvar_value = makeintern("value");
 
 basnull.label = "$null";
 basnot.label = "$not";
@@ -2626,6 +2609,8 @@ macdefmacro.label = "$defmacro";
 macsetq.label = "$setq";
 maclet.label = "$let";
 maclet.label = "$letin";
+macdefvar.label = "$defvar";
+macdeflvar.label = "$deflvar";
 
 inp.scope.intern(makestring("null")).setfunc(basnull);
 inp.scope.intern(makestring("not")).setfunc(basnot);
@@ -2639,6 +2624,8 @@ inp.scope.intern(makestring("defun")).setfunc(macdefun);
 inp.scope.intern(makestring("defmacro")).setfunc(macdefmacro);
 inp.scope.intern(makestring("setq")).setfunc(macsetq);
 inp.scope.intern(makestring("let")).setfunc(maclet);
+inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
+inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
 
 /* -- 
     (if some nil t)
@@ -3067,6 +3054,58 @@ macletin.rest = // ** this has bug
                             macletin_binds),
                         macletin_args))
             )));
+
+/* --
+    (defmacro defvar (sym value)
+        (setf (symbol-value (global ,sym)) ,value))
+ -- */
+
+macdefvar.args = makelist(
+    macdefvar_sym,
+    macdefvar_value);
+
+macdefvar.rest =
+    makelist(
+        makelist(
+            basconlist,
+            synsetf,
+            makelist(
+                basconlist,
+                bassymbolvalue,
+                makelist(
+                    basconlist,
+                    basglobal,
+                    makelist(
+                        basconlist,
+                        synquote,
+                        macdefvar_sym))),
+            macdefvar_value));
+
+/* --
+    (defmacro deflvar (sym value)
+        (setf (symbol-value (local ,sym)) ,value))
+ -- */
+
+macdeflvar.args = makelist(
+    macdeflvar_sym,
+    macdeflvar_value);
+
+macdeflvar.rest =
+    makelist(
+        makelist(
+            basconlist,
+            synsetf,
+            makelist(
+                basconlist,
+                bassymbolvalue,
+                makelist(
+                    basconlist,
+                    baslocal,
+                    makelist(
+                        basconlist,
+                        synquote,
+                        macdeflvar_sym))),
+            macdeflvar_value));
 
 // define basic cons methods
 
@@ -3580,6 +3619,26 @@ basconnreversein.rest =
 // ** test code
 
 var source;
+
+// source =
+//     makelist(
+//         synprogn,
+//         makelist(
+//             macdefvar,
+//             makeintern("name"),
+//             makestring("moco")),
+//         makelist(
+//             synblock,
+//             makelist(
+//                 macdeflvar,
+//                 makeintern("name"),
+//                 makestring("chibi")),
+//             makelist(
+//                 basprint,
+//                 makeintern("name"))),
+//         makelist(
+//             basprint,
+//             makeintern("name")));
 
 // source =
 //     makelist(
