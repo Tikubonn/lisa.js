@@ -991,7 +991,7 @@ ConsClass.prototype.clone = function (){ // ** should update here
     for (ncons = nil, cons = this; cons != nil; cons = cons.cdr){
         if (cons.car instanceof UnQuoteAtClass){
             var consa, consb;
-            for (consa = cons.car.clone(),
+            for (consa = cons.car.clone().reverse(), // like as (append seq seq2)
                  consb = consa;
                  consb != nil && consb.cdr != nil;
                  consb = consb.cdr);
@@ -1112,7 +1112,7 @@ UnQuoteClass.prototype.toLisp = function (){
 };
 
 UnQuoteClass.prototype.clone = function (){
-    return this.value.evaluatearg();
+    return getreference(this.value.evaluatearg());
 };
 
 function makeunquote (some){
@@ -1139,7 +1139,7 @@ UnQuoteAtClass.prototype.toString = function (){
 };
 
 UnQuoteAtClass.prototype.toLisp = function (){
-    return ",@" + this.value.toString();
+    return ",@" + this.value.toLisp();
 };
 
 function makeunquoteat (some){
@@ -2119,38 +2119,20 @@ synmacro.onevaluate = function (args){
 
 // define basic macro functions
 
-var macprog1 = new PrimitiveMacroClass();
 var macincf = new PrimitiveMacroClass();
 var macdecf = new PrimitiveMacroClass();
 var macflet = new PrimitiveMacroClass();
 var macmlet = new PrimitiveMacroClass();
 
-inp.scope.intern(makestring("prog1")).setfunc(macprog1);
 inp.scope.intern(makestring("incf")).setfunc(macincf);
 inp.scope.intern(makestring("decf")).setfunc(macdecf);
 inp.scope.intern(makestring("flet")).setfunc(macflet);
 inp.scope.intern(makestring("mlet")).setfunc(macmlet);
 
-macprog1.label = "$prog1";
 macincf.label = "$incf";
 macdecf.label = "$decf";
 macflet.label = "$flet";
 macmlet.label = "$mlet";
-
-macprog1.onevaluate = function (n){
-    var sym = makevar("");
-    return makecons(maclet,
-                    makecons(
-                        makecons(
-                            makecons(sym,
-                                     makecons(n))),
-                        makecons(
-                            makecons(synprogn,
-                                     makecons(
-                                         makecons(synprogn,
-                                                  ConsClass.toCons(slice(arguments, 1))),
-                                         makecons(sym))))));
-};
 
 macincf.onevaluate = function (formula){
     return makelist(
@@ -2595,6 +2577,10 @@ var macdefvar_value = makeintern("value");
 var macdeflvar = new UserMacroClass();
 var macdeflvar_sym = makeintern("sym");
 var macdeflvar_value = makeintern("value");
+var macprog1 = new UserMacroClass();
+var macprog1_rest = makeintern("&rest");
+var macprog1_args = makeintern("args");
+var macprog1_temp = makeintern("temp");
 
 basnull.label = "$null";
 basnot.label = "$not";
@@ -2611,6 +2597,7 @@ maclet.label = "$let";
 maclet.label = "$letin";
 macdefvar.label = "$defvar";
 macdeflvar.label = "$deflvar";
+macprog1.label = "$prog1";
 
 inp.scope.intern(makestring("null")).setfunc(basnull);
 inp.scope.intern(makestring("not")).setfunc(basnot);
@@ -3067,19 +3054,19 @@ macdefvar.args = makelist(
 macdefvar.rest =
     makelist(
         makelist(
-            basconlist,
-            synsetf,
+            synquoteback,
             makelist(
-                basconlist,
-                bassymbolvalue,
+                synsetf,
                 makelist(
-                    basconlist,
-                    basglobal,
+                    bassymbolvalue,
                     makelist(
-                        basconlist,
-                        synquote,
-                        macdefvar_sym))),
-            macdefvar_value));
+                        basglobal,
+                        makelist(
+                            synquote,
+                            makeunquote(
+                                macdefvar_sym)))),
+                makeunquote(
+                    macdefvar_value))));
 
 /* --
     (defmacro deflvar (sym value)
@@ -3093,19 +3080,77 @@ macdeflvar.args = makelist(
 macdeflvar.rest =
     makelist(
         makelist(
-            basconlist,
-            synsetf,
+            synquoteback,
             makelist(
-                basconlist,
-                bassymbolvalue,
+                synsetf,
                 makelist(
-                    basconlist,
-                    baslocal,
+                    bassymbolvalue,
                     makelist(
-                        basconlist,
-                        synquote,
-                        macdeflvar_sym))),
-            macdeflvar_value));
+                        baslocal,
+                        makelist(
+                            synquote,
+                            makeunquote(
+                                macdeflvar_sym)))),
+                makeunquote(
+                    macdeflvar_value))));
+
+/* --
+    (defmacro prog1 (&rest args)
+        (let ((temp (make-symbol "")))
+            `(progn (setq ,temp ,(car args))
+                ,@(cdr args) ,temp)))
+ -- */
+
+macprog1.args = makelist(
+    macprog1_rest,
+    macprog1_args);
+
+macprog1.rest =
+    makelist(
+        
+        // (let ((temp (make-symbol "anonymous"))) ...
+        
+        makelist( 
+            maclet,
+            makelist(
+                makelist(
+                    macprog1_temp,
+                    makelist(
+                        bassymbolmake,
+                        makestring("anonymous")))),
+
+            // `(progn ...
+            
+            makelist(
+                synquoteback,
+                makelist(
+                    synprogn,
+
+                    // (setq ,temp ,(car args))
+                    
+                    makelist(
+                        macsetq,
+                        makeunquote(
+                            macprog1_temp),
+                        makeunquote(
+                            makelist(
+                                basconcar,
+                                macprog1_args))),
+
+                    // ,@(cdr args)
+
+                    makeunquoteat(
+                        makelist(
+                            basconcdr,
+                            macprog1_args)),
+
+                    // ,temp
+
+                    makeunquote(
+                        macprog1_temp)
+
+                ))));
+                
 
 // define basic cons methods
 
@@ -3619,6 +3664,21 @@ basconnreversein.rest =
 // ** test code
 
 var source;
+
+// source = makelist(macprog1, t, nil, nil);
+
+// source =
+//     makelist(
+//         synquoteback,
+//         makelist(
+//             makeunquote(
+//                 makeint(1)),
+//             makeunquoteat(
+//                 makelist(
+//                     basconlist,
+//                     makeint(2),
+//                     makeint(3),
+//                     makeint(4)))));
 
 // source =
 //     makelist(
