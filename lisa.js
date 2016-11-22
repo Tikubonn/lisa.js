@@ -1311,7 +1311,9 @@ MacroClass.prototype.evaluate =
             CallableClass.prototype.evaluate));
 
 MacroClass.prototype.expand = 
-    afterexpandarg(MacroClass.prototype.evaluate);
+    aftergetreference(
+        afterexpandarg(
+            CallableClass.prototype.evaluate));
 
 // primitive macro class
 //     <- macro class
@@ -3753,6 +3755,20 @@ basconnreversein.rest =
 
 var source;
 
+// source = 
+// makelist(
+//     macand,
+//     makeint(1),
+//     makeint(2),
+//     makeint(3));
+
+// source = 
+// makelist(
+//     macor,
+//     makeint(1),
+//     makeint(2),
+//     makeint(3));
+
 // source =
 //     makelist(
 //         macmlet,
@@ -3876,7 +3892,8 @@ var source;
 
 // try {
 //     console.log("" + source.toLisp() + "");
-//     console.log("" + source.evaluatearg().toLisp() + "");
+//     console.log("" + source.expandarg() + "");
+//     // console.log("" + source.evaluatearg().toLisp() + "");
 // }
 
 // catch (errorn){
