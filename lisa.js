@@ -504,7 +504,7 @@ ReferenceClass.prototype.onevaluatearg = function (){
 };
 
 ReferenceClass.prototype.onexpandarg = function (){
-    throw new Error("onexpandarg has not defined yet.");
+    throw new Error(" onexpandarg has not defined yet.");
 };
 
 ReferenceClass.prototype.onevaluate = null;
@@ -2045,6 +2045,7 @@ var synquote = new SpecialFunctionClass();
 var synquoteback = new SpecialFunctionClass();
 var synlambda = new SpecialFunctionClass();
 var synmacro = new SpecialFunctionClass();
+var syninvisible = new SpecialFunctionClass();
 
 inp.scope.intern(makestring("if")).setfunc(synif);
 inp.scope.intern(makestring("block")).setfunc(synblock);
@@ -2061,6 +2062,7 @@ synquote.label = "$quote";
 synquoteback.label = "$quoteback";
 synlambda.label = "$lambda";
 synmacro.label = "$macro";
+syninvisible.label = "$invisible";
 
 synif.onevaluate = function (cond, truecase, falsecase){
     if (getreference(cond.evaluatearg()) != nil)
@@ -2082,11 +2084,25 @@ synblock.onevaluate = function (){
     return temp;
 };
 
+synblock.onexpand = function (){
+    inp.nestin();
+    var temp = synprogn.expand.apply(synprogn, arguments);
+    inp.exitin();
+    return temp;
+};
+
 synprogn.onevaluate = function (){
     var res, index;
     for (res = nil, index = 0; index < arguments.length; index++)
         res = arguments[index].evaluatearg();
     return res;
+};
+
+synprogn.onexpand = function (){
+    var source, index;
+    for (source = "", index = 0; index < arguments.length; index++)
+        source += (index ? "," : "") + arguments[index].expandarg();
+    return new Expanded("(" + source + ")");
 };
 
 synsetf.onevaluate = function (formula, value){
@@ -2098,6 +2114,19 @@ synsetf.onevaluate = function (formula, value){
     var valued = getreference(value.evaluatearg());
     var formulaed = formula.evaluatearg();
     return formulaed.set(valued);
+};
+
+synsetf.onexpand = function (formula, value){
+
+    var message = "set formula expand = " + formula.toLisp() + " = " + value.toLisp() + "";
+    strace.push(message);
+    stracedb.push(message);
+    
+    var valued = getreference(value.evaluatearg());
+    var formulaed = formula.evaluatearg();
+    formulaed.set(valued);
+
+    return new Expanded("(" + formulaed.expandarg() + "=" + valued.expandarg() + ")");
 };
 
 synquote.onevaluate = function (some){
@@ -2124,6 +2153,14 @@ synlambda.onevaluate = function (args){
 
 synmacro.onevaluate = function (args){
     return new UserMacroClass(args, ConsClass.toCons(slice(arguments, 1)));
+};
+
+syninvisible.onevaluate = 
+    synprogn.onevaluate;
+
+syninvisible.onexpand = function (){
+    this.evaluate.apply(this, arguments);
+    return new Expanded("");
 };
 
 // define basic scope methods
@@ -3756,6 +3793,41 @@ basconnreversein.rest =
 var source;
 
 // source = 
+//     makelist(
+//         maclet,
+//         makelist(
+//             makelist(
+//                 makeintern("moco"),
+//                 makestring("moco")),
+//             makelist(
+//                 makeintern("chibi"),
+//                 makestring("chibi")),
+//             makelist(
+//                 makeintern("tikubonn"),
+//                 makestring("tikubonn"))),
+//         makelist(
+//             basprint,
+//             makeintern("moco")),
+//         makelist(
+//             basprint,
+//             makeintern("chibi")),
+//         makelist(
+//             basprint,
+//             makeintern("tikubonn")));
+               
+// source = 
+//     makelist(
+//         synsetf,
+//         makelist(
+//             bassymbolvalue,
+//             makelist(
+//                 baslocal,
+//                 makelist(
+//                     synquote,
+//                     makeintern("moco")))),
+//         makestring("moco"));
+
+// source = 
 // makelist(
 //     macand,
 //     makeint(1),
@@ -3892,8 +3964,8 @@ var source;
 
 // try {
 //     console.log("" + source.toLisp() + "");
-//     console.log("" + source.expandarg() + "");
 //     // console.log("" + source.evaluatearg().toLisp() + "");
+//     console.log("" + source.expandarg() + "");
 // }
 
 // catch (errorn){
