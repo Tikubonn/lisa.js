@@ -1453,7 +1453,7 @@ SymbolFamilyClass.prototype.setfunc = function (){throw new Error("setfunc was n
 function SymbolClass (name, value, func){
     this.name = name ? name.copy() : null;
     this.value = value || null;
-    this.func = func || null;   
+    this.func = func || null;
 }
 
 SymbolClass.prototype = 
@@ -1618,11 +1618,11 @@ VariableSymbolClass.prototype.onexpandarg = function (){
 
 VariableSymbolClass.prototype.onexpand = function (){
     var func = this.getfunc();
-    if (func == null || func instanceof UserFunctionClass)
-        return new Expanded(
-            this.getfuncname() + "(" +
-                slice(arguments).map(expandarg).join(",") + ")");
-    return func.expand.apply(func, arguments);
+    if (func instanceof MacroClass)
+        return func.expand.apply(func, arguments);
+    return new Expanded(
+        this.getfuncname() + "(" +
+            slice(arguments).map(expandarg).join(",") + ")");
 };
 
 function getvaluename (some){
@@ -2954,7 +2954,7 @@ macdefmacro.rest =
                                 makeunquote(
                                     macdefun_name)))),
                     makelist(
-                        synlambda,
+                        synmacro,
                         makeunquoteat(
                             macdefun_args))))));
 
