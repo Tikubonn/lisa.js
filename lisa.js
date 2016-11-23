@@ -2942,9 +2942,9 @@ macdefmacro.rest =
         makelist(
             synquoteback,
             makelist(
-                synsetf,
+                syninvisible,
                 makelist(
-                    bassymbolfunction,
+                    synsetf,
                     makelist(
                         bassymbolfunction,
                         makelist(
@@ -2952,11 +2952,11 @@ macdefmacro.rest =
                             makelist(
                                 synquoteback,
                                 makeunquote(
-                                    macdefun_name))))),
-                makelist(
-                    synlambda,
-                    makeunquoteat(
-                        macdefun_args)))));
+                                    macdefun_name)))),
+                    makelist(
+                        synlambda,
+                        makeunquoteat(
+                            macdefun_args))))));
 
 /* --
     (defmacro setq (sym value)
@@ -3821,28 +3821,39 @@ basconnreversein.rest =
 
 var source;
 
-source = 
-    makelist(
-        maclet,
-        makelist(
-            makelist(
-                makeintern("moco"),
-                makestring("moco")),
-            makelist(
-                makeintern("chibi"),
-                makestring("chibi")),
-            makelist(
-                makeintern("tikubonn"),
-                makestring("tikubonn"))),
-        makelist(
-            basprint,
-            makeintern("moco")),
-        makelist(
-            basprint,
-            makeintern("chibi")),
-        makelist(
-            basprint,
-            makeintern("tikubonn")));
+// source =
+//     makelist(
+//         synprogn,
+//         makelist(
+//             macdefmacro,
+//             makeintern("zero"),
+//             nil,
+//             makeint(0)),
+//         makelist(
+//             makeintern("zero")));
+
+// source = 
+//     makelist(
+//         maclet,
+//         makelist(
+//             makelist(
+//                 makeintern("moco"),
+//                 makestring("moco")),
+//             makelist(
+//                 makeintern("chibi"),
+//                 makestring("chibi")),
+//             makelist(
+//                 makeintern("tikubonn"),
+//                 makestring("tikubonn"))),
+//         makelist(
+//             basprint,
+//             makeintern("moco")),
+//         makelist(
+//             basprint,
+//             makeintern("chibi")),
+//         makelist(
+//             basprint,
+//             makeintern("tikubonn")));
                
 // source = 
 //     makelist(
@@ -3991,17 +4002,17 @@ source =
 //                 makeunquote(
 //                     makeintern("name")))));
 
-try {
-    console.log("" + source.toLisp() + "");
-    // console.log("" + source.evaluatearg().toLisp() + "");
-    console.log("" + source.expandarg() + "");
-}
+// try {
+//     console.log("" + source.toLisp() + "");
+//     // console.log("" + source.evaluatearg().toLisp() + "");
+//     console.log("" + source.expandarg() + "");
+// }
 
-catch (errorn){
-    strace.print();
-    // stracedb.print();
-    throw errorn;
-}
+// catch (errorn){
+//     strace.print();
+//     // stracedb.print();
+//     throw errorn;
+// }
 
 // source = makelist(
 //     maccase, t,
