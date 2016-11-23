@@ -355,6 +355,9 @@ Expanded.prototype.toString = function (){
     return this.value;
 };
 
+Expanded.prototype.toLisp =
+    Expanded.prototype.toString;
+
 Expanded.prototype.expand = function (){
     return new Expanded(this.value + "(" + slice(arguments).map(expandarg).join(",") + ")");
 };
@@ -2394,9 +2397,12 @@ basstracedb.onevaluate = function (){
     return nil;
 };
 
-basprint.onexpand = function (){
-    basprint.evaluate.apply(this, arguments);
-    return nil.expandarg();
+basprint.onexpand = function (some){ // ** should redefine again.
+    return makelist(
+        synprogn,
+        makelist(new Expanded("console.log"), some),
+        some
+    ).expandarg();
 };
 
 basstrace.onexpand = function (){
@@ -3012,6 +3018,9 @@ macletin.args = makelist(
 macletin.rest = 
     makelist(
         makelist(
+            basprint,
+            macletin_binds),
+        makelist(
             synif,
             makelist(
                 basnull,
@@ -3026,12 +3035,11 @@ macletin.rest =
                     makeunquoteat(
                         macletin_args))),
 
-            // (progn (deflvar ,@(car binds)) ,(letin ,(cdr binds) ,@(args)))
+            // (progn (deflvar ,@(car binds)) (letin ,(cdr binds) ,@(args)))
             
             makelist(
                 synquoteback,
                 makelist(
-                    synquoteback,
                     makelist(
                         macdeflvar,
                         makeunquoteat(
@@ -3046,7 +3054,7 @@ macletin.rest =
                                 macletin_binds)),
                         makeunquoteat(
                             macletin_args))
-                    ))));
+                ))));
                     
 // macletin.rest = // ** this has bug
 //     makelist(
@@ -3865,30 +3873,30 @@ basconnreversein.rest =
 
 // ** test code
 
-var source;
+// var source;
 
-source = 
-    makelist(
-        maclet,
-        makelist(
-            makelist(
-                makeintern("moco"),
-                makestring("moco")),
-            makelist(
-                makeintern("chibi"),
-                makestring("chibi")),
-            makelist(
-                makeintern("tikubonn"),
-                makestring("tikubonn"))),
-        makelist(
-            basprint,
-            makeintern("moco")),
-        makelist(
-            basprint,
-            makeintern("chibi")),
-        makelist(
-            basprint,
-            makeintern("tikubonn")));
+// source = 
+//     makelist(
+//         maclet,
+//         makelist(
+//             makelist(
+//                 makeintern("moco"),
+//                 makestring("moco")),
+//             makelist(
+//                 makeintern("chibi"),
+//                 makestring("chibi")),
+//             makelist(
+//                 makeintern("tikubonn"),
+//                 makestring("tikubonn"))),
+//         makelist(
+//             basprint,
+//             makeintern("moco")),
+//         makelist(
+//             basprint,
+//             makeintern("chibi")),
+//         makelist(
+//             basprint,
+//             makeintern("tikubonn")));
                
 // source = 
 //     makelist(
@@ -4037,17 +4045,17 @@ source =
 //                 makeunquote(
 //                     makeintern("name")))));
 
-try {
-    console.log("" + source.toLisp() + "");
-    // console.log("" + source.evaluatearg().toLisp() + "");
-    console.log("" + source.expandarg() + "");
-}
+// try {
+//     console.log("" + source.toLisp() + "");
+//     // console.log("" + source.evaluatearg().toLisp() + "");
+//     console.log("" + source.expandarg() + "");
+// }
 
-catch (errorn){
-    strace.print();
-    stracedb.print();
-    throw errorn;
-}
+// catch (errorn){
+//     strace.print();
+//     // stracedb.print();
+//     throw errorn;
+// }
 
 // source = makelist(
 //     maccase, t,
