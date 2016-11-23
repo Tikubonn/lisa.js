@@ -491,12 +491,16 @@ ReferenceClass.prototype.toString = function (){
     return this.get().toString();
 };
 
+ReferenceClass.prototype.toLisp = function (){
+    return this.get().toLisp();
+};
+
 ReferenceClass.prototype.get = function (){
-    throw new Error("get has not defined yet.");
+    throw new Error("reference " + this.toLisp() + "get has not defined yet.");
 };
 
 ReferenceClass.prototype.set = function (){
-    throw new Error("set has not defined yet.");
+    throw new Error("reference " + this.toLisp() + "set has not defined yet.");
 };
 
 ReferenceClass.prototype.onevaluatearg = function (){
@@ -504,11 +508,18 @@ ReferenceClass.prototype.onevaluatearg = function (){
 };
 
 ReferenceClass.prototype.onexpandarg = function (){
-    throw new Error(" onexpandarg has not defined yet.");
+    return this.get().expandarg();
 };
 
-ReferenceClass.prototype.onevaluate = null;
-ReferenceClass.prototype.onexpand = null;
+ReferenceClass.prototype.onevaluate = function (){
+    var value = this.get();
+    return value.evaluate.apply(value, arguments);
+};
+
+ReferenceClass.prototype.onexpand = function (){
+    var value = this.get();
+    return value.expand.apply(value, arguments);
+};
 
 function getreference (reference){
     return reference instanceof ReferenceClass ?
@@ -1306,14 +1317,16 @@ MacroClass.prototype =
     Object.create(CallableClass.prototype);
 
 MacroClass.prototype.evaluate = 
-    aftergetreference(
-        afterevaluatearg(
-            CallableClass.prototype.evaluate));
+    beforegetreference(
+        aftergetreference(
+            afterevaluatearg(
+                CallableClass.prototype.evaluate)));
 
 MacroClass.prototype.expand = 
-    aftergetreference(
-        afterexpandarg(
-            CallableClass.prototype.evaluate));
+    beforegetreference(
+        aftergetreference(
+            afterexpandarg(
+                CallableClass.prototype.evaluate)));
 
 // primitive macro class
 //     <- macro class
@@ -2138,6 +2151,10 @@ synquote.onevaluate = function (some){
     return some;
 };
 
+synquote.onexpand = function (some){
+    return this.evaluate.apply(this, arguments).expandarg();
+};
+
 synquoteback.onevaluate = function (some){
 
     var message  = "unquoteback " + some.toLisp() + " = " + some.clone().toLisp() + "";
@@ -2145,6 +2162,10 @@ synquoteback.onevaluate = function (some){
     stracedb.push(message);
     
     return some.clone();
+};
+
+synquoteback.onexpand = function (some){
+    return this.evaluate.apply(this, arguments).expandarg();
 };
 
 synlambda.onevaluate = function (args){
@@ -2371,6 +2392,21 @@ basstrace.onevaluate = function (){
 basstracedb.onevaluate = function (){
     stracedb.print();
     return nil;
+};
+
+basprint.onexpand = function (){
+    basprint.evaluate.apply(this, arguments);
+    return nil.expandarg();
+};
+
+basstrace.onexpand = function (){
+    basstrace.evaluate.apply(this, arguments);
+    return nil.expandarg();
+};
+
+basstracedb.onexpand = function (){
+    basstracedb.evaluate.apply(this, arguments);
+    return nil.expandarg();
 };
 
 // define basci logic methods
@@ -2952,7 +2988,7 @@ maclet.args = makelist(
 
 maclet.rest =
     makelist(
-        makelist( // (list block (list cons letin args))
+        makelist(
             basconlist,
             synblock,
             makelist(
@@ -2973,50 +3009,89 @@ macletin.args = makelist(
     macletin_rest,
     macletin_args);
 
-macletin.rest = // ** this has bug
+macletin.rest = 
     makelist(
         makelist(
             synif,
             makelist(
                 basnull,
                 macletin_binds),
+
+            // (progn ,@args)
+
             makelist(
-                basconcons,
-                synprogn,
-                macletin_args),
+                synquoteback,
+                makelist(
+                    synprogn,
+                    makeunquoteat(
+                        macletin_args))),
+
+            // (progn (deflvar ,@(car binds)) ,(letin ,(cdr binds) ,@(args)))
+            
             makelist(
-                basconlist,
-                synprogn,
+                synquoteback,
                 makelist(
-                    synif,
+                    synquoteback,
                     makelist(
-                        basconconsp,
-                        makelist(
-                            basconcar,
-                            macletin_binds)),
-                    makelist(
-                        basconcons,
                         macdeflvar,
-                        makelist(
-                            basconcar,
-                            macletin_binds)),
+                        makeunquoteat(
+                            makelist(
+                                basconcar,
+                                macletin_binds))),
                     makelist(
-                        basconlist,
-                        macdeflvar,
-                        makelist(
-                            basconcar,
-                            macletin_binds),
-                        nil)),
-                makelist(
-                    basconcons,
-                    macletin,
-                    makelist(
-                        basconcons,
-                        makelist(
-                            basconcdr,
-                            macletin_binds),
-                        macletin_args))
-            )));
+                        macletin,
+                        makeunquote(
+                            makelist(
+                                basconcdr,
+                                macletin_binds)),
+                        makeunquoteat(
+                            macletin_args))
+                    ))));
+                    
+// macletin.rest = // ** this has bug
+//     makelist(
+//         makelist(
+//             synif,
+//             makelist(
+//                 basnull,
+//                 macletin_binds),
+//             makelist(
+//                 basconcons,
+//                 synprogn,
+//                 macletin_args),
+//             makelist(
+//                 basconlist,
+//                 synprogn,
+//                 makelist(
+//                     synif,
+//                     makelist(
+//                         basconconsp,
+//                         makelist(
+//                             basconcar,
+//                             macletin_binds)),
+//                     makelist(
+//                         basconcons,
+//                         macdeflvar,
+//                         makelist(
+//                             basconcar,
+//                             macletin_binds)),
+//                     makelist(
+//                         basconlist,
+//                         macdeflvar,
+//                         makelist(
+//                             basconcar,
+//                             macletin_binds),
+//                         nil)),
+//                 makelist(
+//                     basconcons,
+//                     macletin,
+//                     makelist(
+//                         basconcons,
+//                         makelist(
+//                             basconcdr,
+//                             macletin_binds),
+//                         macletin_args))
+//             )));
 
 /* --
     (defmacro flet (&rest args)
@@ -3792,28 +3867,28 @@ basconnreversein.rest =
 
 var source;
 
-// source = 
-//     makelist(
-//         maclet,
-//         makelist(
-//             makelist(
-//                 makeintern("moco"),
-//                 makestring("moco")),
-//             makelist(
-//                 makeintern("chibi"),
-//                 makestring("chibi")),
-//             makelist(
-//                 makeintern("tikubonn"),
-//                 makestring("tikubonn"))),
-//         makelist(
-//             basprint,
-//             makeintern("moco")),
-//         makelist(
-//             basprint,
-//             makeintern("chibi")),
-//         makelist(
-//             basprint,
-//             makeintern("tikubonn")));
+source = 
+    makelist(
+        maclet,
+        makelist(
+            makelist(
+                makeintern("moco"),
+                makestring("moco")),
+            makelist(
+                makeintern("chibi"),
+                makestring("chibi")),
+            makelist(
+                makeintern("tikubonn"),
+                makestring("tikubonn"))),
+        makelist(
+            basprint,
+            makeintern("moco")),
+        makelist(
+            basprint,
+            makeintern("chibi")),
+        makelist(
+            basprint,
+            makeintern("tikubonn")));
                
 // source = 
 //     makelist(
@@ -3962,17 +4037,17 @@ var source;
 //                 makeunquote(
 //                     makeintern("name")))));
 
-// try {
-//     console.log("" + source.toLisp() + "");
-//     // console.log("" + source.evaluatearg().toLisp() + "");
-//     console.log("" + source.expandarg() + "");
-// }
+try {
+    console.log("" + source.toLisp() + "");
+    // console.log("" + source.evaluatearg().toLisp() + "");
+    console.log("" + source.expandarg() + "");
+}
 
-// catch (errorn){
-//     strace.print();
-//     stracedb.print();
-//     throw errorn;
-// }
+catch (errorn){
+    strace.print();
+    stracedb.print();
+    throw errorn;
+}
 
 // source = makelist(
 //     maccase, t,
