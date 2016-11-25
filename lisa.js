@@ -1308,14 +1308,10 @@ UserFunctionClass.prototype.onexpandarg = function (){
         if (cons.car == makeintern("&rest")) break;
         if (cons.car == makeintern("&optional")) break;
 
-        makelist(
-            macdeflvar,
-            cons.car,
-            makelist(
-                synquote,
-                cons.car)).evaluatearg(); // allocate variable
-        
-        source += "var " + cons.car.expandarg() + "=arguments[" + (index++) + "];";
+        inp.scope.internf(cons.car.name).setvalue(
+            inp.scope.internf(cons.car.name));
+
+        source += "var " + cons.car + "=arguments[" + (index++) + "];";
     };
 
     if (cons.car == makeintern("&optional")){
@@ -1323,12 +1319,8 @@ UserFunctionClass.prototype.onexpandarg = function (){
         for (;cons != nil; cons = cons.cdr){
             if (cons.car == makeintern("&rest")) break;
 
-            makelist(
-                macdeflvar,
-                cons.car,
-                makelist(
-                    synquote,
-                    cons.car)).evaluatearg(); // allocate variable
+            inp.scope.internf(cons.car.name).setvalue(
+                inp.scope.internf(cons.car.name));
             
             source += "var " + cons.car + "=arguments[" + (index++) + "]||null;";
         };
@@ -1337,12 +1329,8 @@ UserFunctionClass.prototype.onexpandarg = function (){
     if (cons.car == makeintern("&rest")){
         cons = cons.cdr;
 
-        makelist(
-            macdeflvar,
-            cons.car,
-            makelist(
-                synquote,
-                cons.car)).evaluatearg(); // allocate variable
+        inp.scope.internf(cons.car.name).setvalue(
+            inp.scope.internf(cons.car.name));
         
         source += "var " + cons.car + "=Array.prototype.slice.call(arguments, " + (index++) + "]";
     };
