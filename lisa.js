@@ -1,4 +1,8 @@
 
+// lisa class
+
+function Lisa (){};
+
 // argumentstoarray
 
 function slice (sequence, beginning, end){
@@ -378,6 +382,10 @@ function unpack (some){
     if (some instanceof Expanded == false)
         throw new Error("some is not expanded.");
     return some.unpack();
+};
+
+function makeexpanded(source){
+    return new Expanded(source);
 };
 
 // atom class
@@ -861,37 +869,29 @@ function ArrayClass (array){
 ArrayClass.prototype = 
     Object.create(SequencialClass.prototype);
 
-ArrayClass.prototype.get = function (index){ // ** get value directly
+ArrayClass.prototype.get = function (index){
     return this.value[index];
 };
 
-ArrayClass.prototype.set = function (index, value){ // ** set value directly
+ArrayClass.prototype.set = function (index, value){
     this.value[index] = value;
     return value;
 };
 
-ArrayClass.prototype.toArray = function (){ // ** should update here
-    return this.value;
+ArrayClass.prototype.length = function (){
+    return this.value.length;
 };
 
-ArrayClass.prototype.toPlain = function (){
-    return "" + this.value.map(toplain).join(",") + "";
-};
-
-ArrayClass.prototype.toString = function (){
-    return "[" + this.value.map(tostring).join(",") + "]";
-};
-
-ArrayClass.prototype.toLisp = function (){
-    return "#(" + this.value.map(tolisp).join(" ") + ")";
-};
+ArrayClass.prototype.toArray = function (){ return this.value; };
+ArrayClass.prototype.toPlain = function (){ return "" + this.value.map(toplain).join(",") + ""; };
+ArrayClass.prototype.toString = function (){ return "[" + this.value.map(tostring).join(",") + "]"; };
+ArrayClass.prototype.toLisp = function (){ return "#(" + this.value.map(tolisp).join(" ") + ")"; };
 
 // class array class 
 //     <- array class
 
-function ClassArrayClass (array, classe){
+function ClassArrayClass (array){
     this.value = array;
-    this.classe = classe;
 }
 
 ClassArrayClass.prototype =
@@ -1126,7 +1126,7 @@ UnQuoteClass.prototype.toString  = function (){
 };
 
 UnQuoteClass.prototype.toLisp = function (){
-    return "," + this.value.toString();
+    return "," + this.value.toLisp();
 };
 
 UnQuoteClass.prototype.clone = function (){
@@ -1235,15 +1235,11 @@ UserFunctionClass.prototype.toLisp = function (){
 
 UserFunctionClass.prototype.onevaluate = function (){
 
-    // bound initalize
-
     var formula;
     var bound, consa, consb;
     bound = makecons(synprogn);
     consa = this.args;
     consb = ConsClass.toCons(arguments);
-
-    // argument binding.
 
     for (; consa != nil && consb != nil; 
          consa = consa.cdr, consb = consb.cdr){
@@ -1256,8 +1252,6 @@ UserFunctionClass.prototype.onevaluate = function (){
                                   makecons(consb.car))),
                 bound);
     };
-
-    // optional argument binding.
  
     if (consa.car == makeintern("&optional")){
         consa = consa.cdr;
@@ -1276,8 +1270,6 @@ UserFunctionClass.prototype.onevaluate = function (){
                              (makecons(consa.car.car, makecons(consb.car)))),
                     bound);
         }};
-    
-    // rest argument binding.
 
     if (consa.car == makeintern("&rest")){
         consa = consa.cdr;
@@ -1292,23 +1284,76 @@ UserFunctionClass.prototype.onevaluate = function (){
                 bound);
     };
 
-    // reverse binding arguments.
-
     bound = bound.reverse();
-    
-    // build formula.
  
     formula = makecons(synblock,
                     makecons(bound, this.rest));
 
-    var message;    
-    message = ("user function <- " + formula.toLisp() + "");
+    var message = ("user function <- " + formula.toLisp() + "");
     strace.push(message);
     stracedb.push(message);
-
-    // evaluate formula.
     
     return formula.evaluatearg();
+};
+
+UserFunctionClass.prototype.onexpandarg = function (){
+
+    var cons = this.args;
+    var index = 0;
+    var source = "";
+
+    inp.scope.nest(); // nest functional scope
+
+    for (;cons != nil; cons = cons.cdr){
+        if (cons.car == makeintern("&rest")) break;
+        if (cons.car == makeintern("&optional")) break;
+
+        makelist(
+            macdeflvar,
+            cons.car,
+            makelist(
+                synquote,
+                cons.car)).evaluatearg(); // allocate variable
+        
+        source += "var " + cons.car.expandarg() + "=arguments[" + (index++) + "];";
+    };
+
+    if (cons.car == makeintern("&optional")){
+        cons = cons.cdr;
+        for (;cons != nil; cons = cons.cdr){
+            if (cons.car == makeintern("&rest")) break;
+
+            makelist(
+                macdeflvar,
+                cons.car,
+                makelist(
+                    synquote,
+                    cons.car)).evaluatearg(); // allocate variable
+            
+            source += "var " + cons.car + "=arguments[" + (index++) + "]||null;";
+        };
+    };
+
+    if (cons.car == makeintern("&rest")){
+        cons = cons.cdr;
+
+        makelist(
+            macdeflvar,
+            cons.car,
+            makelist(
+                synquote,
+                cons.car)).evaluatearg(); // allocate variable
+        
+        source += "var " + cons.car + "=Array.prototype.slice.call(arguments, " + (index++) + "]";
+    };
+
+    source = new Expanded(
+        "function(){" + source +
+            "return " + makecons(synprogn, this.rest).expandarg() + "}"); // build source
+
+    inp.scope.exit(); // exit functional scope
+
+    return source;
 };
 
 // macro class
@@ -1318,6 +1363,8 @@ function MacroClass (){}
 
 MacroClass.prototype = 
     Object.create(CallableClass.prototype);
+
+MacroClass.prototype.label = "<#macro instance>";
 
 MacroClass.prototype.evaluate = 
     beforegetreference(
@@ -1339,6 +1386,8 @@ function PrimitiveMacroClass (){}
 PrimitiveMacroClass.prototype = 
     Object.create(MacroClass.prototype);
 
+PrimitiveMacroClass.prototype.label = "<#primitive macro instance>";
+
 // user macro class
 //     <- macro class
 
@@ -1349,6 +1398,13 @@ function UserMacroClass (args, rest){
 
 UserMacroClass.prototype = 
     Object.create(MacroClass.prototype);
+
+UserMacroClass.prototype.toLisp = function (){
+    return makelist(
+        synmacro,
+        this.args,
+        this.rest).toLisp();
+};
 
 UserMacroClass.prototype.onevaluate = function (){
 
@@ -1463,16 +1519,30 @@ SymbolClass.prototype.toString = function (){
     return this.name.toPlain();
 };
 
+SymbolClass.prototype.toLisp = function (){
+    return this.toString();
+};
+
 SymbolClass.prototype.getvalue = function (){
-    if (this.value == null)
-        throw new Error("symbol " + this + " has no value.");
     return this.value;
 };
 
 SymbolClass.prototype.getfunc = function (){
-    if (this.func == null) 
-        throw new Error("symbol " + this + " has no func.");
     return this.func;
+};
+
+SymbolClass.prototype.getvaluee = function (){
+    var value = this.getvalue();
+    if (value == null)
+        throw new Error("" + this + " has no value");
+    return value;
+};
+
+SymbolClass.prototype.getfunce = function (){
+    var func = this.getfunc();
+    if (func == null)
+        throw new Error("" + this + " has no function");
+    return func;
 };
 
 SymbolClass.prototype.setvalue = function (value){
@@ -1510,7 +1580,7 @@ var interneds = [];
 
 function InternSymbolClass (name){
 
-    // find aleady interneds
+    // find aleady interneds ** for saving memory space
 
     var index;
     for (index = 0; index < interneds.length; index++)
@@ -1527,6 +1597,10 @@ InternSymbolClass.prototype =
     Object.create(SymbolFamilyClass.prototype);
 
 InternSymbolClass.prototype.toString = function (){
+    return this.name.toPlain();
+};
+
+InternSymbolClass.prototype.toLisp = function (){
     return this.name.toPlain();
 };
 
@@ -1596,6 +1670,10 @@ VariableSymbolClass.prototype.toString = function (){
     return this.getvaluename();
 };
 
+VariableSymbolClass.prototype.toLisp = function (){
+    return this.name.toPlain();
+};
+
 VariableSymbolClass.prototype.toString = function (){
     return this.getvaluename() + "/*--" + this.name + "--*/";
 };
@@ -1618,11 +1696,12 @@ VariableSymbolClass.prototype.onexpandarg = function (){
 
 VariableSymbolClass.prototype.onexpand = function (){
     var func = this.getfunc();
-    if (func instanceof MacroClass)
+    if (func instanceof MacroClass ||
+        func instanceof SpecialFunctionClass ||
+        func instanceof PrimitiveFunctionClass)
         return func.expand.apply(func, arguments);
-    return new Expanded(
-        this.getfuncname() + "(" +
-            slice(arguments).map(expandarg).join(",") + ")");
+    return  this.getfuncname() + "(" +
+        slice(arguments).map(expandarg).join(",") + ")";
 };
 
 function getvaluename (some){
@@ -1685,6 +1764,16 @@ StreamClass.prototype.shouldout = function (){
     if (this.isout() == false) throw new Error("stream should output direction!");
 };
 
+StreamClass.prototype.toString = function (){
+    return "#stream direction: " +
+        (this.isin() == false ? "r" : "-") + 
+        (this.isout() == false ? "w" : "-");
+};
+
+StreamClass.prototype.toLisp = function (){
+    return this.toString();
+};
+
 // string stream class 
 //     <- stream class
 
@@ -1710,18 +1799,29 @@ StringStreamClass.prototype.isalive = function (){
 
 StringStreamClass.prototype.look = function (){
     this.shouldin();
-    return this.iseof() ? nil : this.source.nth(this.index);
+    return this.iseof() ? nil : this.source.get(this.index);
 };
 
 StringStreamClass.prototype.get = function (){
     this.shouldin();
-    return this.iseof() ? nil : this.source.nth(this.index++);
+    return this.iseof() ? nil : this.source.get(this.index++);
 };
 
 StringStreamClass.prototype.put = function (charInstance){
     this.shouldout();
     return this.source.push(charInstance);
 };
+
+StringStreamClass.prototype.toString = function (){
+    return StreamClass.prototype.toString.apply(this, arguments) +
+        " :seek " + this.index.toString() +
+        " :source " + this.source.toString();
+};
+
+// ** alias
+
+function makestrstreamin (source){ return new StringStreamClass(StreamClass.direction.input, makestring(source)); };
+function makestrstreamout (source){ return new StringStreamClass(StreamClass.direction.output, makestring("")); };
 
 // obarray class 
 //     <- native, function class
@@ -1876,37 +1976,70 @@ function Interpreter (){
     this.namegen = new NameGenerator("abcdefghijklmnopqrstuvwxyz");
 };
 
-Interpreter.prototype.nestin = function (){
-    inp.scope.nestin();
-    return null;
-};
-
-Interpreter.prototype.exitin = function (){
-    inp.scope.exitin();
-    return null;
-};
-
-Interpreter.prototype.nest = function (){
-    this.scope = this.scope.nest();
-    return null;
-};
-
-Interpreter.prototype.exit  =function (){
-    this.scope = this.scope.exit();
-    return null;
-};
+Interpreter.prototype.nestin = function (){ this.scope.nestin();};
+Interpreter.prototype.exitin = function (){ this.scope.exitin();};
+Interpreter.prototype.nest = function (){ this.scope = this.scope.nest(); };
+Interpreter.prototype.exit  =function (){ this.scope = this.scope.exit(); };
 
 var inp = new Interpreter();
+
+// ** alias
+
+function readlisp (source){
+    return rdread.evaluate(
+        makestrstreamin(source));
+};
+
+function evallisp (source){
+    return rdread.evaluate(
+        makestrstreamin(source))
+        .evaluatearg();
+};
+
+function explisp (source){
+    return rdread.evaluate(
+        makestrstreamin(source))
+        .expandarg();
+};
 
 // define primitive values
 
 inp.scope.intern(makestring("nil")).setvalue(nil);
 inp.scope.intern(makestring("t")).setvalue(t);
 
+// threre defining the native stream methods
+// there are not able to expand to javascript code. ** should check again
+
+var streamlook = new PrimitiveFunctionClass();
+var streamget = new PrimitiveFunctionClass();
+var streamput = new PrimitiveFunctionClass();
+
+streamlook.label = "$stream-look";
+streamget.label = "$stream-get";
+streamput.label = "$stream-put";
+
+streamlook.onevaluate = function (stream){
+    return stream.look();
+};
+
+streamget.onevaluate = function (stream){
+    return stream.get();
+};
+
+streamput.onevaluate = function (element, stream){
+    return stream.put(element);
+};
+
+streamlook.onexpand = function (){ throw new Error("" + this + " cannot expand to the source code."); };
+streamget.onexpand = function (){ throw new Error("" + this + " cannot expand to the source code."); };
+streamput.onexpand = function (){ throw new Error("" + this + " cannot expand to the source code."); };
+
 // define reader methods
+// there has no expand method
 
 var rdignoreindent = new PrimitiveFunctionClass();
 var rdread = new PrimitiveFunctionClass();
+var rdreaddefault = new PrimitiveFunctionClass();
 var rdreadintern = new PrimitiveFunctionClass();
 var rdreadminus = new PrimitiveFunctionClass();
 var rdreadnumber = new PrimitiveFunctionClass();
@@ -1923,133 +2056,207 @@ var rdreadpre  = new PrimitiveFunctionClass();
 var rdreadnative = new PrimitiveFunctionClass();
 
 rdignoreindent.onevaluate = function (stream){
-    while (stream.isalive() && 
-           stream.look().get().value == " ".charCodeAt() ||
-           stream.look().get().value == "\t".charCodeAt())
+    while (stream.isalive() && stream.look().value == " ".charCodeAt())
         stream.get();
     return nil;
 };
 
 rdread.onevaluate = function (stream){
+    
     rdignoreindent.evaluate(stream);
-    var rdscope, rdscopec;
-    var charInstance, charInstancec;
-    for (rdscope = inp.readerscope, charInstance = nil; stream.isalive();){
-        charInstancec = stream.look();
-        rdscopec = rdscope.get(charInstancec);
-        if (rdscopec == null) break;
-        charInstance = stream.get();
-        rdscope = rdscopec;
-    }
+    
+    var rdscope, rdscopea;
+    var charactor, charactora;
+    
+    for (rdscope = inp.readerscope, charactor = nil; stream.isalive();){
+        charactora = stream.look();
+        rdscopea = rdscope.get(charactora);
+        if (rdscopea == null) break;
+        charactor = stream.get();
+        rdscope = rdscopea;
+    };
+
     if (rdscope.getcurrent() == null)
-        throw new Error("method was not found.");
-    return rdscope.getcurrent().evaluate(stream, charInstance);
+        throw new Error("reader macro error.");
+    return rdscope.getcurrent().evaluate(charactor, stream);
 };
 
-rdreadintern.onevaluate = function (stream){
-    rdignoreindent.evaluate(stream);
-    var name;
-    for (name = new StringClass(); stream.isalive();)
-        if (inp.readerscope.get(stream.look()) || 
-            stream.look().get().value == (" ".charCodeAt()) || 
-            stream.look().get().value == ("\t".charCodeAt())) break;
-        else name.push(stream.get());
-    if (name.length() == 0)
-        return nil;
-    inp.scoperoot.intern(name);
-    return new InternSymbolClass(name);
+rdreaddefault.onevaluate = function (charactor, stream){ // ** should check
+
+    var charactora;
+    
+    switch ((charactora = stream.get()).toString()){
+
+        // combination
+        
+        case ",":
+        switch ((stream.look()).toString()){
+            case "@": return rdreadunquoteat.evaluate(stream.get(), stream);
+            default: return rdreadunquote.evaluate(charactora, stream);
+        }
+        
+        // single
+        
+        case "'": return rdreadquote.evaluate(charactora, stream);
+        case "`": return rdreadquoteback.evaluate(charactora, stream);
+        case '"': return rdreadstring.evaluate(charactora, stream);
+        case "(": return rdreadopenbrace.evaluate(charactora, stream);
+        case ")": return rdreadclosebrace.evaluate(charactora, stream);
+        case "-": return rdreadminus.evaluate(charactora, stream);
+        case "0":
+        case "1":
+        case "2":
+        case "3":
+        case "4":
+        case "5":
+        case "6":
+        case "7":
+        case "8":
+        case "9": return rdreadnumber.evaluate(charactora, stream);
+        default: return rdreadintern.evaluate(charactora, stream);};
 };
 
-rdreadminus.onevaluate = function (stream){
-    var num = rdread.evaluate(stream);
-    num.value *= -1;
-    return num;
+rdreadintern.onevaluate = function (charactor, stream){ // ** should check
+
+    var name =
+            makelist(
+                synif,
+                charactor,
+                charactor,
+                makeexpanded(""))
+            .evaluatearg()
+            .toString();
+    
+    while (stream.isalive() &&
+           stream.look().toString() != " " && 
+           stream.look().toString() != "(" &&
+           stream.look().toString() != ")")
+        name += stream.get().toString();
+    
+    return name.length == 0 ? nil : makeintern(name);
 };
 
-rdreadnumber.onevaluate = function (stream, nc){
-    var charInstance, num;
-    for (num = nc.toString(); stream.isalive();)
-        if ("123456890.".indexOf(stream.look().toString()) >= 0)
-            num += stream.get().toString();
-        else break;
-    return num.indexOf(".") >= 0 ?
-        new FloatClass(parseFloat(num)).constant():
-        new IntClass(parseInt(num)).constant();
+rdreadminus.onevaluate = function (stream){ // ** should check
+    return makelist(
+        basnumsub2,
+        makeint(0),
+        rdread.evaluate(stream));
 };
 
-rdreadstring.onevaluate = function (stream, quote){
-    var charInstance, content;
-    for (content = new StringClass(); 
-         stream.isalive() && (charInstance = stream.get()).status();)
-        if (charInstance.get().value == quote.value) break;
-        else  content.push(charInstance);
-    return content.constant();
+rdreadnumber.onevaluate = function (charactor, stream){ // ** should check
+
+    var num = charactor.toString();
+
+    while (stream.isalive() &&
+           stream.look().toString() == "0" ||
+           stream.look().toString() == "1" ||
+           stream.look().toString() == "2" ||
+           stream.look().toString() == "3" ||
+           stream.look().toString() == "4" ||
+           stream.look().toString() == "5" ||
+           stream.look().toString() == "6" ||
+           stream.look().toString() == "7" ||
+           stream.look().toString() == "8" ||
+           stream.look().toString() == "9" ||
+           stream.look().toString() == ".")
+        num += stream.get().toString();
+
+    return (num.indexOf(".") >= 0)?
+        makefloat(parseFloat(num)):
+        makeint(parseInt(num));
 };
 
-rdreadopenbrace.onevaluate = function (stream){
-    var ncons, element;
-    for (ncons = nil; stream.isalive() && 
-         (element = rdread.evaluate(stream)) != rdreadclosebrace_unique;)
-        ncons = new ConsClass(element, ncons);
-    return ncons.reverse().constant();
+rdreadstring.onevaluate = function (charactor, stream){
+    var source, charactora;
+    for (source = ""; stream.isalive() && (charactora = stream.get()).toString() == '"';)
+        source += charactora;
+    return makestring(source);
 };
 
-rdreadclosebrace.onevaluate = function (stream){
+rdreadopenbrace.onevaluate = function (charactor, stream){
+
+    var cons;
+    var consa;
+
+    cons = nil;
+
+    while (true){
+        
+        if (stream.isalive() == false)
+            throw new Error("could not find close brace.");
+
+        consa = rdread.evaluate(stream);
+        
+        if (consa == rdreadclosebrace_unique) break;
+
+        cons = makecons(consa, cons);
+    }
+
+    return cons.reverse();
+    
+    // var cons, consa;
+    // for (cons = nil; stream.isalive() && (consa = rdread.evaluate(stream)) != rdreadclosebrace_unique;)
+    //     cons = makecons(consa, cons);
+    // return cons.reverse();
+};
+
+rdreadclosebrace.onevaluate = function (charactor, stream){
     return rdreadclosebrace_unique;
 };
 
-rdreadquote.onevaluate = function (stream){
+rdreadquote.onevaluate = function (charactor, stream){
     return makelist(synquote, rdread.evaluate(stream));
 };
 
-rdreadquoteback.onevaluate = function (stream){
+rdreadquoteback.onevaluate = function (charactor, stream){
     return makelist(synquoteback, rdread.evaluate(stream));
 };
 
-rdreadunquote.onevaluate = function (stream){
+rdreadunquote.onevaluate = function (charactor, stream){
     return new UnQuoteClass(rdread.evaluate(stream));
 };
 
-rdreadunquoteat.onevaluate = function (stream){
+rdreadunquoteat.onevaluate = function (charactor, stream){
     return new UnQuoteAtClass(rdread.evaluate(stream));
 };
 
-rdreadchar.onevaluate = function (stream){
+rdreadchar.onevaluate = function (charactor, stream){
     return new CharClass(stream.get());
 };
 
-rdreadpre.onevaluate = function (stream){
+rdreadpre.onevaluate = function (charactor, stream){
     var formula = rdread.evaluate(stream);
     return formula.evaluatearg();
 };
 
-rdreadnative.onevaluate = function (stream){
+rdreadnative.onevaluate = function (charactor, stream){
     var sym = rdread.evaluate(stream);
     return new Expanded(sym.name.toPlain());
 };
 
-inp.readerscope.setcurrent(rdreadintern);
-inp.readerscope.dig("'").setcurrent(rdreadquote);
-inp.readerscope.dig("`").setcurrent(rdreadquoteback);
-inp.readerscope.dig(",").setcurrent(rdreadunquote);
-inp.readerscope.dig(",").dig("@").setcurrent(rdreadunquoteat);
-inp.readerscope.dig("-").setcurrent(rdreadminus);
-inp.readerscope.dig('"').setcurrent(rdreadstring);
-inp.readerscope.dig("(").setcurrent(rdreadopenbrace);
-inp.readerscope.dig(")").setcurrent(rdreadclosebrace);
-inp.readerscope.dig("0").setcurrent(rdreadnumber);
-inp.readerscope.dig("1").setcurrent(rdreadnumber);
-inp.readerscope.dig("2").setcurrent(rdreadnumber);
-inp.readerscope.dig("3").setcurrent(rdreadnumber);
-inp.readerscope.dig("4").setcurrent(rdreadnumber);
-inp.readerscope.dig("5").setcurrent(rdreadnumber);
-inp.readerscope.dig("6").setcurrent(rdreadnumber);
-inp.readerscope.dig("7").setcurrent(rdreadnumber);
-inp.readerscope.dig("8").setcurrent(rdreadnumber);
-inp.readerscope.dig("9").setcurrent(rdreadnumber);
-inp.readerscope.dig("?").setcurrent(rdreadchar);
-inp.readerscope.dig("@").dig(".").setcurrent(rdreadpre);
-inp.readerscope.dig("@").dig("@").setcurrent(rdreadnative);
+inp.readerscope.setcurrent(rdreaddefault);
+// inp.readerscope.setcurrent(rdreadintern);
+// inp.readerscope.dig("'").setcurrent(rdreadquote);
+// inp.readerscope.dig("`").setcurrent(rdreadquoteback);
+// inp.readerscope.dig(",").setcurrent(rdreadunquote);
+// inp.readerscope.dig(",").dig("@").setcurrent(rdreadunquoteat);
+// inp.readerscope.dig("-").setcurrent(rdreadminus);
+// inp.readerscope.dig('"').setcurrent(rdreadstring);
+// inp.readerscope.dig("(").setcurrent(rdreadopenbrace);
+// inp.readerscope.dig(")").setcurrent(rdreadclosebrace);
+// inp.readerscope.dig("0").setcurrent(rdreadnumber);
+// inp.readerscope.dig("1").setcurrent(rdreadnumber);
+// inp.readerscope.dig("2").setcurrent(rdreadnumber);
+// inp.readerscope.dig("3").setcurrent(rdreadnumber);
+// inp.readerscope.dig("4").setcurrent(rdreadnumber);
+// inp.readerscope.dig("5").setcurrent(rdreadnumber);
+// inp.readerscope.dig("6").setcurrent(rdreadnumber);
+// inp.readerscope.dig("7").setcurrent(rdreadnumber);
+// inp.readerscope.dig("8").setcurrent(rdreadnumber);
+// inp.readerscope.dig("9").setcurrent(rdreadnumber);
+// inp.readerscope.dig("?").setcurrent(rdreadchar);
+// inp.readerscope.dig("@").dig(".").setcurrent(rdreadpre);
+// inp.readerscope.dig("@").dig("@").setcurrent(rdreadnative);
 
 // define syntax functions
 
@@ -2155,7 +2362,7 @@ synquote.onevaluate = function (some){
 };
 
 synquote.onexpand = function (some){
-    return this.evaluate.apply(this, arguments).expandarg();
+    return this.evaluate.apply(this, arguments).expanddata();
 };
 
 synquoteback.onevaluate = function (some){
@@ -2168,7 +2375,7 @@ synquoteback.onevaluate = function (some){
 };
 
 synquoteback.onexpand = function (some){
-    return this.evaluate.apply(this, arguments).expandarg();
+    return this.evaluate.apply(this, arguments).expanddata();
 };
 
 synlambda.onevaluate = function (args){
@@ -2220,6 +2427,12 @@ bassymbolvalue.label = "$symbol-value";
 bassymbolname.label = "$symbol-name";
 bassymbolintern.label = "$symbol-intern";
 bassymbolmake.label = "$symbol-make";
+
+inp.scope.intern(makestring("symbol-function")).setfunc(bassymbolfunction);
+inp.scope.intern(makestring("symbol-value")).setfunc(bassymbolvalue);
+inp.scope.intern(makestring("symbol-name")).setfunc(bassymbolname);
+inp.scope.intern(makestring("intern")).setfunc(bassymbolintern);
+inp.scope.intern(makestring("make-symbol")).setfunc(bassymbolmake);
 
 bassymbolfunction.onevaluate = function (sym){
     return new SymbolFunctionReferenceClass(sym);
@@ -2381,6 +2594,10 @@ var basstracedb = new PrimitiveFunctionClass();
 basprint.label = "$print";
 basstrace.label = "$strace";
 basstracedb.label = "$stracedb";
+
+inp.scope.intern(makestring("print")).setfunc(basprint);
+inp.scope.intern(makestring("strace")).setfunc(basstrace);
+inp.scope.intern(makestring("stracedb")).setfunc(basstracedb);
 
 basprint.onevaluate = function (some){
     console.log(some.toLisp());
@@ -3306,7 +3523,6 @@ macprog1.rest =
                         macprog1_temp)
 
                 ))));
-                
 
 // define basic cons methods
 
@@ -3821,506 +4037,15 @@ basconnreversein.rest =
 
 var source;
 
-// source =
-//     makelist(
-//         synprogn,
-//         makelist(
-//             macdefmacro,
-//             makeintern("zero"),
-//             nil,
-//             makeint(0)),
-//         makelist(
-//             makeintern("zero")));
-
-// source = 
-//     makelist(
-//         maclet,
-//         makelist(
-//             makelist(
-//                 makeintern("moco"),
-//                 makestring("moco")),
-//             makelist(
-//                 makeintern("chibi"),
-//                 makestring("chibi")),
-//             makelist(
-//                 makeintern("tikubonn"),
-//                 makestring("tikubonn"))),
-//         makelist(
-//             basprint,
-//             makeintern("moco")),
-//         makelist(
-//             basprint,
-//             makeintern("chibi")),
-//         makelist(
-//             basprint,
-//             makeintern("tikubonn")));
-               
-// source = 
-//     makelist(
-//         synsetf,
-//         makelist(
-//             bassymbolvalue,
-//             makelist(
-//                 baslocal,
-//                 makelist(
-//                     synquote,
-//                     makeintern("moco")))),
-//         makestring("moco"));
-
-// source = 
-// makelist(
-//     macand,
-//     makeint(1),
-//     makeint(2),
-//     makeint(3));
-
-// source = 
-// makelist(
-//     macor,
-//     makeint(1),
-//     makeint(2),
-//     makeint(3));
-
-// source =
-//     makelist(
-//         macmlet,
-//         makelist(
-//             makelist(
-//                 makeintern("hello"),
-//                 makelist(),
-//                 makelist(
-//                     synquote,
-//                     makelist(
-//                         basprint,
-//                         makestring("hello"))))),
-//         makelist(
-//             makeintern("hello")),
-//         nil);
-
-// source =
-//     makelist(
-//         macflet,
-//         makelist(
-//             makelist(
-//                 makeintern("hello"),
-//                 makelist(),
-//                 makelist(
-//                     basprint,
-//                     makestring("hello")))),
-//         makelist(
-//             makeintern("hello")),
-//         nil);
-
-// source =
-//     makelist(
-//         macprog1,
-//         makelist(
-//             basprint,
-//             makestring("tikubonn")),
-//         makelist(
-//             basprint,
-//             makestring("moco")),
-//         makelist(
-//             basprint,
-//             makestring("chibi")));
-
-// source =
-//     makelist(
-//         synprogn,
-//         makelist(
-//             macdefvar,
-//             makeintern("name"),
-//             makestring("moco")),
-//         makelist(
-//             synblock,
-//             makelist(
-//                 macdeflvar,
-//                 makeintern("name"),
-//                 makestring("chibi")),
-//             makelist(
-//                 basprint,
-//                 makeintern("name"))),
-//         makelist(
-//             basprint,
-//             makeintern("name")));
-
-// source =
-//     makelist(
-//         makelist(
-//             maclet,
-//             makelist(
-//                 makeintern("none"),
-//                 makelist(
-//                     makeintern("name"),
-//                     makestring("moco"))),
-//             makelist(
-//                 basprint,
-//                 makeintern("none")),
-//             makelist(
-//                 basprint,
-//                 makeintern("name"))));
-
-// source =
-//     makelist(
-//         makelist(
-//             maclet,
-//             makelist(
-//                 makelist(
-//                     makeintern("name"),
-//                     nil)),
-//             makelist(
-//                 macsetq,
-//                 makeintern("name"),
-//                 makestring("moco")),
-//             makelist(
-//                 basdebprint,
-//                 makeintern("name")),
-//             nil));
-
-// source =
-//     makelist(
-//         makelist(
-//             maclet,
-//             makelist(
-//                 makelist(
-//                     makeintern("temp"),
-//                     makelist(
-//                         synquote,
-//                         makeintern("temp-symbol")))),
-//             nil));
-
-// source =
-//     makelist(
-//         maclet,
-//         makelist(
-//             makelist(
-//                 makeintern("name"),
-//                 makestring("moco"))),
-//         makelist(
-//             synquoteback,
-//             makelist(
-//                 makeunquote(
-//                     makeintern("name")))));
+// source = '(progn (defun example (num) `(1 2 3 ,num)) (example 4))';
 
 // try {
-//     console.log("" + source.toLisp() + "");
-//     // console.log("" + source.evaluatearg().toLisp() + "");
-//     console.log("" + source.expandarg() + "");
+//     console.log(readlisp(source).toLisp());
+//     console.log(evallisp(source).toLisp());
+//     console.log(explisp(source).toString());
 // }
 
 // catch (errorn){
 //     strace.print();
-//     // stracedb.print();
 //     throw errorn;
-// }
-
-// source = makelist(
-//     maccase, t,
-//     makelist(nil, makeint(1)),
-//     makelist(nil, makeint(2)),
-//     makelist(t, makeint(3)));
-
-// strace.unwindstrace(function (){
-//     console.log("" + source.toLisp() + "");
-//     console.log("" + source.evaluatearg().toLisp() + "");
-//     stracedb.print();
-// })();
-
-// source =
-//     makelist(
-//         maccond,
-//         makelist(nil, makeint(1)),
-//         makelist(nil, makeint(2)),
-//         makelist(t, makeint(3)));
-
-// strace.unwindstrace(function (){
-//     console.log("" + source.toLisp() + "");
-//     console.log("" + source.evaluatearg().toLisp() + "");
-//     stracedb.print();
-// })();
- 
-// source = makelist(
-//     maclet,
-//     makelist(
-//         makelist(
-//             makeintern("name"),
-//             makelist(
-//                 bassymbolmake,
-//                 makestring("namesym")))),
-//     makelist(
-//         synquoteback,
-//         makelist(
-//             makeint(1),
-//             makeint(2),
-//             makeint(3),
-//             makeunquote(
-//                 makeintern("name")))));
-
-// strace.unwindstrace(function (){
-//     console.log("" + source + "");
-//     console.log("" + source.evaluatearg() + "");
-// })();
-
-// source = makelist(
-//     maclet,
-//     makelist(
-//         makelist(
-//             makeintern("name"),
-//             makelist(
-//                 bassymbolmake,
-//                 makestring("namesym")))),
-//     makelist(
-//         synsetf,
-//         makelist(
-//             bassymbolvalue,
-//             makeintern("name")),
-//         makestring("moco")),
-//     makelist(
-//         basdebprint,
-//         makelist(
-//             bassymbolvalue,
-//             makeintern("name"))));
-
-// strace.unwindstrace(function (){
-//     console.log("" + source + "");
-//     console.log("" + source.evaluatearg() + "");
-// })();
-
-// source = makelist(macwhen, t, t);
-
-// strace.unwindstrace(function (){
-//     console.log("" + source + "");
-//     console.log("" + source.evaluatearg() + "");
-// })();
-
-// source = makelist(macunless, nil, t);
-
-// strace.unwindstrace(function (){
-//     console.log("" + source + "");
-//     console.log("" + source.evaluatearg() + "");
-// })();
-    
-// source = makelist(
-//     basconnreverse,
-//     makelist(
-//         basconlist,
-//         makeint(1),
-//         makeint(2),
-//         makeint(3)));
-
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-// })();
-
-// source = makelist(
-//     basconcopy,
-//     makelist(
-//         basconlist,
-//         makeint(1),
-//         makeint(2),
-//         makeint(3)));
-
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-// })();
-
-// source = makelist(
-//     basconpositionif,
-//     makelist(
-//         maclambda,
-//         makelist(
-//             makeintern("a")),
-//         makeintern("a")),
-//     makelist(
-//         basconlist,
-//         nil,
-//         nil,
-//         makestring("non nil")));
-
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-// })();
-
-// source = makelist(
-//     basconfindif,
-//     makelist(
-//         maclambda,
-//         makelist(
-//             makeintern("a")),
-//         makeintern("a")),
-//     makelist(
-//         basconlist,
-//         nil,
-//         nil,
-//         makestring("non nil")));
-
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-// })();
-
-// source = makelist(
-//     basconappend,
-//     makelist(
-//         basconlist,
-//         makeint(1)),
-//     makelist(
-//         basconlist,
-//         makeint(2)),
-//     makelist(
-//         basconlist,
-//         makeint(3)),
-//     makelist(
-//         basconlist,
-//         makeint(4)));
-
-// strace.unwindstrace(function (){
-//     console.log("" + source + "");
-//     console.log("" + source.evaluatearg() + ""); // ** error
-// })();
-
-// source = makelist(
-//     basconnth,
-//     makeint(1),
-//     makelist(
-//         basconlist,
-//         makeint(1),
-//         makeint(2),
-//         makeint(3)));
-
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-// })();
-
-// source = 
-//     makelist(
-//         basconlength,
-//         makelist(
-//             basconlist,
-//             makeint(1),
-//             makeint(2),
-//             makeint(3)));
-
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-// })();
-
-// source = 
-//     makelist(
-//         basconreduce,
-//         basadd,
-//         makelist(
-//             basconlist,
-//             makeint(1),
-//             makeint(10),
-//             makeint(100)));
-
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-// })();
-
-// source = 
-//     makelist(
-//         basconfilter,
-//         makelist(
-//             maclambda,
-//             makelist(
-//                 makeintern("a")),
-//             makeintern("a")),
-//         makelist(
-//             basconlist,
-//             nil,
-//             makeint(1),
-//             nil,
-//             makeint(2),
-//             nil,
-//             makeint(3)));
-
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-// })();
-
-// source = 
-//     makelist(
-//         basconmap,
-//         makelist(
-//             maclambda,
-//             makelist(
-//                 makeintern("a")),
-//             makelist(
-//                 basadd,
-//                 makeintern("a"),
-//                 makeint(10))),
-//         makelist(
-//             basconlist,
-//             makeint(1),
-//             makeint(2),
-//             makeint(3)));
-
-// strace.unwindstrace(function (){
-//     console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-// })();
-
-// source = 
-//     makelist(
-//         synprogn,
-//         makelist(
-//             debprint,
-//             makelist(
-//                 macand)),
-//         makelist(
-//             debprint,
-//             makelist(
-//                 macand,
-//                 makeint(1),
-//                 nil,
-//                 makeint(3))),
-//         makelist(
-//             debprint,
-//             makelist(
-//                 macand,
-//                 makeint(1),
-//                 makeint(2),
-//                 makeint(3))));
-
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-//     console.log(source.expandarg() + "");
-// })();
-
-// source = 
-//     makelist(
-//         synprogn,
-//         makelist(
-//             debprint,
-//             makelist(
-//                 macor)),
-//         makelist(
-//             debprint,
-//             makelist(
-//                 macor,
-//                 nil,
-//                 nil,
-//                 makeint(3))),
-//         makelist(
-//             debprint,
-//             makelist(
-//                 macor,
-//                 makeint(1),
-//                 makeint(2),
-//                 makeint(3))));
-
-// strace.unwindstrace(function (){
-//     // console.log(source + "");
-//     console.log(source.evaluatearg() + "");
-//     console.log(source.expandarg() + "");
-// })();
+// };
