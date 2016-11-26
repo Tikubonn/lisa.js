@@ -1235,61 +1235,86 @@ UserFunctionClass.prototype.toLisp = function (){
 
 UserFunctionClass.prototype.onevaluate = function (){
 
-    var formula;
-    var bound, consa, consb;
-    bound = makecons(synprogn);
+    var bound;
+    var consa, consb;
+
+    bound = "";
     consa = this.args;
     consb = ConsClass.toCons(arguments);
 
-    for (; consa != nil && consb != nil; 
+    for (; consa != nil && consb != nil;
          consa = consa.cdr, consb = consb.cdr){
         if (consa.car == makeintern("&rest")) break;
         if (consa.car == makeintern("&optional")) break;
-        bound = 
+        bound =
             makecons(
-                makecons(macdeflvar,
-                         makecons(consa.car,
-                                  makecons(consb.car))),
+                makelist(
+                    synsetf,
+                    makelist(
+                        bassymbolvalue,
+                        makelist(
+                            baslocal,
+                            makelist(
+                                synquote,
+                                consa.car))),
+                    consb.car),
                 bound);
     };
- 
+
     if (consa.car == makeintern("&optional")){
         consa = consa.cdr;
         for (; consa != nil && consb != nil;
              consa = consa.cdr, consb = consb.cdr){
             if (consa.car == makeintern("&rest")) break;
-            bound =
-                makecons(
-                    makecons(macdeflvar,
-                             (consb == nil) ?
-                             (consa.car instanceof ConsClass == false) ?
-                             (makecons(consa.car, makecons(nil))):
-                             (makecons(consa.car.car, makecons(consa.car.cdr.car))):
-                             (consa.car instanceof ConsClass == false) ?
-                             (makecons(consa.car, makecons(consb.car))):
-                             (makecons(consa.car.car, makecons(consb.car)))),
-                    bound);
-        }};
+
+            var sym =
+                    consa.car instanceof ConsClass ?
+                    consa.car.car : consa.car;
+
+            var value =
+                    consa.car instanceof ConsClass ?
+                    consb ? consb.car : consa.car.cdr.car :
+                consb ? consb.car : nil;
+
+            bound = makecons(
+                makelist(
+                    synsetf,
+                    makelist(
+                        bassymbolvalue,
+                        makelist(
+                            baslocal,
+                            makelist(
+                                synquote,
+                                sym))),
+                    value),
+                bound);
+        };
+    };
 
     if (consa.car == makeintern("&rest")){
         consa = consa.cdr;
-        bound =
-            makecons(
+        bound = makecons(
+            makelist(
+                synsetf,
                 makelist(
-                    macdeflvar,
-                    consa.car,
+                    bassymbolvalue,
                     makelist(
-                        synquote,
-                        consb)),
-                bound);
+                        baslocal,
+                        makelist(
+                            synquote,
+                            consa.car))),
+                makelist(
+                    synquote,
+                    consb)),
+            bound);
     };
 
-    bound = bound.reverse();
- 
-    formula = makecons(synblock,
-                    makecons(bound, this.rest));
+    var formula = makelist(
+        synblock,
+        makecons(synprogn, bound),
+        makecons(synprogn, this.rest));
 
-    var message = ("user function <- " + formula.toLisp() + "");
+    var message = "user function <- " + formula.toLisp();
     strace.push(message);
     stracedb.push(message);
     
@@ -2121,7 +2146,9 @@ rdreadintern.onevaluate = function (charactor, stream){ // ** should check
            stream.look().toString() != ")")
         name += stream.get().toString();
     
-    return name.length == 0 ? nil : makeintern(name);
+    return name.length == 0 ? nil :
+        inp.scope.intern(
+            makestring(name));
 };
 
 rdreadminus.onevaluate = function (stream){ // ** should check
@@ -2264,6 +2291,8 @@ inp.scope.intern(makestring("progn")).setfunc(synprogn);
 inp.scope.intern(makestring("setf")).setfunc(synsetf);
 inp.scope.intern(makestring("quote")).setfunc(synquote);
 inp.scope.intern(makestring("quoteb")).setfunc(synquoteback);
+inp.scope.intern(makestring("lambda")).setfunc(synlambda);
+inp.scope.intern(makestring("macro")).setfunc(synmacro);
 
 synif.label = "$if";
 synblock.label = "$block";
@@ -2639,31 +2668,15 @@ var basconcons = new PrimitiveFunctionClass();
 var basconcar = new PrimitiveFunctionClass();
 var basconcdr = new PrimitiveFunctionClass();
 var basconlist = new PrimitiveFunctionClass();
-var basconcaar = new UserFunctionClass();
-var basconcaar_cons = makeintern("cons");
-var basconcdar = new UserFunctionClass();
-var basconcdar_cons = makeintern("cons");
-var basconcadr = new UserFunctionClass();
-var basconcadr_cons = makeintern("cons");
-var basconcddr = new UserFunctionClass();
-var basconcddr_cons = makeintern("cons");
 
 basconcons.label = "$cons";
 basconcar.label = "$car";
 basconcdr.label = "$cdr";
-basconcaar.label = "$caar";
-basconcadr.label = "$cadr";
-basconcdar.label = "$cdar";
-basconcddr.label = "$cddr";
 basconlist.label = "$list";
 
 inp.scope.intern(makestring("cons")).setfunc(basconcons);
 inp.scope.intern(makestring("car")).setfunc(basconcar);
 inp.scope.intern(makestring("cdr")).setfunc(basconcdr);
-inp.scope.intern(makestring("caar")).setfunc(basconcaar);
-inp.scope.intern(makestring("cadr")).setfunc(basconcadr);
-inp.scope.intern(makestring("cdar")).setfunc(basconcdar);
-inp.scope.intern(makestring("cddr")).setfunc(basconcddr);
 inp.scope.intern(makestring("list")).setfunc(basconlist);
 
 basconconsp.onevaluate = function (cons){
@@ -2688,1344 +2701,61 @@ basconlist.onevaluate = function (){
         ConsClass.toCons(arguments));
 };
 
-/* --
-    (defun caar (cons)
-        (car (car cons)))
--- */
+// define defun, defmacro
 
-basconcaar.args = 
-    makelist(basconcaar_cons);
+evallisp("(setf (symbol-function 'defun) (macro (name &rest rest) `(setf (symbol-function (quote ,name)) (lambda ,@rest))))");
+evallisp("(setf (symbol-function 'defmacro) (macro (name &rest rest) `(setf (symbol-function (quote ,name)) (macro ,@rest))))");
 
-basconcaar.rest = 
-    makelist(
-        makelist(
-            basconcar,
-            makelist(
-                basconcar,
-                basconcaar_cons)));
+// define cons methods
 
-/* --
-    (defun cadr (cons)
-        (car (cdr cons)))
--- */
-
-basconcadr.args = 
-    makelist(basconcadr_cons);
-
-basconcadr.rest = 
-    makelist(
-        makelist(
-            basconcar,
-            makelist(
-                basconcdr,
-                basconcadr_cons)));
-
-/* --
-    (defun cdar (cons)
-        (cdr (car cons)))
--- */
-
-basconcdar.args = 
-    makelist(basconcdar_cons);
-
-basconcdar.rest = 
-    makelist(
-        makelist(
-            basconcdr,
-            makelist(
-                basconcar,
-                basconcdar_cons)));
-
-/* --
-    (defun cddr (cons)
-        (cdr (cdr cons)))
--- */
-
-basconcddr.args = 
-    makelist(basconcddr_cons);
-
-basconcddr.rest = 
-    makelist(
-        makelist(
-            basconcdr,
-            makelist(
-                basconcdr,
-                basconcddr_cons)));
+evallisp("(defun caar (cons) (car (car cons)))");
+evallisp("(defun cdar (cons) (cdr (car cons)))");
+evallisp("(defun cadr (cons) (car (cdr cons)))");
+evallisp("(defun cddr (cons) (cdr (cdr cons)))");
+evallisp("(defun map (func cons) (when cons (cons (funcall func (car cons)) (map func (cdr cons)))))");
+evallisp("(defun filter (func cons) (when cons (if (funcall func (car cons)) (cons (car cons) (filter func (cdr cons))) (filter func (cdr cons)))))");
+evallisp("(defun foreach (func cons) (when cons (funcall (car cons)) (foreach func (cdr cons))))");
+evallisp("(defun find-if (func cons) (when cons (if (funcall (car cons)) (car cons) (find-if func (cdr cons)))))");
+evallisp("(defun position-if (func cons) (position-ifin func cons 0))");
+evallisp("(defun position-ifin (func cons count) (when cons (if (funcall func (car cons)) count (position-ifin func (cdr cons) (+1 count)))))");
+evallisp("(defun append2 (consa consb) (if (null consa) consb (cons (car consa) (append2 (cdr consa) consb))))");
+evallisp("(defun reverse (cons) (when cons (cons (car cons) (reverse (cdr cons)))))");
+evallisp("(defun length (cons) (lengthin cons 0))");
+evallisp("(defun lengthin (cons count) (if (null cons) count (lengthin (cdr cons) (1+ count))))");
 
 // define basic macros
 
-var basnull = new UserFunctionClass();
-var basnull_some = makeintern("some");
-var basnot = new UserFunctionClass();
-var basnot_some = makeintern("some");
-var macand = new UserMacroClass();
-var macand_rest = makeintern("&rest");
-var macand_args = makeintern("args");
-var macor = new UserMacroClass();
-var macor_rest = makeintern("&rest");
-var macor_args = makeintern("args");
-var macwhen = new UserMacroClass();
-var macwhen_cond = makeintern("cond");
-var macwhen_rest = makeintern("&rest");
-var macwhen_args = makeintern("args");
-var macunless = new UserMacroClass();
-var macunless_cond = makeintern("cond");
-var macunless_rest = makeintern("&rest");
-var macunless_args = makeintern("args");
-var maccond = new UserMacroClass();
-var maccond_rest = makeintern("&rest");
-var maccond_args = makeintern("args");
-var maccase = new UserMacroClass();
-var maccase_cond = makeintern("cond");
-var maccase_rest = makeintern("&rest");
-var maccase_args = makeintern("args");
-var macdefun = new UserMacroClass();
-var macdefun_name = makeintern("name");
-var macdefun_rest = makeintern("&rest");
-var macdefun_args = makeintern("args");
-var macdefmacro = new UserMacroClass();
-var macdefmacro_name = makeintern("name");
-var macdefmacro_rest = makeintern("&rest");
-var macdefmacro_args = makeintern("args");
-var macsetq = new UserMacroClass();
-var macsetq_sym = makeintern("sym");
-var macsetq_value = makeintern("value");
-var maclet = new UserMacroClass();
-var maclet_rest = makeintern("&rest");
-var maclet_args = makeintern("args");
-var macletin = new UserMacroClass();
-var macletin_binds = makeintern("binds");
-var macletin_rest = makeintern("&rest");
-var macletin_args = makeintern("args");
-var macflet = new UserMacroClass();
-var macflet_rest = makeintern("&rest");
-var macflet_args = makeintern("args");
-var macfletin = new UserMacroClass();
-var macfletin_binds = makeintern("binds");
-var macfletin_rest = makeintern("&rest");
-var macfletin_args = makeintern("args");
-var macmlet = new UserMacroClass();
-var macmlet_rest = makeintern("&rest");
-var macmlet_args = makeintern("args");
-var macmletin = new UserMacroClass();
-var macmletin_binds = makeintern("binds");
-var macmletin_rest = makeintern("&rest");
-var macmletin_args = makeintern("args");
-var macdefvar = new UserMacroClass();
-var macdefvar_sym = makeintern("sym");
-var macdefvar_value = makeintern("value");
-var macdeflvar = new UserMacroClass();
-var macdeflvar_sym = makeintern("sym");
-var macdeflvar_value = makeintern("value");
-var macprog1 = new UserMacroClass();
-var macprog1_rest = makeintern("&rest");
-var macprog1_args = makeintern("args");
-var macprog1_temp = makeintern("temp");
-
-basnull.label = "$null";
-basnot.label = "$not";
-macand.label = "$and";
-macor.label = "$or";
-macwhen.label = "$when";
-macunless.label = "$unless";
-maccond.label = "$cond";
-maccase.label = "$case";
-macdefun.label = "$defun";
-macdefmacro.label = "$defmacro";
-macsetq.label = "$setq";
-maclet.label = "$let";
-macletin.label = "$letin";
-macflet.label = "$flet";
-macfletin.label = "$fletin";
-macmlet.label = "$mlet";
-macmletin.label = "$mletin";
-macdefvar.label = "$defvar";
-macdeflvar.label = "$deflvar";
-macprog1.label = "$prog1";
-
-inp.scope.intern(makestring("null")).setfunc(basnull);
-inp.scope.intern(makestring("not")).setfunc(basnot);
-inp.scope.intern(makestring("and")).setfunc(macand);
-inp.scope.intern(makestring("or")).setfunc(macor);
-inp.scope.intern(makestring("when")).setfunc(macwhen);
-inp.scope.intern(makestring("unless")).setfunc(macunless);
-inp.scope.intern(makestring("cond")).setfunc(maccond);
-inp.scope.intern(makestring("case")).setfunc(maccase);
-inp.scope.intern(makestring("defun")).setfunc(macdefun);
-inp.scope.intern(makestring("defmacro")).setfunc(macdefmacro);
-inp.scope.intern(makestring("setq")).setfunc(macsetq);
-inp.scope.intern(makestring("let")).setfunc(maclet);
-inp.scope.intern(makestring("defvar")).setfunc(macdefvar);
-inp.scope.intern(makestring("deflvar")).setfunc(macdeflvar);
-
-/* -- 
-    (if some nil t)
--- */
-
-basnull.args = makelist(basnull_some);
-basnull.rest = 
-    makelist(
-        makelist(
-            synif,
-            basnull_some,
-            nil,
-            t));
-
-/* --
-    (if some nil t)
--- */
-
-basnot.args = makelist(basnot_some);
-basnot.args = 
-    makelist(
-        makelist(
-            synif,
-            basnot_some,
-            nil,
-            t));
-            
-/* -- 
-    (if (null args) t
-        (if (null (cdr args)) (car args)
-            `(if ,(car args) (and ,@(cdr args)) nil)))
--- */
-
-macand.args = makelist(
-    macand_rest,
-    macand_args);
-
-macand.rest = 
-    makelist( // (if (null args) t ...
-        synif,
-        makelist(
-            basnull,
-            macand_args),
-        t,
-        makelist( // (if (null (cdr args)) (car args) ...
-            synif,
-            makelist(
-                basnull,
-                makelist(
-                    basconcdr,
-                    macand_args)),
-            makelist(
-                basconcar,
-                macand_args),
-            makelist( // (list 'if (car args) (cons 'and (cdr args) '())
-                basconlist,
-                synif,
-                makelist(
-                    basconcar,
-                    macand_args),
-                makelist(
-                    basconcons,
-                    macand,
-                    makelist(
-                        basconcdr,
-                        macand_args)),
-                makelist())));
-
-/* -- 
-    (if (null args) nil
-        `(if ,(car args) ,(car args)
-            (or ,@(cdr args))))
--- */
-
-macor.args = makelist(
-    macor_rest,
-    macor_args);
-
-macor.rest = 
-    makelist(
-        makelist( // (if (null args) nil ...
-            synif,
-            makelist(
-                basnull,
-                macor_args),
-            nil,
-            makelist( // (if (null (cdr args)) (car args) ...
-                synif,
-                makelist(
-                    basnull,
-                    makelist(
-                        basconcdr,
-                        macor_args)),
-                makelist(
-                    basconcar,
-                    macor_args),
-                makelist( // (list if (car args) (car args) (cons 'or (cdr args))
-                    basconlist,
-                    synif,
-                    makelist(
-                        basconcar,
-                        macor_args),
-                    makelist(
-                        basconcar, 
-                        macor_args),
-                    makelist(
-                        basconcons,
-                        macor,
-                        makelist(
-                            basconcdr,
-                            macor_args))))));
-
-/* -- 
-    (defmacro when (cond &rest args)
-        (list synif cond (cons progn args) nil)))
--- */
-
-macwhen.args = makelist(
-    macwhen_cond,
-    macwhen_rest,
-    macwhen_args);
-
-macwhen.rest =
-    makelist(
-        makelist(
-            basconlist,
-            synif,
-            macwhen_cond,
-            makelist(
-                basconcons,
-                synprogn,
-                macwhen_args),
-            nil));
-
-/* --
-    (defmacro unless (cond &rest args)
-        (list synif cond nil (list progn args)))
--- */
-
-macunless.args = makelist(
-    macunless_cond,
-    macunless_rest,
-    macunless_args);
-
-macunless.rest =
-    makelist(
-        makelist(
-            basconlist,
-            synif,
-            macunless_cond,
-            nil,
-            makelist(
-                basconcons,
-                synprogn,
-                macunless_args)));
-
-/* --
-    (defmacro cond (&rest args)
-        (if (null args) nil
-            (list if 
-                (caar conds)
-                (progn (cdar args))
-                (cons cond (cdr args)))))
--- */
-
-maccond.args = makelist(
-    maccond_rest,
-    maccond_args);
-
-maccond.rest =
-    makelist(
-        makelist( // (if (null args) nil ...
-            synif,
-            makelist(
-                basnull,
-                maccond_args),
-            nil,
-            makelist( // (list if (caar args) (list progn (cdar args)) ...
-                basconlist,
-                synif,
-                makelist(
-                    basconcaar,
-                    maccond_args),
-                makelist(
-                    basconcons,
-                    synprogn,
-                    makelist(
-                        basconcdar,
-                        maccond_args)),
-                makelist( // (list cond ,@(cdr args))
-                    basconcons,
-                    maccond,
-                    makelist(
-                        basconcdr,
-                        maccond_args)))));
-
-/* --
-    (defmacro case (cond &rest args)
-        (if (null args) nil
-            (list if 
-                (list eq cond (caar args))
-                (list progn (cdar args))
-                (cons case (cons cond (cdr args))))))
--- */
-
-maccase.args = makelist(
-    maccase_cond,
-    maccase_rest,
-    maccase_args);
-
-maccase.rest =
-    makelist(
-        makelist( // (if (null args) nil ...
-            synif,
-            makelist(
-                basnull,
-                maccase_args),
-            nil,
-            makelist( // (list if ...
-                basconlist,
-                synif,
-                makelist( // (list eq2 cond (caar args)) ...
-                    basconlist,
-                    baseq2,
-                    maccase_cond,
-                    makelist(
-                        basconcaar,
-                        maccase_args)),
-                makelist( // (cons progn (cdar args)) ...
-                    basconcons,
-                    synprogn,
-                    makelist(
-                        basconcdar,
-                        maccase_args)),
-                makelist( // (cons case (cons cond (cdr args))) 
-                    basconcons,
-                    maccase,
-                    makelist(
-                        basconcons,
-                        maccase_cond,
-                        makelist(
-                            basconcdr,
-                            maccase_args))))));
-
-/* --
-    (defmacro defun (name &rest args)
-        (setf `(symbol-function ,name)
-            (cons lambda args)))
- -- */
-
-macdefun.args = makelist(
-    macdefun_name,
-    macdefun_rest,
-    macdefun_args);
-
-macdefun.rest =
-    makelist(
-        makelist(
-            synquoteback,
-            makelist(
-                synsetf,
-                makelist(
-                    bassymbolfunction,
-                    makelist(
-                        baslocal,
-                        makelist(
-                            synquoteback,
-                            makeunquote(
-                                macdefun_name)))),
-                makelist(
-                    synlambda,
-                    makeunquoteat(
-                        macdefun_args)))));
-            
-/* --
-    (defmacro defmacro (name &rest args)
-        (setf (symbol-function name)
-            (cons macro args)))
--- */
-
-macdefmacro.args = makelist(
-    macdefmacro_name,
-    macdefmacro_rest,
-    macdefmacro_args);
-
-macdefmacro.rest =
-    makelist(
-        makelist(
-            synquoteback,
-            makelist(
-                syninvisible,
-                makelist(
-                    synsetf,
-                    makelist(
-                        bassymbolfunction,
-                        makelist(
-                            baslocal,
-                            makelist(
-                                synquoteback,
-                                makeunquote(
-                                    macdefun_name)))),
-                    makelist(
-                        synmacro,
-                        makeunquoteat(
-                            macdefun_args))))));
-
-/* --
-    (defmacro setq (sym value)
-        (setf (symbol-value (quoteback (unquote sym)))
-            value))
--- */
-
-macsetq.args = makelist(
-    macsetq_sym,
-    macsetq_value);
-
-macsetq.rest =
-    makelist(
-        makelist(
-            synquoteback,
-            makelist(
-                synsetf,
-                makelist(
-                    bassymbolvalue,
-                    makelist(
-                        synquote,
-                        makeunquote(
-                            macsetq_sym))),
-                makeunquote(
-                    macsetq_value))));
-
-/* --
-    (defmacro let (&rest args)
-        (list block (cons letin args)))
--- */
-
-maclet.args = makelist(
-    maclet_rest,
-    maclet_args);
-
-maclet.rest =
-    makelist(
-        makelist(
-            basconlist,
-            synblock,
-            makelist(
-                basconcons,
-                macletin,
-                maclet_args)));
-
-/* --
-    (defmacro letin (binds &rest args)
-        (if (null binds) args
-            (list progn
-                (cons deflvar (car binds))
-                (cons letin (cons (cdr binds) args)))))
--- */
-
-macletin.args = makelist(
-    macletin_binds,
-    macletin_rest,
-    macletin_args);
-
-macletin.rest = 
-    makelist(
-        makelist(
-            synif,
-            makelist(
-                basnull,
-                macletin_binds),
-            makelist(
-                synquoteback,
-                makelist(
-                    synprogn,
-                    makeunquoteat(
-                        macletin_args))),
-            makelist(
-                synquoteback,
-                makelist(
-                    makelist(
-                        macdeflvar,
-                        makeunquoteat(
-                            makelist(
-                                basconcar,
-                                macletin_binds))),
-                    makelist(
-                        macletin,
-                        makeunquote(
-                            makelist(
-                                basconcdr,
-                                macletin_binds)),
-                        makeunquoteat(
-                            macletin_args))
-                ))));
-
-/* --
-    (defmacro flet (&rest args)
-        (block (fletin ,@args)))
- -- */
-
-macflet.args = makelist(
-    macflet_rest,
-    macflet_args);
-
-macflet.rest =
-    makelist(
-        makelist(
-            synquoteback,
-            makelist(
-                synblock,
-                makelist(
-                    macfletin,
-                    makeunquoteat(
-                        macflet_args)))));
-
-/* -- 
-    (defmacro fletin (binds &rest args)
-        (if (null binds) '(progn ,@args)
-            '(progn (setf (symbol-function (local ',(car bind)))
-                (fletin ,(cdr binds) ,@args))))
--- */
-
-macfletin.args = makelist(
-    macfletin_binds,
-    macfletin_rest,
-    macfletin_args);
-
-macfletin.rest =
-    makelist(
-        makelist( // (if (null binds) ...
-            synif,
-            makelist(
-                basnull,
-                macletin_binds),
-            makelist( // (progn ,@args)
-                synquoteback,
-                makelist(
-                    synprogn,
-                    makeunquoteat(
-                        macletin_args))),
-            makelist(
-                synquoteback,
-                makelist( // (progn ...
-                    synprogn,
-                    makelist( // (setf ...
-                        synsetf,
-                        makelist( // (symbolfunction (local (quote ,(caar binds))))
-                            bassymbolfunction,
-                            makelist(
-                                baslocal,
-                                makelist(
-                                    synquote,
-                                    makeunquote(
-                                        makelist(
-                                            basconcaar,
-                                            macletin_binds))))),
-                        makelist( // (lambda ,@(cdar binds))
-                            synlambda,
-                            makeunquoteat(
-                                makelist(
-                                    basconcdar,
-                                    macletin_binds)))),
-                    makelist( // (letin ,(cdr binds) ,@args)
-                        macletin,
-                        makeunquote(
-                            makelist(
-                                basconcdr,
-                                macletin_binds)),
-                        makeunquoteat(
-                            macletin_args))))));
-
-/* --
-    (defmacro flet (&rest args)
-        (block (fletin ,@args)))
- -- */
-
-macmlet.args = makelist(
-    macmlet_rest,
-    macmlet_args);
-
-macmlet.rest =
-    makelist(
-        makelist(
-            synquoteback,
-            makelist(
-                synblock,
-                makelist(
-                    macmletin,
-                    makeunquoteat(
-                        macmlet_args)))));
-
-/* -- 
-    (defmacro mletin (binds &rest args)
-        (if (null binds) '(progn ,@args)
-            '(progn (setf (symbol-function (local ',(car bind)) ... )
-                (mletin ,(cdr binds) ,@args))))
--- */
-
-macmletin.args = makelist(
-    macmletin_binds,
-    macmletin_rest,
-    macmletin_args);
-
-macmletin.rest =
-    makelist(
-        makelist( // (if (null binds) ...
-            synif,
-            makelist(
-                basnull,
-                macletin_binds),
-            makelist( // (progn ,@args)
-                synquoteback,
-                makelist(
-                    synprogn,
-                    makeunquoteat(
-                        macletin_args))),
-            makelist(
-                synquoteback,
-                makelist( // (progn ...
-                    synprogn,
-                    makelist( // (setf ...
-                        synsetf,
-                        makelist( // (symbolfunction (local (quote ,(caar binds))))
-                            bassymbolfunction,
-                            makelist(
-                                baslocal,
-                                makelist(
-                                    synquote,
-                                    makeunquote(
-                                        makelist(
-                                            basconcaar,
-                                            macletin_binds))))),
-                        makelist( // (macro ,@(cdar binds))
-                            synmacro,
-                            makeunquoteat(
-                                makelist(
-                                    basconcdar,
-                                    macletin_binds)))),
-                    makelist( // (letin ,(cdr binds) ,@args)
-                        macletin,
-                        makeunquote(
-                            makelist(
-                                basconcdr,
-                                macletin_binds)),
-                        makeunquoteat(
-                            macletin_args))))));
-/* --
-    (defmacro defvar (sym value)
-        (setf (symbol-value (global ,sym)) ,value))
- -- */
-
-macdefvar.args = makelist(
-    macdefvar_sym,
-    macdefvar_value);
-
-macdefvar.rest =
-    makelist(
-        makelist(
-            synquoteback,
-            makelist(
-                synsetf,
-                makelist(
-                    bassymbolvalue,
-                    makelist(
-                        basglobal,
-                        makelist(
-                            synquote,
-                            makeunquote(
-                                macdefvar_sym)))),
-                makeunquote(
-                    macdefvar_value))));
-
-/* --
-    (defmacro deflvar (sym value)
-        (setf (symbol-value (local ,sym)) ,value))
- -- */
-
-macdeflvar.args = makelist(
-    macdeflvar_sym,
-    macdeflvar_value);
-
-macdeflvar.rest =
-    makelist(
-        makelist(
-            synquoteback,
-            makelist(
-                synsetf,
-                makelist(
-                    bassymbolvalue,
-                    makelist(
-                        baslocal,
-                        makelist(
-                            synquote,
-                            makeunquote(
-                                macdeflvar_sym)))),
-                makeunquote(
-                    macdeflvar_value))));
-
-/* --
-    (defmacro prog1 (&rest args)
-        (let ((temp (make-symbol "")))
-            `(progn (setq ,temp ,(car args))
-                ,@(cdr args) ,temp)))
- -- */
-
-macprog1.args = makelist(
-    macprog1_rest,
-    macprog1_args);
-
-macprog1.rest =
-    makelist(
-        
-        // (let ((temp (make-symbol "anonymous"))) ...
-        
-        makelist( 
-            maclet,
-            makelist(
-                makelist(
-                    macprog1_temp,
-                    makelist(
-                        bassymbolmake,
-                        makestring("anonymous")))),
-
-            // `(progn ...
-            
-            makelist(
-                synquoteback,
-                makelist(
-                    synprogn,
-
-                    // (setq ,temp ,(car args))
-                    
-                    makelist(
-                        macsetq,
-                        makeunquote(
-                            macprog1_temp),
-                        makeunquote(
-                            makelist(
-                                basconcar,
-                                macprog1_args))),
-
-                    // ,@(cdr args)
-
-                    makeunquoteat(
-                        makelist(
-                            basconcdr,
-                            macprog1_args)),
-
-                    // ,temp
-
-                    makeunquote(
-                        macprog1_temp)
-
-                ))));
-
-// define basic cons methods
-
-var basconmap = new UserFunctionClass();
-var basconmap_func = makeintern("func");
-var basconmap_sequence = makeintern("sequence");
-var basconfilter = new UserFunctionClass();
-var basconfilter_func = makeintern("func");
-var basconfilter_sequence = makeintern("sequence");
-var basconreduce = new UserFunctionClass();
-var basconreduce_func = makeintern("func");
-var basconreduce_sequence = makeintern("sequence");
-var basconreducein = new UserFunctionClass();
-var basconreducein_func = makeintern("func");
-var basconreducein_sum = makeintern("sum");
-var basconreducein_sequence = makeintern("sequence");
-var basconlength = new UserFunctionClass();
-var basconlength_sequence = makeintern("sequence");
-var basconnth = new UserFunctionClass();
-var basconnth_index = makeintern("index");
-var basconnth_sequence = makeintern("sequence");
-var basconappend2 = new UserFunctionClass();
-var basconappend2_sequence = makeintern("sequence");
-var basconappend2_sequencec = makeintern("sequencec");
-var basconappend = new UserFunctionClass();
-var basconappend_rest = makeintern("&rest");
-var basconappend_args = makeintern("args");
-var basconfindif = new UserFunctionClass();
-var basconfindif_func = makeintern("func");
-var basconfindif_sequence = makeintern("sequence");
-var basconpositionif = new UserFunctionClass();
-var basconpositionif_func = makeintern("func");
-var basconpositionif_sequence = makeintern("sequence");
-var basconpositionifin = new UserFunctionClass();
-var basconpositionifin_func = makeintern("func");
-var basconpositionifin_sequence = makeintern("sequence");
-var basconpositionifin_count = makeintern("count");
-var basconcopy = new UserFunctionClass();
-var basconcopy_sequence = makeintern("sequence");
-var basconnreverse = new UserFunctionClass();
-var basconnreverse_sequence = makeintern("sequence");
-var basconnreversein = new UserFunctionClass();
-var basconnreversein_sequence = makeintern("sequence");
-var basconnreversein_before = makeintern("before");
-var basconnreversein_after = makeintern("after");
-
-basconmap.label = "$map";
-basconfilter.label = "$filter";
-basconreduce.label = "$reduce";
-basconreducein.label = "$reducein";
-basconlength.label = "$length";
-basconnth.label = "$nth";
-basconappend2.label = "$append2";
-basconappend.label = "$append";
-basconfindif.label = "$findif";
-basconpositionif.label = "$positionif";
-basconcopy.label = "$copy";
-basconnreverse.label = "$nreverse";
-basconnreversein.label = "$nreversein";
-
-/* -- 
-    (defun map (func sequence)
-        (and sequence
-            (cons (funcall func (car sequence))
-                (cdr sequence))))
--- */
-
-basconmap.args = makelist(
-    basconmap_func,
-    basconmap_sequence);
-
-basconmap.rest = 
-    makelist(
-        makelist( // (if (null sequence) nil ...
-            synif,
-            makelist(
-		basnull,
-                basconmap_sequence),
-            nil,
-            makelist( // (cons (funcall func (car sequence)) ...
-                basconcons,
-                makelist(
-                    basfnfuncall,
-                    basconmap_func,
-                    makelist(
-                        basconcar,
-                        basconmap_sequence)),
-                makelist( // (map func (cdr sequence))
-                    basconmap,
-                    basconmap_func,
-                    makelist(
-                        basconcdr,
-                        basconmap_sequence)))));
-
-/* -- 
-    (defun filter (func sequence)
-        (and sequence
-            (if (funcall func (car sequence))
-                (cons (car sequence) (filter func (cdr sequence)))
-                (filter func (cdr sequence)))))
--- */
-
-basconfilter.args = makelist(
-    basconfilter_func,
-    basconfilter_sequence);
-
-basconfilter.rest = 
-    makelist(
-        makelist( // (if (null sequence) nil ...
-            synif,
-            makelist(
-                basnull,
-                basconfilter_sequence),
-            nil,
-            makelist( // (if (funcall func (car sequence)) (cons (car sequence) (filter func (cdr sequence)) ..
-                synif,
-                makelist(
-                    basfnfuncall,
-                    basconfilter_func,
-                    makelist(
-                        basconcar,
-                        basconfilter_sequence)),
-                makelist(
-                    basconcons,
-                    makelist(
-                        basconcar,
-                        basconfilter_sequence),
-                    makelist(
-                        basconfilter,
-                        basconfilter_func,
-                        makelist(
-                            basconcdr,
-                            basconfilter_sequence))),
-                makelist( // (filter func (cdr sequence))
-                    basconfilter,
-                    basconfilter_func,
-                    makelist(
-                        basconcdr,
-                        basconfilter_sequence)))));
-
-/* -- 
-    (defun reduce (func sequence)
-        (if (null sequence) nil
-            (if (null (cdr sequence)) (car sequence)
-                (reducein func (car sequence) (cdr sequence)))))
- -- */
-
-basconreduce.args = makelist(
-    basconreduce_func,
-    basconreduce_sequence);
-
-basconreduce.rest = 
-    makelist(
-        makelist( // (if (null sequence) nil ...
-            synif,
-            makelist(
-                basnull,
-                basconreduce_sequence),
-            nil,
-            makelist( // (if (null (cdr sequence)) (car sequence) ...
-                synif,
-                makelist(
-                    basnull,
-                    makelist(
-                        basconcdr,
-                        basconreduce_sequence)),
-                makelist(
-                    basconcar,
-                    basconreduce_sequence),
-                makelist( // (reducein func (car sequence) (cdr sequence))
-                    basconreducein,
-                    basconreduce_func,
-                    makelist(
-                        basconcar,
-                        basconreduce_sequence),
-                    makelist(
-                        basconcdr,
-                        basconreduce_sequence)))));
-
-/* --
-    (defun reducein (func sum sequence)
-        (if (null sequence) sum
-            (reducein func 
-                (funcall func sum (car sequence))
-                (cdr sequence))))
--- */
-
-basconreducein.args = makelist(
-    basconreducein_func,
-    basconreducein_sum,
-    basconreducein_sequence);
-
-basconreducein.rest = 
-    makelist(
-        makelist( // (if (null sequence) sum ...
-            synif,
-            makelist(
-                basnull,
-                basconreducein_sequence),
-            basconreducein_sum,
-            makelist( // (reducein func (funcall func sum (car sequence)) (cdr sequence))
-                basconreducein,
-                basconreducein_func,
-                makelist(
-                    basfnfuncall,
-                    basconreducein_func,
-                    basconreducein_sum,
-                    makelist(
-                        basconcar,
-                        basconreducein_sequence)),
-                makelist(
-                    basconcdr,
-                    basconreducein_sequence))));
-
-/* --
-    (defun length (sequence)
-        (if (null sequence) 0
-            (+ 1 (length (cdr sequence)))))
--- */
-
-basconlength.args = makelist(
-    basconlength_sequence);
-
-basconlength.rest = 
-    makelist(
-        makelist( // (if (null sequence) 0 ...
-            synif,
-            makelist(
-                basnull,
-                basconlength_sequence),
-            makeint(0),
-            makelist( // (+ 1 (length (cdr sequence)))
-                basadd,
-                makeint(1),
-                makelist(
-                    basconlength,
-                    makelist(
-                        basconcdr,
-                        basconlength_sequence)))));
-
-/* -- 
-    (defun nth (index sequence)
-        (if (null sequence) nil
-            (if (= index 0) (car sequence)
-                (nth (- index 1) (cdr sequence)))))
--- */
-
-basconnth.args = makelist(
-    basconnth_index,
-    basconnth_sequence);
-
-basconnth.rest = 
-    makelist(
-        makelist( // (if (null sequence) nil ...
-            synif,
-            makelist(
-                basnull,
-                basconnth_sequence),
-            nil,
-            makelist( // (if (= index 0) (car sequence) ...
-                synif,
-                makelist(
-                    basnumeq2,
-                    basconnth_index,
-                    makeint(0)),
-                makelist(
-                    basconcar,
-                    basconnth_sequence),
-                makelist( // (nth (- index 1) (cdr sequence))
-                    basconnth,
-                    makelist(
-                        bassub,
-                        basconnth_index,
-                        makeint(1)),
-                    makelist(
-                        basconcdr,
-                        basconnth_sequence)))));
-
-/* --
-    (defun append2 (sequence sequencec)
-        (if (null sequence) sequencec
-            (cons (car sequence)
-                (append2 (cdr sequence) sequencec))))
--- */
-
-basconappend2.args = makelist(
-    basconappend2_sequence,
-    basconappend2_sequencec);
-
-basconappend2.rest = 
-    makelist(
-        makelist( // (if (null sequence) sequencec ...
-            synif,
-            makelist(
-                basnull,
-                basconappend2_sequence),
-            basconappend2_sequencec,
-            makelist( // (cons (car sequence) (append2 (cdr sequence) sequencec))
-                basconcons,
-                makelist(
-                    basconcar,
-                    basconappend2_sequence),
-                makelist(
-                    basconappend2,
-                    makelist(
-                        basconcdr,
-                        basconappend2_sequence),
-                    basconappend2_sequencec))));
-
-/* --
-    (defun append (&rest args)
-        (reduce append2 args))
--- */
-
-basconappend.args = makelist(
-    basconappend_rest,
-    basconappend_args);
-
-basconappend.rest = 
-    makelist(
-        makelist( // (reduce append2 args)
-            basconreduce,
-            basconappend2,
-            basconappend_args));
-
-/* --
-    (defun findif (func sequence)
-        (if (null sequence) nil
-            (if (funcall func (car sequence)) (car sequence)
-                (findif func (cdr sequence)))))
--- */
-
-basconfindif.args = makelist(
-    basconfindif_func,
-    basconfindif_sequence);
-
-basconfindif.rest = 
-    makelist(
-        makelist( // (if (null sequence) nil ...
-            synif,
-            makelist(
-                basnull,
-                basconfindif_sequence),
-            nil,
-            makelist( // (if (funcall (car sequence)) (car sequence) ...
-                synif,
-                makelist(
-                    basfnfuncall,
-                    basconfindif_func,
-                    makelist(
-                        basconcar,
-                        basconfindif_sequence)),
-                makelist(
-                    basconcar,
-                    basconfindif_sequence),
-                makelist( // (findif func (cdr sequence))
-                    basconfindif,
-                    basconfindif_func,
-                    makelist(
-                        basconcdr,
-                        basconfindif_sequence)))));
-
-/* --
-    (defun positionif (func sequence)
-        (positionifin func sequence 0))
--- */
-
-basconpositionif.args = makelist(
-    basconpositionif_func,
-    basconpositionif_sequence);
-
-basconpositionif.rest = 
-    makelist(
-        makelist( // (positionifin func sequence)
-            basconpositionifin,
-            basconpositionif_func,
-            basconpositionif_sequence,
-            makeint(0)));
-
-/* --
-    (defun positionifin (func sequence count)
-        (if (null sequence) nil
-            (if (funcall (car sequence)) count
-                (positionifin func (cdr sequence) (+ count 1)))))
--- */
-
-basconpositionifin.args = makelist(
-    basconpositionifin_func,
-    basconpositionifin_sequence,
-    basconpositionifin_count);
-
-basconpositionifin.rest = 
-    makelist(
-        makelist( // (if (null sequence) nil ...
-	    synif,
-            makelist(
-                basnull,
-                basconpositionifin_sequence),
-            nil,
-            makelist( // (if (funcall func (car sequence)) count ...
-                synif,
-                makelist(
-                    basfnfuncall,
-                    basconpositionifin_func,
-                    makelist(
-                        basconcar,
-                        basconpositionifin_sequence)),
-                basconpositionifin_count,
-                makelist( // (positionifin func (cdr sequence) (+ count 1))
-                    basconpositionifin,
-                    basconpositionifin_func,
-                    makelist(
-                        basconcdr,
-                        basconpositionifin_sequence),
-                    makelist(
-                        basadd,
-                        basconpositionifin_count,
-                        makeint(1))))));
-
-/* --
-    (defun copy (sequence)
-        (if (null sequence) nil
-            (cons (car sequence) 
-                (copy (cdr sequence)))))
--- */
-
-basconcopy.args = makelist(
-    basconcopy_sequence);
-
-basconcopy.rest = 
-    makelist(
-        makelist( // (if (null sequence) nil ...
-            synif,
-            makelist(
-                basnull,
-                basconcopy_sequence),
-            nil,
-            makelist( // (cons (car sequence) (copy (cdr sequence)))
-                basconcons,
-                makelist(
-                    basconcar,
-                    basconcopy_sequence),
-                makelist(
-                    basconcopy,
-                    makelist(
-                        basconcdr,
-                        basconcopy_sequence)))));
-
-/* --
-    (defun nreverse (sequence)
-        (nreversein nil sequence (cdr sequence)))
--- */
-
-basconnreverse.args = makelist(
-    basconnreverse_sequence);
-
-basconnreverse.rest = 
-    makelist(
-        makelist(
-            basconnreversein,
-            nil,
-            basconnreverse_sequence,
-            makelist(
-                basconcdr,
-                basconnreverse_sequence)));
-
-/* --
-    (defun nreversein (before sequence after)
-        (if (null sequence) nil
-            (progn 
-                (setf (cdr sequence) before)
-                (if (null after) sequence
-                    (nreversein sequence after (cdr after))))))
--- */
-
-basconnreversein.args = makelist(
-    basconnreversein_before,
-    basconnreversein_sequence,
-    basconnreversein_after);
-
-basconnreversein.rest = 
-    makelist(
-        makelist(
-            synif,
-            makelist(
-                basnull,
-                basconnreversein_sequence),
-            nil,
-            makelist(
-                synprogn,
-                makelist(
-                    synsetf,
-                    makelist(
-                        basconcdr,
-                        basconnreversein_sequence),
-                    basconnreversein_before),
-                makelist(
-                    synif,
-                    makelist(
-                        basnull,
-                        basconnreversein_after),
-                    basconnreversein_sequence,
-                    makelist(
-                        basconnreversein,
-                        basconnreversein_sequence,
-                        basconnreversein_after,
-                        makelist(
-                            basconcdr,
-                            basconnreversein_after))))));
+evallisp("(defun null (value) (if value nil t))");
+evallisp("(defun not (value) (if value nil t))");
+evallisp("(defmacro and (&rest rest) (if (null rest) t (if (null (cdr rest)) (car rest) `(if ,(car rest) (and ,@(cdr rest)) nil))))");
+evallisp("(defmacro or (&rest rest) (if (null rest) nil (if (null (cdr rest)) (car rest) `(if ,(car rest) ,(car rest) (or ,@(cdr rest))))))");
+evallisp("(defmacro when (status &rest rest) `(if ,status (progn ,@rest) nil))");
+evallisp("(defmacro unless (status &rest rest) `(if ,status nil (progn ,@rest)))");
+evallisp("(defmacro cond (&rest rest) (if (null rest) nil `(if ,(caar rest) (progn ,@(cdar rest)) (cond ,@(cdr rest)))))");
+evallisp("(defmacro setq (sym value) `(setf (quote ,sym) ,value))");
+evallisp("(defmacro defvar (sym value) `(setf (global (quote ,sym)) ,value))");
+evallisp("(defmacro deflvar (sym value) `(setf (local (quote ,sym)) ,value))");
+evallisp("(defmacro let (binds &rest rest) `(block ,@(letin binds rest)))");
+evallisp("(defmacro flet (binds &rest rest) `(block ,@(fletin binds rest)))");
+evallisp("(defmacro mlet (binds &rest rest) `(block ,@(mletin binds rest)))");
+evallisp("(defun letin (binds rest) (if (null binds) (if rest rest '(nil))" +
+         "(cons `(setf (symbol-value (local (quote ,(caar binds)))) ,(car (cdar binds))) (letin (cdr binds) rest)))))");
+evallisp("(defun fletin (binds rest) (if (null binds) (if rest rest '(nil))" +
+         "(cons `(setf (symbol-function (local (quote ,(caar binds)))) (lambda ,@(cdar binds))) (letin (cdr binds) rest)))))");
+evallisp("(defun mletin (binds rest) (if (null binds) (if rest rest '(nil))" +
+         "(cons `(setf (symbol-function (local (quote ,(caar binds)))) (macro ,@(cdar binds))) (letin (cdr binds) rest)))))");
+evallisp("(defmacro prog1 (bind &rest rest) `(let ((temp ,bind)) ,@rest temp))");
 
 // ** test code
 
 var source;
 
 // source = '(progn (defun example (num) `(1 2 3 ,num)) (example 4))';
+// source = '(progn (defmacro example (num) `(print ,num)) (example 4))';
+// source = '(progn (defmacro prog1 (&rest rest) `(let ((temp ,(car rest))) ,@(cdr rest) temp)) (print (prog1 0)))';
+// source = '(when t 1 2 3)';
+// source = '(unless nil 1 2 3)';
+// source = '(cond (nil 1) (nil 2) (t 3))';
 
 // try {
 //     console.log(readlisp(source).toLisp());
