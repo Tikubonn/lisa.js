@@ -2721,6 +2721,7 @@ evallisp("(defun find-if (func cons) (and cons (if (funcall (car cons)) (car con
 evallisp("(defun position-if (func cons) (position-ifin func cons 0))");
 evallisp("(defun position-ifin (func cons count) (and cons (if (funcall func (car cons)) count (position-ifin func (cdr cons) (+1 count)))))");
 evallisp("(defun append2 (consa consb) (if (null consa) consb (cons (car consa) (append2 (cdr consa) consb))))");
+evallisp("(defun append (&rest conses) (reduce 'append2 conses))");
 evallisp("(defun reverse (cons) (and cons (cons (car cons) (reverse (cdr cons)))))");
 evallisp("(defun nreverse (cons) (and cons (nreversein nil cons (cdr cons))))");
 evallisp("(defun nreversein (consa consb consc) (if (null consc) consb (progn (setf (cdr consb) consa) (nreversein consb consc (cdr consc)))))");
