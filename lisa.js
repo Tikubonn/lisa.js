@@ -577,11 +577,7 @@ ArrayReferenceClass.prototype.onexpanddata = function (){
 // //     <- reference class
 
 function ConsReferenceClass (cons){
-    
-    if (cons instanceof ConsClass == false)
-        throw new Error("" + cons.toLisp() + " is should cons instance.");
-    
-    this.cons = cons || null;
+    this.cons = cons;
 };
 
 ConsReferenceClass.prototype = 
@@ -637,6 +633,10 @@ ConsCarReferenceClass.prototype.set = function (value){
     return this.cons.setcar(value);
 };
 
+ConsCarReferenceClass.prototype.onexpandarg = function (){
+    return this.cons.expandarg() + ".car";
+};
+
 function makeconscarreference (cons){
     return new ConsCarReferenceClass(cons);
 };
@@ -657,6 +657,10 @@ ConsCdrReferenceClass.prototype.get = function (){
 
 ConsCdrReferenceClass.prototype.set = function (value){
     return this.cons.setcdr(value);
+};
+
+ConsCdrReferenceClass.prototype.onexpandarg = function (){
+    return this.cons.expandarg() + ".cdr";
 };
 
 function makeconscdrreference (cons){
@@ -1303,8 +1307,8 @@ UserFunctionClass.prototype.onevaluate = function (){
                         makelist(
                             synquote,
                             consa.car))),
-                makelist(
-                    synquote,
+                makecons(
+                    basconlist,
                     consb)),
             bound);
     };
@@ -1569,16 +1573,16 @@ SymbolClass.prototype.setfunc = function (func){
 };
 
 SymbolClass.prototype.onevaluate = function (){
-    var func = this.getfunc();
+    var func = this.getfunce();
     return func.evaluate.apply(func, arguments);
 };
 
 SymbolClass.prototype.onevaluatearg = function (){
-    return this.getvalue();
+    return this.getvaluee();
 };
 
 SymbolClass.prototype.onexpand = function (){
-    var func = this.getfunc();
+    var func = this.getfunce();
     return func.expand.apply(func, arguments);
 };
 
@@ -2004,14 +2008,12 @@ function readlisp (source){
 };
 
 function evallisp (source){
-    return rdread.evaluate(
-        makestrstreamin(source))
+    return readlisp(source)
         .evaluatearg();
 };
 
 function explisp (source){
-    return rdread.evaluate(
-        makestrstreamin(source))
+    return readlisp(source)
         .expandarg();
 };
 
@@ -2283,7 +2285,6 @@ var synquote = new SpecialFunctionClass();
 var synquoteback = new SpecialFunctionClass();
 var synlambda = new SpecialFunctionClass();
 var synmacro = new SpecialFunctionClass();
-var syninvisible = new SpecialFunctionClass();
 
 inp.scope.intern(makestring("if")).setfunc(synif);
 inp.scope.intern(makestring("block")).setfunc(synblock);
@@ -2302,7 +2303,6 @@ synquote.label = "$quote";
 synquoteback.label = "$quoteback";
 synlambda.label = "$lambda";
 synmacro.label = "$macro";
-syninvisible.label = "$invisible";
 
 synif.onevaluate = function (cond, truecase, falsecase){
     if (getreference(cond.evaluatearg()) != nil)
@@ -2399,16 +2399,16 @@ synlambda.onevaluate = function (args){
     return new UserFunctionClass(args, ConsClass.toCons(slice(arguments, 1)));
 };
 
+synlambda.onexpand = function (args){
+    return this.evaluate.apply(this, arguments).expandarg();
+};
+
 synmacro.onevaluate = function (args){
     return new UserMacroClass(args, ConsClass.toCons(slice(arguments, 1)));
 };
 
-syninvisible.onevaluate = 
-    synprogn.onevaluate;
-
-syninvisible.onexpand = function (){
-    this.evaluate.apply(this, arguments);
-    return nil.expandarg();
+synmacro.onexpand = function (args){
+    return this.evaluate.apply(this, arguments).expandarg(), nil;
 };
 
 // define basic scope methods
@@ -2594,6 +2594,9 @@ var basfnapply = new PrimitiveFunctionClass();
 basfnfuncall.label = "$funcall";
 basfnapply.label = "$apply";
 
+inp.scope.intern(makestring("funcall")).setfunc(basfnfuncall);
+inp.scope.intern(makestring("apply")).setfunc(basfnapply);
+
 basfnfuncall.onevaluate = function (func){
     return func.evaluate.apply(func, slice(arguments, 1));
 };
@@ -2712,11 +2715,12 @@ evallisp("(defun caar (cons) (car (car cons)))");
 evallisp("(defun cdar (cons) (cdr (car cons)))");
 evallisp("(defun cadr (cons) (car (cdr cons)))");
 evallisp("(defun cddr (cons) (cdr (cdr cons)))");
-evallisp("(defun map (func cons) (and cons (cons (funcall func (car cons)) (map func (cdr cons)))))");
-evallisp("(defun filter (func cons) (and cons (if (funcall func (car cons)) (cons (car cons) (filter func (cdr cons))) (filter func (cdr cons)))))");
+evallisp("(defun map (func seq) (and seq (cons (funcall func (car seq)) (map func (cdr seq)))))");
+evallisp("(defun filter (func seq) (and seq (if (funcall func (car seq)) (cons (car seq) (filter func (cdr seq))) (filter func (cdr seq)))))");
 evallisp("(defun foreach (func cons) (and cons (funcall (car cons)) (foreach func (cdr cons))))");
 evallisp("(defun reduce (func cons) (cond ((null cons) nil) ((null (cdr cons)) (car cons)) (t (reducein func (car cons) (cdr cons)))))");
-evallisp("(defun reducein (func sum cons) (if (null cons) sum (reducein func (funcall func sum (car cons)) (cdr cons))))");
+evallisp("(defun reducein (func sum consn) (if (null cons) sum (reducein func (funcall func sum (car cons)) (cdr cons))))");
+// evallisp("(defun reducein (func sum consn) (print sum) (print consn) nil)"); // todo: should fix the argument binding.
 evallisp("(defun find-if (func cons) (and cons (if (funcall (car cons)) (car cons) (find-if func (cdr cons)))))");
 evallisp("(defun position-if (func cons) (position-ifin func cons 0))");
 evallisp("(defun position-ifin (func cons count) (and cons (if (funcall func (car cons)) count (position-ifin func (cdr cons) (+1 count)))))");
@@ -2761,6 +2765,9 @@ var source;
 // source = '(when t 1 2 3)';
 // source = '(unless nil 1 2 3)';
 // source = '(cond (nil 1) (nil 2) (t 3))';
+// source = "(append2 '(1) '(2))";
+// source = "(append '(1) '(2) '(3) '(4))";
+// source = "(map (lambda (num) nil) '(1 2 3))";
 
 // try {
 //     console.log(readlisp(source).toLisp());
