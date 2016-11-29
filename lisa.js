@@ -36,16 +36,21 @@ Strace.prototype.clear = function (){
     this.strace = [];
 };
 
-Strace.prototype.willstrace = function (){
-    var message = arguments.length == 2 ? arguments[0] : "";
-    var func = arguments.length == 2 ? arguments[1] : arguments[0];
-    var temp;
+Strace.prototype.willstrace = function (message, func){
+    
     var self = this;
+    
     return function willstrace_closure (){
+
+        var temp;
         var index;
-        index = self.push(message + this.toLisp());
+        var source;
+
+        source = message + this.toLisp();
+        index = self.push(source);
         temp = func.apply(this, arguments);
         self.pop(index);
+
         return temp;
     };
 };
@@ -1315,7 +1320,7 @@ UserFunctionClass.prototype.onevaluate = function (){
 
     var formula = makelist(
         synblock,
-        makecons(synprogn, bound),
+        makecons(synprogn, bound.reverse()),
         makecons(synprogn, this.rest));
 
     var message = "user function <- " + formula.toLisp();
@@ -1458,7 +1463,7 @@ UserMacroClass.prototype.onevaluate = function (){
             if (consa.car == makeintern("&rest")) break;
             bound =
                 makecons(
-                    makecons(macdeflvar,
+                    makecons(makeintern("deflvar"),
                              (consb == nil) ?
                              (consa.car instanceof ConsClass == false) ?
                              (makecons(consa.car, makecons(nil))):
@@ -2588,8 +2593,8 @@ basintnot2.onevaluate = function (a){
 
 // define basic function methods
 
-var basfnfuncall = new PrimitiveFunctionClass();
-var basfnapply = new PrimitiveFunctionClass();
+var basfnfuncall = new SpecialFunctionClass();
+var basfnapply = new SpecialFunctionClass();
 
 basfnfuncall.label = "$funcall";
 basfnapply.label = "$apply";
@@ -2598,12 +2603,33 @@ inp.scope.intern(makestring("funcall")).setfunc(basfnfuncall);
 inp.scope.intern(makestring("apply")).setfunc(basfnapply);
 
 basfnfuncall.onevaluate = function (func){
-    return func.evaluate.apply(func, slice(arguments, 1));
+    // return func.evaluate.apply(func, slice(arguments, 1));
+    var callable = func.evaluatearg();
+    return callable.evaluate.apply(callable, slice(arguments, 1));
 };
 
 basfnapply.onevaluate = function (func, args){
-    return func.evaluate.apply(func, args.toArray());
+    // return func.evaluate.apply(func, args.toArray());
+    var callable = func.evaluatearg();
+    return callable.evaluate.apply(callable, args.toArray());
 };
+
+// var basfnfuncall = new PrimitiveFunctionClass();
+// var basfnapply = new PrimitiveFunctionClass();
+
+// basfnfuncall.label = "$funcall";
+// basfnapply.label = "$apply";
+
+// inp.scope.intern(makestring("funcall")).setfunc(basfnfuncall);
+// inp.scope.intern(makestring("apply")).setfunc(basfnapply);
+
+// basfnfuncall.onevaluate = function (func){
+//     return func.evaluate.apply(func, slice(arguments, 1));
+// };
+
+// basfnapply.onevaluate = function (func, args){
+//     return func.evaluate.apply(func, args.toArray());
+// };
 
 // define basic debug methods
 
@@ -2711,26 +2737,25 @@ evallisp("(setf (symbol-function 'defmacro) (macro (name &rest rest) `(setf (sym
 
 // define cons methods
 
-evallisp("(defun caar (cons) (car (car cons)))");
-evallisp("(defun cdar (cons) (cdr (car cons)))");
-evallisp("(defun cadr (cons) (car (cdr cons)))");
-evallisp("(defun cddr (cons) (cdr (cdr cons)))");
+evallisp("(defun caar (con) (car (car con)))");
+evallisp("(defun cdar (con) (cdr (car con)))");
+evallisp("(defun cadr (con) (car (cdr con)))");
+evallisp("(defun cddr (con) (cdr (cdr con)))");
 evallisp("(defun map (func seq) (and seq (cons (funcall func (car seq)) (map func (cdr seq)))))");
 evallisp("(defun filter (func seq) (and seq (if (funcall func (car seq)) (cons (car seq) (filter func (cdr seq))) (filter func (cdr seq)))))");
-evallisp("(defun foreach (func cons) (and cons (funcall (car cons)) (foreach func (cdr cons))))");
-evallisp("(defun reduce (func cons) (cond ((null cons) nil) ((null (cdr cons)) (car cons)) (t (reducein func (car cons) (cdr cons)))))");
-evallisp("(defun reducein (func sum consn) (if (null cons) sum (reducein func (funcall func sum (car cons)) (cdr cons))))");
-// evallisp("(defun reducein (func sum consn) (print sum) (print consn) nil)"); // todo: should fix the argument binding.
+evallisp("(defun foreach (func seq) (and seq (funcall (car seq)) (foreach func (cdr seq))))");
+evallisp("(defun reduce (func seq) (cond ((null seq) nil) ((null (cdr seq)) (car seq)) (t (reducein func (car seq) (cdr seq)))))");
+evallisp("(defun reducein (func sum consn) (if (null consn) sum (reducein func (funcall func sum (car consn)) (cdr consn))))");
 evallisp("(defun find-if (func cons) (and cons (if (funcall (car cons)) (car cons) (find-if func (cdr cons)))))");
 evallisp("(defun position-if (func cons) (position-ifin func cons 0))");
 evallisp("(defun position-ifin (func cons count) (and cons (if (funcall func (car cons)) count (position-ifin func (cdr cons) (+1 count)))))");
-evallisp("(defun append2 (consa consb) (if (null consa) consb (cons (car consa) (append2 (cdr consa) consb))))");
-evallisp("(defun append (&rest conses) (reduce 'append2 conses))");
-evallisp("(defun reverse (cons) (and cons (cons (car cons) (reverse (cdr cons)))))");
-evallisp("(defun nreverse (cons) (and cons (nreversein nil cons (cdr cons))))");
-evallisp("(defun nreversein (consa consb consc) (if (null consc) consb (progn (setf (cdr consb) consa) (nreversein consb consc (cdr consc)))))");
-evallisp("(defun length (cons) (lengthin cons 0))");
-evallisp("(defun lengthin (cons count) (if (null cons) count (lengthin (cdr cons) (1+ count))))");
+evallisp("(defun append2 (seq seqe) (if (null seq) seqe (cons (car seq) (append2 (cdr seq) seqe))))");
+evallisp("(defun append (&rest seqs) (reduce 'append2 seqs))");
+evallisp("(defun reverse (seq) (and seq (cons (car seq) (reverse (cdr seq)))))");
+evallisp("(defun nreverse (seq) (and seq (nreversein nil cons (cdr seq))))");
+evallisp("(defun nreversein (seqa seqb seqc) (if (null seqc) seqb (progn (setf (cdr seqb) seqa) (nreversein seqb seqc (cdr seqc)))))");
+evallisp("(defun length (seq) (lengthin seq 0))");
+evallisp("(defun lengthin (seq count) (if (null seq) count (lengthin (cdr seq) (1+ count))))");
 
 // define basic macros
 
@@ -2766,13 +2791,16 @@ var source;
 // source = '(unless nil 1 2 3)';
 // source = '(cond (nil 1) (nil 2) (t 3))';
 // source = "(append2 '(1) '(2))";
-// source = "(append '(1) '(2) '(3) '(4))";
+// source = "(append '(1) '(2) '(3))";
 // source = "(map (lambda (num) nil) '(1 2 3))";
 
 // try {
+//     strace.clear();
+//     stracedb.clear();
 //     console.log(readlisp(source).toLisp());
 //     console.log(evallisp(source).toLisp());
-//     console.log(explisp(source).toString());
+//     // console.log(explisp(source).toString());
+//     // stracedb.print();
 // }
 
 // catch (errorn){
