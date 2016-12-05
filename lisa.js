@@ -1,8 +1,4 @@
 
-// lisa class
-
-function Lisa (){};
-
 // argumentstoarray
 
 function slice (sequence, beginning, end){
@@ -15,13 +11,40 @@ function keys (some){
     return Object.keys(some);
 };
 
+// log
+
+function Log (size){
+    this.log = [];
+    this.count = 0;
+    this.size = size || 1024;
+};
+
+Log.prototype.clear = function (){
+    this.log = [];
+};
+
+Log.prototype.push = function (message){
+    if (this.size < this.log.length)
+        this.log.shift();
+    this.log.push((this.count++) + ": " + message);
+};
+
+Log.prototype.print = function (message){
+    var index;
+    for (index = 0; index < this.log.length; index++)
+        console.log(this.log[index]);
+};
+
 // strace
 
-function Strace (){
+function Strace (size){
     this.strace = [];
+    this.size = size || 1024;
 };
 
 Strace.prototype.push = function (message){
+    if (this.size < this.strace.length)
+        this.strace.shift();
     this.strace.push(message);
     return this.strace.length -1;
 };
@@ -635,11 +658,11 @@ ConsCarReferenceClass.prototype.get = function (){
 };
 
 ConsCarReferenceClass.prototype.set = function (value){
-    return this.cons.setcar(value);
+    return this.get().setcar(value);
 };
 
 ConsCarReferenceClass.prototype.onexpandarg = function (){
-    return this.cons.expandarg() + ".car";
+    return new Expanded(this.cons.expandarg() + ".car");
 };
 
 function makeconscarreference (cons){
@@ -661,11 +684,11 @@ ConsCdrReferenceClass.prototype.get = function (){
 };
 
 ConsCdrReferenceClass.prototype.set = function (value){
-    return this.cons.setcdr(value);
+    return this.get().setcdr(value);
 };
 
 ConsCdrReferenceClass.prototype.onexpandarg = function (){
-    return this.cons.expandarg() + ".cdr";
+    return new Expanded(this.cons.expandarg() + ".cdr");
 };
 
 function makeconscdrreference (cons){
@@ -692,11 +715,6 @@ SymbolValueReferenceClass.prototype =
     Object.create(SymbolReferenceClass.prototype);
 
 SymbolValueReferenceClass.prototype.get = function (){
-
-    var message = "symbol value reference <- " + this.toLisp() + "";
-    strace.push(message);
-    stracedb.push(message);
-    
     return this.value.getvalue();
 };
 
@@ -705,7 +723,7 @@ SymbolValueReferenceClass.prototype.set = function (value){
 };
 
 SymbolValueReferenceClass.prototype.onexpandarg = function (){
-    return new Expanded(this.value.getvaluename());
+    return this.value.getvarname();
 };
 
 // symbol function reference class
@@ -726,7 +744,7 @@ SymbolFunctionReferenceClass.prototype.set = function (func){
 };
 
 SymbolFunctionReferenceClass.prototype.onexpandarg = function (){
-    return new Expanded(this.value.getfuncname());
+    return this.value.getfuncname();
 };
 
 // number class
@@ -1205,6 +1223,12 @@ function SpecialFunctionClass (){}
 SpecialFunctionClass.prototype =
     Object.create(FunctionClass.prototype);
 
+SpecialFunctionClass.prototype.evaluate =
+    strace.willstrace("evaluate special function = ", SpecialFunctionClass.prototype.evaluate);
+
+SpecialFunctionClass.prototype.expand =
+    strace.willstrace("expand special function = ", SpecialFunctionClass.prototype.expand);
+
 SpecialFunctionClass.label =  "<#special function class>";
 
 // primitive function class
@@ -1253,8 +1277,8 @@ UserFunctionClass.prototype.onevaluate = function (){
 
     for (; consa != nil && consb != nil;
          consa = consa.cdr, consb = consb.cdr){
-        if (consa.car == makeintern("&rest")) break;
-        if (consa.car == makeintern("&optional")) break;
+        if (consa.car == rest) break;
+        if (consa.car == optional) break;
         bound =
             makecons(
                 makelist(
@@ -1262,7 +1286,7 @@ UserFunctionClass.prototype.onevaluate = function (){
                     makelist(
                         bassymbolvalue,
                         makelist(
-                            baslocal,
+                            basdecvariable,
                             makelist(
                                 synquote,
                                 consa.car))),
@@ -1274,7 +1298,7 @@ UserFunctionClass.prototype.onevaluate = function (){
         consa = consa.cdr;
         for (; consa != nil && consb != nil;
              consa = consa.cdr, consb = consb.cdr){
-            if (consa.car == makeintern("&rest")) break;
+            if (consa.car == rest) break;
 
             var sym =
                     consa.car instanceof ConsClass ?
@@ -1291,7 +1315,7 @@ UserFunctionClass.prototype.onevaluate = function (){
                     makelist(
                         bassymbolvalue,
                         makelist(
-                            baslocal,
+                            basdecvariable,
                             makelist(
                                 synquote,
                                 sym))),
@@ -1308,7 +1332,7 @@ UserFunctionClass.prototype.onevaluate = function (){
                 makelist(
                     bassymbolvalue,
                     makelist(
-                        baslocal,
+                        basdecvariable,
                         makelist(
                             synquote,
                             consa.car))),
@@ -1336,15 +1360,12 @@ UserFunctionClass.prototype.onexpandarg = function (){
     var index = 0;
     var source = "";
 
-    inp.scope.nest(); // nest functional scope
+    inp.nest();
 
     for (;cons != nil; cons = cons.cdr){
         if (cons.car == makeintern("&rest")) break;
         if (cons.car == makeintern("&optional")) break;
-
-        inp.scope.internf(cons.car.name).setvalue(
-            inp.scope.internf(cons.car.name));
-
+        inp.scopevar.addf(cons.car, cons.car);
         source += "var " + cons.car + "=arguments[" + (index++) + "];";
     };
 
@@ -1352,20 +1373,14 @@ UserFunctionClass.prototype.onexpandarg = function (){
         cons = cons.cdr;
         for (;cons != nil; cons = cons.cdr){
             if (cons.car == makeintern("&rest")) break;
-
-            inp.scope.internf(cons.car.name).setvalue(
-                inp.scope.internf(cons.car.name));
-            
+            inp.scopevar.addf(cons.car, cons.car);
             source += "var " + cons.car + "=arguments[" + (index++) + "]||null;";
         };
     };
 
     if (cons.car == makeintern("&rest")){
         cons = cons.cdr;
-
-        inp.scope.internf(cons.car.name).setvalue(
-            inp.scope.internf(cons.car.name));
-        
+        inp.scopevar.addf(cons.car, cons.car);
         source += "var " + cons.car + "=Array.prototype.slice.call(arguments, " + (index++) + "]";
     };
 
@@ -1373,8 +1388,8 @@ UserFunctionClass.prototype.onexpandarg = function (){
         "function(){" + source +
             "return " + makecons(synprogn, this.rest).expandarg() + "}"); // build source
 
-    inp.scope.exit(); // exit functional scope
-
+    inp.exit();
+    
     return source;
 };
 
@@ -1386,7 +1401,11 @@ function MacroClass (){}
 MacroClass.prototype = 
     Object.create(CallableClass.prototype);
 
-MacroClass.prototype.label = "<#macro instance>";
+// MacroClass.prototype.label = "<#macro instance>";
+
+MacroClass.prototype.toString = function (){
+    return nil.toString();
+};
 
 MacroClass.prototype.evaluate = 
     beforegetreference(
@@ -1408,7 +1427,7 @@ function PrimitiveMacroClass (){}
 PrimitiveMacroClass.prototype = 
     Object.create(MacroClass.prototype);
 
-PrimitiveMacroClass.prototype.label = "<#primitive macro instance>";
+// PrimitiveMacroClass.prototype.label = "<#primitive macro instance>";
 
 // user macro class
 //     <- macro class
@@ -1446,7 +1465,7 @@ UserMacroClass.prototype.onevaluate = function (){
                     makelist(
                         bassymbolvalue,
                         makelist(
-                            baslocal,
+                            basdecvariable,
                             makelist(
                                 synquote,
                                 consa.car))),
@@ -1455,7 +1474,7 @@ UserMacroClass.prototype.onevaluate = function (){
                         consb.car)),
                 bound);
     };
- 
+    
     if (consa.car == makeintern("&optional")){ // ** should check here
         consa = consa.cdr;
         for (; consa != nil && consb != nil;
@@ -1463,7 +1482,7 @@ UserMacroClass.prototype.onevaluate = function (){
             if (consa.car == makeintern("&rest")) break;
             bound =
                 makecons(
-                    makecons(makeintern("deflvar"),
+                    makecons(makeintern("defvar"),
                              (consb == nil) ?
                              (consa.car instanceof ConsClass == false) ?
                              (makecons(consa.car, makecons(nil))):
@@ -1483,7 +1502,7 @@ UserMacroClass.prototype.onevaluate = function (){
                     makelist(
                         bassymbolvalue,
                         makelist(
-                            baslocal,
+                            basdecvariable,
                             makelist(
                                 synquote,
                                 consa.car))),
@@ -1512,234 +1531,149 @@ UserMacroClass.prototype.onevaluate = function (){
     return expantion;
 };
 
-// symbol family class
-//     <- atom class
+// ** define class
 
-function SymbolFamilyClass (){}
+var logmadesymbols = new Log();
 
-SymbolFamilyClass.prototype = 
+function SymbolFamilyClass (name){
+    
+    if (name instanceof StringClass == false &&
+        name instanceof NilClass == false)
+        throw new Error("" + name + " is should be nil or string instance.");
+
+    logmadesymbols.push(name.toLisp()); // logging made symbols
+    
+    this.name = name;
+};
+
+SymbolFamilyClass.prototype =
     Object.create(AtomClass.prototype);
 
-SymbolFamilyClass.prototype.getvalue = function (){throw new Error("getvalue was not defined.");};
-SymbolFamilyClass.prototype.getfunc = function (){throw new Error("getfunc was not defined.");};
-SymbolFamilyClass.prototype.setvalue = function (){throw new Error("setvalue was not defined.");};
-SymbolFamilyClass.prototype.setfunc = function (){throw new Error("setfunc was not defined.");};
+SymbolFamilyClass.prototype.toString = function (){return this.name.toPlain();};
+SymbolFamilyClass.prototype.toPlain = function (){return this.name.toPlain();};
+SymbolFamilyClass.prototype.toLisp = function (){return this.toString();};
+SymbolFamilyClass.prototype.getvalue = function (){throw new Error("getvalue has not defined yet in symbol family class.");};
+SymbolFamilyClass.prototype.getfunc = function (){throw new Error("getfunc has not defined yet in symbol family class.");};
+SymbolFamilyClass.prototype.getfunce = function (){throw new Error("getfunce has not defined yet in symbol family class.");};
+SymbolFamilyClass.prototype.setvalue = function (){throw new Error("setvalue has not defined yet in symbol family class.");};
+SymbolFamilyClass.prototype.getvaluee = function (){throw new Error("getvaluee has not defined yet in symbol family class.");};
+SymbolFamilyClass.prototype.setfunc = function (){throw new Error("setfunc has not defined yet in symbol family class.");};
+SymbolFamilyClass.prototype.getvarname = function (){throw new Error("getvarname has not defined yet in symbol family class");};
+SymbolFamilyClass.prototype.getfuncname = function (){throw new Error("getfuncname has not defined yet in symbol family class");};
+SymbolFamilyClass.prototype.set = function (){return this.setvalue.apply(this, arguments);};
+SymbolFamilyClass.prototype.get = function (){return this.getvalue.apply(this, arguments);};
+SymbolFamilyClass.prototype.onevaluatearg = function (){return this.getvalue();};
+SymbolFamilyClass.prototype.onexpandarg = function (){throw new Error("onexpandarg has not defined yet in symbol family class.");};
 
-// symbol class
-//     <- symbol family class
+SymbolFamilyClass.prototype.onevaluate = function (){
+    var found = this.getfunce();
+    return found.evaluate.apply(found, arguments);
+};
 
-function SymbolClass (name, value, func){
-    this.name = name ? name.copy() : null;
-    this.value = value || null;
-    this.func = func || null;
-}
+SymbolFamilyClass.prototype.onexpand = function (){ // ** should check again
 
-SymbolClass.prototype = 
+    // find function with this symbol
+    // from current scope.
+    
+    var found = this.getfunc();
+
+    // if found was found, is macro, is special function
+    // then expand with found.
+
+    if (found &&
+        found instanceof MacroClass ||
+        found instanceof SpecialFunctionClass)
+        return found.expand.apply(found, arguments);
+
+    // if found was not found, not macro, not special function
+    // then expand with this symbol name.
+    
+    return new Expanded(
+        "" + this.expandarg() + "(" +
+            slice(arguments).map(expandarg).join(",") + ")");
+};
+
+// ** define class
+
+function SymbolClass (){
+    SymbolFamilyClass.apply(this, arguments);
+};
+
+SymbolClass.prototype =
     Object.create(SymbolFamilyClass.prototype);
 
-SymbolClass.prototype.toString = function (){
-    return this.name.toPlain();
+SymbolClass.prototype.setvalue = function (value){
+    return inp.scopevar.set(this, value);
 };
 
-SymbolClass.prototype.toLisp = function (){
-    return this.toString();
+SymbolClass.prototype.setfunc = function (value){
+    return inp.scopefunc.set(this, value);
 };
 
-SymbolClass.prototype.getvalue = function (){
-    return this.value;
+SymbolClass.prototype.getvalue = function (){ // search a value from current scope.
+    return inp.scopevar.get(this);
 };
 
-SymbolClass.prototype.getfunc = function (){
-    return this.func;
+SymbolClass.prototype.getfunc = function (){ // search a function from current scope.
+    return inp.scopefunc.get(this);
 };
 
 SymbolClass.prototype.getvaluee = function (){
-    var value = this.getvalue();
-    if (value == null)
-        throw new Error("" + this + " has no value");
-    return value;
+    var found = this.getvalue();
+    if (found == null)
+        throw new Error("symbol " + this + " has no value.");
+    return found;
 };
 
 SymbolClass.prototype.getfunce = function (){
-    var func = this.getfunc();
-    if (func == null)
-        throw new Error("" + this + " has no function");
-    return func;
+    var found = this.getfunc();
+    if (found == null)
+        throw new Error("symbol " + this + " has no function.");
+    return found;
 };
 
-SymbolClass.prototype.setvalue = function (value){
-    this.value = value;
-    return value;
+SymbolClass.prototype.getvarname = function (){
+    return inp.scopevar.getvarname(this);
 };
 
-SymbolClass.prototype.setfunc = function (func){
-    this.func = func;
-    return func;
-};
-
-SymbolClass.prototype.onevaluate = function (){
-    var func = this.getfunce();
-    return func.evaluate.apply(func, arguments);
-};
-
-SymbolClass.prototype.onevaluatearg = function (){
-    return this.getvaluee();
-};
-
-SymbolClass.prototype.onexpand = function (){
-    var func = this.getfunce();
-    return func.expand.apply(func, arguments);
+SymbolClass.prototype.getfuncname = function (){
+    return inp.scopefunc.getvarname(this);
 };
 
 SymbolClass.prototype.onexpandarg = function (){
     return new Expanded(this.toString());
 };
 
-// intern symbol class
-//     <- symbol family class
+// ** define class
 
 var interneds = [];
 
 function InternSymbolClass (name){
 
-    // find aleady interneds ** for saving memory space
-
     var index;
     for (index = 0; index < interneds.length; index++)
-        if (name.toString() == interneds[index].name.toString())
+        if (interneds[index].name.toString() == name.toString())
             return interneds[index];
-    
-    // make the instance
 
-    this.name = name ? name.copy() : null;
-    interneds.push(this);
-}
-
-InternSymbolClass.prototype = 
-    Object.create(SymbolFamilyClass.prototype);
-
-InternSymbolClass.prototype.toString = function (){
-    return this.name.toPlain();
+    var sym = new SymbolClass(name);
+    interneds.push(sym);
+    inp.scopevar.add(sym, null);
+    inp.scopefunc.add(sym, null);
+    return sym;
 };
 
-InternSymbolClass.prototype.toLisp = function (){
-    return this.name.toPlain();
-};
-
-InternSymbolClass.prototype.getvalue = function (){
-    return inp.scope.finde(this.name).getvalue();
-};
-
-InternSymbolClass.prototype.getfunc = function (){
-    return inp.scope.finde(this.name).getfunc();
-};
-
-InternSymbolClass.prototype.setvalue = function (value){
-    return inp.scope.finde(this.name).setvalue(value);
-};
-
-InternSymbolClass.prototype.setfunc = function (func){
-    return inp.scope.finde(this.name).setfunc(func);
-};
-
-InternSymbolClass.prototype.onevaluate = function (){
-    var func = inp.scope.finde(this.name);
-    return func.evaluate.apply(func, arguments);
-};
-
-InternSymbolClass.prototype.onexpand = function (){
-    var func = inp.scope.finde(this.name);
-    return func.expand.apply(func, arguments);
-};
-
-InternSymbolClass.prototype.onevaluatearg = function (){
-    var func = inp.scope.finde(this.name);
-    return func.evaluatearg.apply(func, arguments);
-};
-
-InternSymbolClass.prototype.onexpandarg = function (){
-    var func = inp.scope.finde(this.name);
-    return func.expandarg.apply(func, arguments);
-};
-
-InternSymbolClass.prototype.getvaluename = function (){
-    return inp.scope.finde(this.name).getvaluename();
-};
-
-InternSymbolClass.prototype.getfuncname = function (){
-    return inp.scope.finde(this.name).getfuncname();
-};
-
-function makeintern (name){
-    return new InternSymbolClass(makestring(name));
-};
-
-// variable symbol class
-//     <- symbol class
-
-function VariableSymbolClass (name, value, func){
-    this.name = name ? name.copy() : null;
-    this.value = value || null;
-    this.func = func || null;
-    this.valuename = null;
-    this.funcname = null;
-};
-
-VariableSymbolClass.prototype = 
+InternSymbolClass.prototype =
     Object.create(SymbolClass.prototype);
 
-VariableSymbolClass.prototype.toString = function (){
-    return this.getvaluename();
+function stoc (source){
+    return new CharClass(
+        source.charCodeAt());
 };
 
-VariableSymbolClass.prototype.toLisp = function (){
-    return this.name.toPlain();
-};
-
-VariableSymbolClass.prototype.toString = function (){
-    return this.getvaluename() + "/*--" + this.name + "--*/";
-};
-
-VariableSymbolClass.prototype.getvaluename = function (){
-    if (this.valuename == null)
-        this.valuename = inp.namegen.generate();
-    return this.valuename;
-};
-
-VariableSymbolClass.prototype.getfuncname = function (){
-    if (this.funcname == null)
-        this.funcname = inp.namegen.generate();
-    return this.funcname;
-};
-
-VariableSymbolClass.prototype.onexpandarg = function (){
-    return new Expanded(this.getvaluename());
-};
-
-VariableSymbolClass.prototype.onexpand = function (){
-    var func = this.getfunc();
-    if (func instanceof MacroClass ||
-        func instanceof SpecialFunctionClass ||
-        func instanceof PrimitiveFunctionClass)
-        return func.expand.apply(func, arguments);
-    return  this.getfuncname() + "(" +
-        slice(arguments).map(expandarg).join(",") + ")";
-};
-
-function getvaluename (some){
-    if (some instanceof SymbolFamilyClass == false)
-        throw new Error("some is not symbol family class.");
-    return some.getvaluename();
-}
-
-function  getfuncname (some){
-    if (some instanceof SymbolFamilyClass == false)
-        throw new Error("some is not symbol family class.");
-    return some.getfuncname();
-}
-
-function makevar (name, value, func){
-    return new VariableSymbolClass(makestring(name), value, func);
+function makeintern(name){
+    return new InternSymbolClass(
+        new StringClass(
+            slice(name).map(stoc)));
 };
 
 // stream class
@@ -1845,33 +1779,108 @@ StringStreamClass.prototype.toString = function (){
 function makestrstreamin (source){ return new StringStreamClass(StreamClass.direction.input, makestring(source)); };
 function makestrstreamout (source){ return new StringStreamClass(StreamClass.direction.output, makestring("")); };
 
-// obarray class 
+// obarray pair class
+//     <- native, function class
+
+function ObarrayPair (name, value){
+
+    if (name instanceof SymbolFamilyClass == false) throw new Error("" + name + " should be symbol family instance.");
+    if (value && value instanceof AtomClass == false) throw new Error("" + value + " should be atom instance.");
+
+    this.name = name;
+    this.value = value || null;
+};
+
+ObarrayPair.prototype.toString = function (){ // ** for debugging
+    return "(" + this.name.toLisp() + " = " +
+        (this.value && this.value.toLisp()) + ")";
+};
+
+// variable obarray pair class
+//     <- obarray pair class
+
+function VariableObarrayPair (){
+    ObarrayPair.apply(this, arguments);
+    this.varname = null;
+};
+
+VariableObarrayPair.prototype =
+    Object.create(ObarrayPair.prototype);
+
+VariableObarrayPair.prototype.getvarname = function (){
+    if (this.varname == null)
+        this.varname = inp.namegen.generate();
+    return this.varname;
+};
+
+// obarray class
 //     <- native, function class
 
 function Obarray (){
-    this.obarray = {};
+    this.obarray = [];
 }
 
 Obarray.prototype.find = function (name){
-    return this.obarray[name.toPlain()] || null;
+    var index;
+    for (index = 0; index < this.obarray.length; index++)
+        if (this.obarray[index].name.toPlain() == name.toPlain())
+            return this.obarray[index];
+    return null;
 };
 
-Obarray.prototype.set = function (name, sym){
-    return this.obarray[name.toPlain()] = sym;
+Obarray.prototype.finde = function (name){
+    var found;
+    if ((found = this.find(name)) == null){
+        throw new Error("" + name + " was not found.");}
+    return found;
 };
 
-Obarray.prototype.intern = function (name){
+Obarray.prototype.get = function (name){
+    return this.finde(name).value;
+};
+
+Obarray.prototype.getvarname = function (name){
+    return this.finde(name).getvarname();
+};
+
+Obarray.prototype.set = function (name, value){ // return an argument of name.
+    var found;
+    found = this.finde(name);
+    return found.value = value, name;
+};
+
+Obarray.prototype.add = function (name, value){ // return an argument of name.
     if (this.find(name) == null)
-        this.set(name, new VariableSymbolClass(name));
-    return new InternSymbolClass(name);
+        return this.addf(name, value);
+    return this.set(name, value);
+};
+
+Obarray.prototype.addf = function (name, value){ // return an argument of name. ** this method for add()
+    this.obarray.unshift(
+        new VariableObarrayPair(name, value));
+    return this.set(name, value);
+};
+
+Obarray.prototype.length = function (){
+    var count, current;
+    for (count = 0, current = this; current; current = current.parent)
+        count += 1;
+    return count;
+};
+
+Obarray.prototype.toString = function (){ // ** for debugging
+    var source, index, current;
+    for (source = "", index = 0, current = this; current; current = current.parent)
+        source += "" + (index++) + " deepness " + current.obarray.length + " items " + this.obarray.join(" ") + "\n";
+    return source;
 };
 
 // obarrays class
 //     <- native, function class
 
 function Obarrays (parent){
-    this.obarray = new Obarray();
     this.parent = parent || null;
+    this.obarray = new Obarray();
 };
 
 Obarrays.prototype.find = function (name){
@@ -1882,21 +1891,30 @@ Obarrays.prototype.find = function (name){
     return null;
 };
 
-Obarrays.prototype.finde = function (name){
-    var found;
-    if ((found = this.find(name)) == null)
-        throw new Error("obarrays " + name + " was not found.");
-    return found;
+Obarrays.prototype.finde =
+    Obarray.prototype.finde;
+
+Obarrays.prototype.get =
+    Obarray.prototype.get;
+
+Obarrays.prototype.getvarname =
+    Obarray.prototype.getvarname;
+
+Obarrays.prototype.set =
+    Obarray.prototype.set;
+
+Obarrays.prototype.add =
+    Obarray.prototype.add;
+
+Obarrays.prototype.addf = function (name, value){
+    return this.obarray.addf(name, value);
 };
 
-Obarrays.prototype.intern = function (name){
-    if (this.find(name) == null)
-        return this.obarray.intern(name);
-    return new InternSymbolClass(name);
-};
-
-Obarrays.prototype.internf = function (name){
-    return this.obarray.intern(name);
+Obarrays.prototype.length = function (){
+    var count, current;
+    for (count = 0, current = this; current; current = current.parent)
+        count += current.obarray.length();
+    return count;
 };
 
 Obarrays.prototype.nest = function (){
@@ -1907,57 +1925,13 @@ Obarrays.prototype.exit = function (){
     return this.parent;
 };
 
-// obscope class
-//   <- native, function class
-
-function Obscope (parent){
-    this.obarray = new Obarrays(null);
-    this.obarrays = new Array();
-    this.parent = parent || null;
+Obarrays.prototype.toString = function (){ // ** for debugging
+    var source, index, current;
+    for (source = "", index = 0, current = this; current; current = current.parent)
+        source += "" + (index++) + " deepness " + current.obarray.toString();
+    return source;
 };
 
-Obscope.prototype.find = function (name){
-    var found, current;
-    for (current = this; current; current = current.parent)
-        if ((found = current.obarray.find(name)))
-            return found;
-    return null;
-};
-
-Obscope.prototype.finde = function (name){
-    var found = this.find(name);
-    if (found) return found;
-    throw new Error("obscope " + name + " was not found.");
-};
-
-Obscope.prototype.intern = function (name){
-    if (this.find(name) == null)
-        return this.obarray.intern(name);
-    return new InternSymbolClass(name);
-};
-
-Obscope.prototype.internf = function (name){
-    this.obarray.internf(name);
-    return this.obarray.internf(name);
-};
-
-Obscope.prototype.nestin = function (){
-    this.obarray = this.obarray.nest();
-};
-
-Obscope.prototype.exitin = function (){
-    this.obarrays.push(this.obarray);
-    this.obarray = this.obarray.exit();
-};
-
-Obscope.prototype.nest = function (){
-    return new Obscope(this);
-};
-
-Obscope.prototype.exit = function (){
-    return this.parent;
-};
-        
 // readerscope class
 //     <- native, function class
 
@@ -1992,20 +1966,40 @@ ReaderScope.prototype.setcurrent = function (method){
 //     <- native, function class
 
 function Interpreter (){
-    this.scope = new Obscope();
-    this.scoperoot = this.scope;
+    this.scopevar = new Obarrays();
+    this.scopefunc = new Obarrays();
     this.readerscope = new ReaderScope();
     this.namegen = new NameGenerator("abcdefghijklmnopqrstuvwxyz");
 };
 
-Interpreter.prototype.nestin = function (){ this.scope.nestin();};
-Interpreter.prototype.exitin = function (){ this.scope.exitin();};
-Interpreter.prototype.nest = function (){ this.scope = this.scope.nest(); };
-Interpreter.prototype.exit  =function (){ this.scope = this.scope.exit(); };
+Interpreter.prototype.nest = function (){
+    this.scopevar = this.scopevar.nest();
+    this.scopefunc = this.scopefunc.nest();
+};
+
+Interpreter.prototype.exit  =function (){
+    this.scopevar = this.scopevar.exit();
+    this.scopefunc = this.scopefunc.exit();
+};
 
 var inp = new Interpreter();
 
 // ** alias
+
+function onlisp (func){
+    return function onlisp_closure (){
+        try {
+            strace.clear();
+            return func.apply(this, arguments);
+        }
+        catch (errorn){
+            strace.print();
+            console.log("variable bindings = \n" + inp.scopevar.toString() + "");
+            console.log("function bindings = \n" + inp.scopefunc.toString() + "");
+            throw errorn;
+        };
+    };
+};
 
 function readlisp (source){
     return rdread.evaluate(
@@ -2022,10 +2016,14 @@ function explisp (source){
         .expandarg();
 };
 
-// define primitive values
+readlisp = onlisp(readlisp);
+evallisp = onlisp(evallisp);
+explisp = onlisp(explisp);
 
-inp.scope.intern(makestring("nil")).setvalue(nil);
-inp.scope.intern(makestring("t")).setvalue(t);
+// define argument options
+
+var rest = makeintern("&rest");
+var optional = makeintern("&optional");
 
 // threre defining the native stream methods
 // there are not able to expand to javascript code. ** should check again
@@ -2109,31 +2107,31 @@ rdreaddefault.onevaluate = function (charactor, stream){ // ** should check
 
         // combination
         
-        case ",":
+    case ",":
         switch ((stream.look()).toString()){
-            case "@": return rdreadunquoteat.evaluate(stream.get(), stream);
-            default: return rdreadunquote.evaluate(charactora, stream);
+        case "@": return rdreadunquoteat.evaluate(stream.get(), stream);
+        default: return rdreadunquote.evaluate(charactora, stream);
         }
         
         // single
         
-        case "'": return rdreadquote.evaluate(charactora, stream);
-        case "`": return rdreadquoteback.evaluate(charactora, stream);
-        case '"': return rdreadstring.evaluate(charactora, stream);
-        case "(": return rdreadopenbrace.evaluate(charactora, stream);
-        case ")": return rdreadclosebrace.evaluate(charactora, stream);
-        case "-": return rdreadminus.evaluate(charactora, stream);
-        case "0":
-        case "1":
-        case "2":
-        case "3":
-        case "4":
-        case "5":
-        case "6":
-        case "7":
-        case "8":
-        case "9": return rdreadnumber.evaluate(charactora, stream);
-        default: return rdreadintern.evaluate(charactora, stream);};
+    case "'": return rdreadquote.evaluate(charactora, stream);
+    case "`": return rdreadquoteback.evaluate(charactora, stream);
+    case '"': return rdreadstring.evaluate(charactora, stream);
+    case "(": return rdreadopenbrace.evaluate(charactora, stream);
+    case ")": return rdreadclosebrace.evaluate(charactora, stream);
+    case "-": return rdreadminus.evaluate(charactora, stream);
+    case "0":
+    case "1":
+    case "2":
+    case "3":
+    case "4":
+    case "5":
+    case "6":
+    case "7":
+    case "8":
+    case "9": return rdreadnumber.evaluate(charactora, stream);
+    default: return rdreadintern.evaluate(charactora, stream);};
 };
 
 rdreadintern.onevaluate = function (charactor, stream){ // ** should check
@@ -2152,10 +2150,11 @@ rdreadintern.onevaluate = function (charactor, stream){ // ** should check
            stream.look().toString() != "(" &&
            stream.look().toString() != ")")
         name += stream.get().toString();
-    
-    return name.length == 0 ? nil :
-        inp.scope.intern(
-            makestring(name));
+
+    if (name.length == 0)
+        return nil;
+
+    return makeintern(name);
 };
 
 rdreadminus.onevaluate = function (stream){ // ** should check
@@ -2215,11 +2214,6 @@ rdreadopenbrace.onevaluate = function (charactor, stream){
     }
 
     return cons.reverse();
-    
-    // var cons, consa;
-    // for (cons = nil; stream.isalive() && (consa = rdread.evaluate(stream)) != rdreadclosebrace_unique;)
-    //     cons = makecons(consa, cons);
-    // return cons.reverse();
 };
 
 rdreadclosebrace.onevaluate = function (charactor, stream){
@@ -2280,6 +2274,10 @@ inp.readerscope.setcurrent(rdreaddefault);
 // inp.readerscope.dig("@").dig(".").setcurrent(rdreadpre);
 // inp.readerscope.dig("@").dig("@").setcurrent(rdreadnative);
 
+// define stanrad source code
+
+var standard = "";
+
 // define syntax functions
 
 var synif = new SpecialFunctionClass();
@@ -2291,14 +2289,14 @@ var synquoteback = new SpecialFunctionClass();
 var synlambda = new SpecialFunctionClass();
 var synmacro = new SpecialFunctionClass();
 
-inp.scope.intern(makestring("if")).setfunc(synif);
-inp.scope.intern(makestring("block")).setfunc(synblock);
-inp.scope.intern(makestring("progn")).setfunc(synprogn);
-inp.scope.intern(makestring("setf")).setfunc(synsetf);
-inp.scope.intern(makestring("quote")).setfunc(synquote);
-inp.scope.intern(makestring("quoteb")).setfunc(synquoteback);
-inp.scope.intern(makestring("lambda")).setfunc(synlambda);
-inp.scope.intern(makestring("macro")).setfunc(synmacro);
+inp.scopefunc.add(makeintern("if"), synif);
+inp.scopefunc.add(makeintern("block"), synblock);
+inp.scopefunc.add(makeintern("progn"), synprogn);
+inp.scopefunc.add(makeintern("setf"), synsetf);
+inp.scopefunc.add(makeintern("quote"), synquote);
+inp.scopefunc.add(makeintern("quoteb"), synquoteback);
+inp.scopefunc.add(makeintern("lambda"), synlambda);
+inp.scopefunc.add(makeintern("macro"), synmacro);
 
 synif.label = "$if";
 synblock.label = "$block";
@@ -2321,18 +2319,18 @@ synif.onexpand = function (cond, truecase, falsecase){
             falsecase.expandarg() + ":" + 
             truecase.expandarg() + ")");
 };
-        
+
 synblock.onevaluate = function (){
-    inp.nestin();
+    inp.nest();
     var temp = synprogn.evaluate.apply(synprogn, arguments);
-    inp.exitin();
+    inp.exit();
     return temp;
 };
 
 synblock.onexpand = function (){
-    inp.nestin();
+    inp.nest();
     var temp = synprogn.expand.apply(synprogn, arguments);
-    inp.exitin();
+    inp.exit();
     return temp;
 };
 
@@ -2413,27 +2411,31 @@ synmacro.onevaluate = function (args){
 };
 
 synmacro.onexpand = function (args){
-    return this.evaluate.apply(this, arguments).expandarg(), nil;
+    return this.evaluate.apply(this, arguments).expandarg();
 };
 
 // define basic scope methods
 
-var baslocal = new PrimitiveFunctionClass();
-var basglobal = new PrimitiveFunctionClass();
+var basdecvariable = new PrimitiveFunctionClass();
+var basdecfunction = new PrimitiveFunctionClass();
 
-baslocal.label = "$local";
-basglobal.label = "$global";
+basdecvariable.label = "$declare-variable";
+basdecfunction.label = "$declare-function";
 
-baslocal.onevaluate = function (sym){
-    if (sym instanceof SymbolFamilyClass == false)
-        throw new Error("" + sym + " is not symbol family instance.");
-    return inp.scope.internf(sym.name);
+inp.scopefunc.add(makeintern("declare-variable"), basdecvariable);
+inp.scopefunc.add(makeintern("declare-function"), basdecfunction);
+
+var logdecvariable = new Log();
+var logdecfunction = new Log();
+
+basdecvariable.onevaluate = function (sym){
+    logdecvariable.push("(declare-variable " + sym + ")");
+    return inp.scopevar.addf(sym);
 };
 
-basglobal.onevaluate = function (sym){
-    if (sym instanceof SymbolFamilyClass == false)
-        throw new Error("" + sym + " is not symbol family instance.");
-    return inp.scoperoot.internf(sym.name);
+basdecfunction.onevaluate = function (sym){
+    logdecfunction.push("(declare-function " + sym + ")");
+    return inp.scopefunc.addf(sym);
 };
 
 // define basic symbol methods
@@ -2450,11 +2452,11 @@ bassymbolname.label = "$symbol-name";
 bassymbolintern.label = "$symbol-intern";
 bassymbolmake.label = "$symbol-make";
 
-inp.scope.intern(makestring("symbol-function")).setfunc(bassymbolfunction);
-inp.scope.intern(makestring("symbol-value")).setfunc(bassymbolvalue);
-inp.scope.intern(makestring("symbol-name")).setfunc(bassymbolname);
-inp.scope.intern(makestring("intern")).setfunc(bassymbolintern);
-inp.scope.intern(makestring("make-symbol")).setfunc(bassymbolmake);
+inp.scopefunc.add(makeintern("symbol-function"), bassymbolfunction);
+inp.scopefunc.add(makeintern("symbol-value"), bassymbolvalue);
+inp.scopefunc.add(makeintern("symbol-name"), bassymbolname);
+inp.scopefunc.add(makeintern("intern"), bassymbolintern);
+inp.scopefunc.add(makeintern("make-symbol"), bassymbolmake);
 
 bassymbolfunction.onevaluate = function (sym){
     return new SymbolFunctionReferenceClass(sym);
@@ -2473,8 +2475,36 @@ bassymbolintern.onevaluate = function (name){
 };
 
 bassymbolmake.onevaluate = function (name){
-    return new VariableSymbolClass(name);
+    return new SymbolClass(name);
 };
+
+// define basci boolean
+
+standard +=
+    makelist(
+        synsetf,
+        makelist(
+            bassymbolvalue,
+            makelist(
+                basdecvariable,
+                makelist(
+                    synquote,
+                    makeintern("nil")))),
+        nil)
+    .expandarg();
+
+standard +=
+    makelist(
+        synsetf,
+        makelist(
+            bassymbolvalue,
+            makelist(
+                basdecvariable,
+                makelist(
+                    synquote,
+                    makeintern("t")))),
+        t)
+    .expandarg();
 
 // define temp method
 
@@ -2599,37 +2629,26 @@ var basfnapply = new SpecialFunctionClass();
 basfnfuncall.label = "$funcall";
 basfnapply.label = "$apply";
 
-inp.scope.intern(makestring("funcall")).setfunc(basfnfuncall);
-inp.scope.intern(makestring("apply")).setfunc(basfnapply);
+inp.scopefunc.add(makeintern("funcall"), basfnfuncall);
+inp.scopefunc.add(makeintern("apply"), basfnapply);
 
 basfnfuncall.onevaluate = function (func){
-    // return func.evaluate.apply(func, slice(arguments, 1));
     var callable = func.evaluatearg();
     return callable.evaluate.apply(callable, slice(arguments, 1));
 };
 
+basfnfuncall.onexpand = function (func){
+    return func.expand.apply(func, slice(arguments, 1));
+};
+
 basfnapply.onevaluate = function (func, args){
-    // return func.evaluate.apply(func, args.toArray());
     var callable = func.evaluatearg();
     return callable.evaluate.apply(callable, args.toArray());
 };
 
-// var basfnfuncall = new PrimitiveFunctionClass();
-// var basfnapply = new PrimitiveFunctionClass();
-
-// basfnfuncall.label = "$funcall";
-// basfnapply.label = "$apply";
-
-// inp.scope.intern(makestring("funcall")).setfunc(basfnfuncall);
-// inp.scope.intern(makestring("apply")).setfunc(basfnapply);
-
-// basfnfuncall.onevaluate = function (func){
-//     return func.evaluate.apply(func, slice(arguments, 1));
-// };
-
-// basfnapply.onevaluate = function (func, args){
-//     return func.evaluate.apply(func, args.toArray());
-// };
+basfnapply.onexpand = function (func, args){
+    return func.expand.apply(func, ConsClass.toCons(args));
+};
 
 // define basic debug methods
 
@@ -2641,9 +2660,9 @@ basprint.label = "$print";
 basstrace.label = "$strace";
 basstracedb.label = "$stracedb";
 
-inp.scope.intern(makestring("print")).setfunc(basprint);
-inp.scope.intern(makestring("strace")).setfunc(basstrace);
-inp.scope.intern(makestring("stracedb")).setfunc(basstracedb);
+inp.scopefunc.add(makeintern("print"), basprint);
+inp.scopefunc.add(makeintern("strace"), basstrace);
+inp.scopefunc.add(makeintern("stracedb"), basstracedb);
 
 basprint.onevaluate = function (some){
     console.log(some.toLisp());
@@ -2681,13 +2700,15 @@ basstracedb.onexpand = function (){
 // define basci logic methods
 
 var baseq2 = new PrimitiveFunctionClass();
-var baseq = new PrimitiveFunctionClass();
 
 baseq2.label = "$eq2";
-baseq.label = "$eq";
 
 baseq2.onevaluate = function (a,b){
     return a == b ? t : nil;
+};
+
+baseq2.onexpand = function (a,b){
+    return new Expanded("(" + a + "===" + b + ")");
 };
 
 // define basic cons methods
@@ -2698,15 +2719,15 @@ var basconcar = new PrimitiveFunctionClass();
 var basconcdr = new PrimitiveFunctionClass();
 var basconlist = new PrimitiveFunctionClass();
 
+inp.scopefunc.add(makeintern("cons"), basconcons);
+inp.scopefunc.add(makeintern("car"), basconcar);
+inp.scopefunc.add(makeintern("cdr"), basconcdr);
+inp.scopefunc.add(makeintern("list"), basconlist);
+
 basconcons.label = "$cons";
 basconcar.label = "$car";
 basconcdr.label = "$cdr";
 basconlist.label = "$list";
-
-inp.scope.intern(makestring("cons")).setfunc(basconcons);
-inp.scope.intern(makestring("car")).setfunc(basconcar);
-inp.scope.intern(makestring("cdr")).setfunc(basconcdr);
-inp.scope.intern(makestring("list")).setfunc(basconlist);
 
 basconconsp.onevaluate = function (cons){
     return cons instanceof ConsClass ? t : nil;
@@ -2725,85 +2746,99 @@ basconcdr.onevaluate = function (cons){
     return new ConsCdrReferenceClass(cons);
 };
 
+basconcons.onexpand = function (car, cdr){
+    return new Expanded("new Cons(" + car + "," + cdr + ")");
+};
+
+basconcar.onexpand = function (cons){
+    return this.evaluate.apply(this, arguments).expandarg();
+};
+
+basconcdr.onexpand = function (cons){
+    return this.evaluate.apply(this, arguments).expandarg();
+};
+
 basconlist.onevaluate = function (){
     return new ConsReferenceClass(
         ConsClass.toCons(arguments));
 };
 
+// define basic boolean
+
+standard +=
+    makelist(
+        synsetf,
+        makelist(
+            bassymbolvalue,
+            makelist(
+                basdecvariable,
+                makelist(
+                    synquote,
+                    makeintern("nil")))),
+        nil)
+    .expandarg();
+
+standard +=
+    makelist(
+        synsetf,
+        makelist(
+            bassymbolvalue,
+            makelist(
+                basdecvariable,
+                makelist(
+                    synquote,
+                    makeintern("t")))),
+        t)
+    .expandarg();
+
 // define defun, defmacro
 
-evallisp("(setf (symbol-function 'defun) (macro (name &rest rest) `(setf (symbol-function (quote ,name)) (lambda ,@rest))))");
-evallisp("(setf (symbol-function 'defmacro) (macro (name &rest rest) `(setf (symbol-function (quote ,name)) (macro ,@rest))))");
+evallisp("(setf (symbol-function 'defun) (macro (name &rest rest) `(setf (symbol-function (declare-function (quote ,name))) (lambda ,@rest))))");
+evallisp("(setf (symbol-function 'defmacro) (macro (name &rest rest) `(setf (symbol-function (declare-function (quote ,name))) (macro ,@rest))))");
+evallisp("(defmacro defvar (name value) `(setf (symbol-value (declare-variable (quote ,name))) ,value))");
+evallisp("(defmacro setq (name value) `(setf (symbol-value (quote ,name)) ,value))");
+evallisp("(defmacro set-car (con value) `(setf (car ,con) ,value))");
+evallisp("(defmacro set-cdr (con value) `(setf (cdr ,con) ,value))");
 
 // define cons methods
 
-evallisp("(defun caar (con) (car (car con)))");
-evallisp("(defun cdar (con) (cdr (car con)))");
-evallisp("(defun cadr (con) (car (cdr con)))");
-evallisp("(defun cddr (con) (cdr (cdr con)))");
-evallisp("(defun map (func seq) (and seq (cons (funcall func (car seq)) (map func (cdr seq)))))");
-evallisp("(defun filter (func seq) (and seq (if (funcall func (car seq)) (cons (car seq) (filter func (cdr seq))) (filter func (cdr seq)))))");
-evallisp("(defun foreach (func seq) (and seq (funcall (car seq)) (foreach func (cdr seq))))");
-evallisp("(defun reduce (func seq) (cond ((null seq) nil) ((null (cdr seq)) (car seq)) (t (reducein func (car seq) (cdr seq)))))");
-evallisp("(defun reducein (func sum consn) (if (null consn) sum (reducein func (funcall func sum (car consn)) (cdr consn))))");
-evallisp("(defun find-if (func cons) (and cons (if (funcall (car cons)) (car cons) (find-if func (cdr cons)))))");
-evallisp("(defun position-if (func cons) (position-ifin func cons 0))");
-evallisp("(defun position-ifin (func cons count) (and cons (if (funcall func (car cons)) count (position-ifin func (cdr cons) (+1 count)))))");
-evallisp("(defun append2 (seq seqe) (if (null seq) seqe (cons (car seq) (append2 (cdr seq) seqe))))");
-evallisp("(defun append (&rest seqs) (reduce 'append2 seqs))");
-evallisp("(defun reverse (seq) (and seq (cons (car seq) (reverse (cdr seq)))))");
-evallisp("(defun nreverse (seq) (and seq (nreversein nil cons (cdr seq))))");
-evallisp("(defun nreversein (seqa seqb seqc) (if (null seqc) seqb (progn (setf (cdr seqb) seqa) (nreversein seqb seqc (cdr seqc)))))");
-evallisp("(defun length (seq) (lengthin seq 0))");
-evallisp("(defun lengthin (seq count) (if (null seq) count (lengthin (cdr seq) (1+ count))))");
-
-// define basic macros
-
-evallisp("(defun null (value) (if value nil t))");
-evallisp("(defun not (value) (if value nil t))");
+evallisp("(defmacro caar (con) `(car (car ,con)))");
+evallisp("(defmacro cdar (con) `(cdr (car ,con)))");
+evallisp("(defmacro cadr (con) `(car (cdr ,con)))");
+evallisp("(defmacro cddr (con) `(cdr (cdr ,con)))");
+evallisp("(defmacro null (value) `(if ,value nil t))");
+evallisp("(defmacro not (value) `(if ,value nil t))");
 evallisp("(defmacro and (&rest rest) (if (null rest) t (if (null (cdr rest)) (car rest) `(if ,(car rest) (and ,@(cdr rest)) nil))))");
 evallisp("(defmacro or (&rest rest) (if (null rest) nil (if (null (cdr rest)) (car rest) `(if ,(car rest) ,(car rest) (or ,@(cdr rest))))))");
 evallisp("(defmacro when (status &rest rest) `(if ,status (progn ,@rest) nil))");
 evallisp("(defmacro unless (status &rest rest) `(if ,status nil (progn ,@rest)))");
 evallisp("(defmacro cond (&rest rest) (if (null rest) nil `(if ,(caar rest) (progn ,@(cdar rest)) (cond ,@(cdr rest)))))");
-evallisp("(defmacro setq (sym value) `(setf (quote ,sym) ,value))");
-evallisp("(defmacro defvar (sym value) `(setf (global (quote ,sym)) ,value))");
-evallisp("(defmacro deflvar (sym value) `(setf (local (quote ,sym)) ,value))");
+evallisp("(defmacro push (value sym) `(setq ,sym (cons ,value ,sym)))");
+evallisp("(defmacro pop (sym) `(prog1 (car ,sym) (setq ,sym (cdr ,sym))))");
+standard += explisp("(defun copy (seq) (cons (car seq) (copy (cdr seq))))");
+standard += explisp("(defun map (func seq) (and seq nil (cons (funcall func (car seq)) (map func (cdr seq)))))");
+standard += explisp("(defun filter (func seq) (and seq nil (if (funcall func (car seq)) (cons (car seq) (filter func (cdr seq))) (filter func (cdr seq)))))");
+standard += explisp("(defun foreach (func seq) (and seq (funcall (car seq)) (foreach func (cdr seq))))");
+standard += explisp("(defun reduce (func seq) (and seq (reducein func (car seq) (cdr seq))))");
+standard += explisp("(defun reducein (func sum seq2) (if (null seq2) sum (reducein func (funcall func sum (car seq2)) (cdr seq2))))");
+standard += explisp("(defun find-if (func seq) (and seq (if (funcall (car seq)) (car seq) (find-if func (cdr seq)))))");
+standard += explisp("(defun position-if (func cons) (position-ifin func cons 0))");
+standard += explisp("(defun position-ifin (func cons count) (and cons (if (funcall func (car cons)) count (position-ifin func (cdr cons) (+1 count)))))");
+standard += explisp("(defun append2 (seq seqe) (if (null seq) seqe (cons (car seq) (append2 (cdr seq) seqe))))");
+standard += explisp("(defun append (&rest seqs) (reduce 'append2 seqs))");
+standard += explisp("(defun reverse (seq) (and seq (cons (car seq) (reverse (cdr seq)))))");
+
+// define basic macros
+
 evallisp("(defmacro let (binds &rest rest) `(block ,@(letin binds rest)))");
 evallisp("(defmacro flet (binds &rest rest) `(block ,@(fletin binds rest)))");
 evallisp("(defmacro mlet (binds &rest rest) `(block ,@(mletin binds rest)))");
 evallisp("(defun letin (binds rest) (if (null binds) (if rest rest '(nil))" +
-         "(cons `(setf (symbol-value (local (quote ,(caar binds)))) ,(car (cdar binds))) (letin (cdr binds) rest)))))");
+         "(cons `(setf (symbol-value (declare-variable (quote ,(caar binds)))) ,(car (cdar binds))) (letin (cdr binds) rest)))))");
 evallisp("(defun fletin (binds rest) (if (null binds) (if rest rest '(nil))" +
-         "(cons `(setf (symbol-function (local (quote ,(caar binds)))) (lambda ,@(cdar binds))) (letin (cdr binds) rest)))))");
+         "(cons `(setf (symbol-function (declare-variable (quote ,(caar binds)))) (lambda ,@(cdar binds))) (letin (cdr binds) rest)))))");
 evallisp("(defun mletin (binds rest) (if (null binds) (if rest rest '(nil))" +
-         "(cons `(setf (symbol-function (local (quote ,(caar binds)))) (macro ,@(cdar binds))) (letin (cdr binds) rest)))))");
+         "(cons `(setf (symbol-function (declare-variable (quote ,(caar binds)))) (macro ,@(cdar binds))) (letin (cdr binds) rest)))))");
 evallisp("(defmacro prog1 (bind &rest rest) `(let ((temp ,bind)) ,@rest temp))");
 
-// ** test code
-
-var source;
-
-// source = '(progn (defun example (num) `(1 2 3 ,num)) (example 4))';
-// source = '(progn (defmacro example (num) `(print ,num)) (example 4))';
-// source = '(progn (defmacro prog1 (&rest rest) `(let ((temp ,(car rest))) ,@(cdr rest) temp)) (print (prog1 0)))';
-// source = '(when t 1 2 3)';
-// source = '(unless nil 1 2 3)';
-// source = '(cond (nil 1) (nil 2) (t 3))';
-// source = "(append2 '(1) '(2))";
-// source = "(append '(1) '(2) '(3))";
-// source = "(map (lambda (num) nil) '(1 2 3))";
-
-// try {
-//     strace.clear();
-//     stracedb.clear();
-//     console.log(readlisp(source).toLisp());
-//     console.log(evallisp(source).toLisp());
-//     // console.log(explisp(source).toString());
-//     // stracedb.print();
-// }
-
-// catch (errorn){
-//     strace.print();
-//     throw errorn;
-// };
+// ** test
